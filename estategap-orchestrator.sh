@@ -31,7 +31,7 @@ RETRY_DELAY_BASE=30          # seconds, exponential backoff: 30, 60, 120, 240, 4
 COMPACT_EVERY=0               # 0 = never, N = every N features
 
 # Permissions (fully unrestricted — broad allowedTools pattern instead of --dangerously-skip-permissions which fails under root)
-CODEX_APPROVAL="never"        # never = fully autonomous, no approval prompts
+CODEX_APPROVAL="never"        # codex exec is non-interactive by default
 
 # Timeouts per step (seconds)
 TIMEOUT_CONSTITUTION=300
@@ -201,6 +201,31 @@ preflight() {
         fi
     fi
 
+    # Check Claude authentication
+    local claude_config_dir="${HOME}/.claude"
+    if "$CLAUDE_CMD" -p "echo ok" --output-format text --max-turns 1 &>/dev/null; then
+        log OK "Claude CLI authenticated"
+    elif [[ -d "$claude_config_dir" ]]; then
+        log WARN "Claude CLI config exists but test call failed. Will retry during execution."
+    else
+        log ERROR "Claude CLI not authenticated. Run 'claude' interactively to login."
+        errors=$((errors + 1))
+    fi
+
+    # Check Codex authentication (supports OAuth and device code)
+    # codex exec is too heavy for a preflight check — instead verify credentials exist
+    local codex_home="${CODEX_HOME:-$HOME/.codex}"
+    if [[ -f "$codex_home/auth.json" ]] || [[ -n "${CODEX_API_KEY:-${OPENAI_API_KEY:-}}" ]]; then
+        log OK "Codex CLI credentials found"
+    else
+        # Fallback: try codex auth status if available
+        if "$CODEX_CMD" auth status &>/dev/null 2>&1; then
+            log OK "Codex CLI authenticated"
+        else
+            log WARN "Could not verify Codex authentication. If 'codex exec' fails later, run 'codex' interactively to login."
+        fi
+    fi
+
     # Check jq (needed for CI status parsing)
     if ! command -v jq &>/dev/null; then
         log ERROR "jq not found. Install: apt install jq / brew install jq"
@@ -226,31 +251,6 @@ preflight() {
         fi
     else
         log WARN "Project dir is not a git repository. Git operations will be skipped."
-    fi
-
-    # Check Claude authentication
-    local claude_config_dir="${HOME}/.claude"
-    if "$CLAUDE_CMD" -p "echo ok" --output-format text --max-turns 1 &>/dev/null; then
-        log OK "Claude CLI authenticated"
-    elif [[ -d "$claude_config_dir" ]]; then
-        log WARN "Claude CLI config exists but test call failed. Will retry during execution."
-    else
-        log ERROR "Claude CLI not authenticated. Run 'claude' interactively to login."
-        errors=$((errors + 1))
-    fi
-
-    # Check Codex authentication (supports OAuth and device code)
-    # codex exec is too heavy for a preflight check — instead verify credentials exist
-    local codex_home="${CODEX_HOME:-$HOME/.codex}"
-    if [[ -f "$codex_home/auth.json" ]] || [[ -n "${CODEX_API_KEY:-${OPENAI_API_KEY:-}}" ]]; then
-        log OK "Codex CLI credentials found"
-    else
-        # Fallback: try codex auth status if available
-        if "$CODEX_CMD" auth status &>/dev/null 2>&1; then
-            log OK "Codex CLI authenticated"
-        else
-            log WARN "Could not verify Codex authentication. If 'codex exec' fails later, run 'codex' interactively to login."
-        fi
     fi
 
     # Check features directory
@@ -469,7 +469,6 @@ run_implement() {
         "$CODEX_CMD" exec "\$speckit-implement" \
             --model "$MODEL_IMPLEMENT" \
             -c "model_reasoning_effort=$CODEX_REASONING" \
-            --ask-for-approval "$CODEX_APPROVAL" \
             --path "$PROJECT_DIR"
 }
 
