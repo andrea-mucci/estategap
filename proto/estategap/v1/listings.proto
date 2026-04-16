@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package estategap.v1;
+
+import "estategap/v1/common.proto";
+
+option go_package = "github.com/estategap/libs/proto/estategap/v1;estategapv1";
+
+enum ListingStatus {
+  LISTING_STATUS_UNSPECIFIED = 0;
+  LISTING_STATUS_ACTIVE = 1;
+  LISTING_STATUS_SOLD = 2;
+  LISTING_STATUS_RENTED = 3;
+  LISTING_STATUS_WITHDRAWN = 4;
+}
+
+enum ListingType {
+  LISTING_TYPE_UNSPECIFIED = 0;
+  LISTING_TYPE_SALE = 1;
+  LISTING_TYPE_RENT = 2;
+}
+
+enum PropertyType {
+  PROPERTY_TYPE_UNSPECIFIED = 0;
+  PROPERTY_TYPE_RESIDENTIAL = 1;
+  PROPERTY_TYPE_COMMERCIAL = 2;
+  PROPERTY_TYPE_INDUSTRIAL = 3;
+  PROPERTY_TYPE_LAND = 4;
+}
+
+message Listing {
+  string id = 1;
+  string portal_id = 2;
+  string country_code = 3;
+  ListingStatus status = 4;
+  ListingType listing_type = 5;
+  PropertyType property_type = 6;
+  Money price = 7;
+  float area_sqm = 8;
+  GeoPoint location = 9;
+  Timestamp created_at = 10;
+  Timestamp updated_at = 11;
+}

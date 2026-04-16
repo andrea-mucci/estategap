@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package estategap.v1;
+
+option go_package = "github.com/estategap/libs/proto/estategap/v1;estategapv1";
+
+service ProxyService {
+  rpc GetProxy(GetProxyRequest) returns (GetProxyResponse);
+  rpc ReportResult(ReportResultRequest) returns (ReportResultResponse);
+}
+
+message GetProxyRequest {
+  string country_code = 1;
+  string portal_id = 2;
+}
+
+message GetProxyResponse {
+  string proxy_url = 1;
+  string proxy_id = 2;
+}
+
+message ReportResultRequest {
+  string proxy_id = 1;
+  bool success = 2;
+  int32 status_code = 3;
+  int64 latency_ms = 4;
+}
+
+message ReportResultResponse {
+  bool acknowledged = 1;
+}

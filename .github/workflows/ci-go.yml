@@ -1,0 +1,70 @@
+name: ci-go
+
+on:
+  push:
+    branches: [main, 002-monorepo-foundation]
+  pull_request:
+    branches: [main, 002-monorepo-foundation]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module:
+          - libs/pkg
+          - services/api-gateway
+          - services/ws-server
+          - services/scrape-orchestrator
+          - services/proxy-manager
+          - services/alert-engine
+          - services/alert-dispatcher
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: ${{ matrix.module }}
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+      - run: |
+          for dir in libs/pkg \
+            services/api-gateway \
+            services/ws-server \
+            services/scrape-orchestrator \
+            services/proxy-manager \
+            services/alert-engine \
+            services/alert-dispatcher; do
+            (cd "$dir" && go test ./...)
+          done
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - ws-server
+          - scrape-orchestrator
+          - proxy-manager
+          - alert-engine
+          - alert-dispatcher
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+      - run: go build -o /tmp/${{ matrix.service }} ./cmd
+        working-directory: services/${{ matrix.service }}

@@ -1,0 +1,11 @@
+go 1.23
+
+use (
+	./libs/pkg
+	./services/api-gateway
+	./services/ws-server
+	./services/scrape-orchestrator
+	./services/proxy-manager
+	./services/alert-engine
+	./services/alert-dispatcher
+)
