@@ -30,9 +30,6 @@ RETRY_DELAY_BASE=30          # seconds, exponential backoff: 30, 60, 120, 240, 4
 # Context compression
 COMPACT_EVERY=0               # 0 = never, N = every N features
 
-# Permissions (fully unrestricted — broad allowedTools pattern instead of --dangerously-skip-permissions which fails under root)
-CODEX_APPROVAL="never"        # codex exec is non-interactive by default
-
 # Timeouts per step (seconds)
 TIMEOUT_CONSTITUTION=300
 TIMEOUT_SPECIFY=600
@@ -213,12 +210,10 @@ preflight() {
     fi
 
     # Check Codex authentication (supports OAuth and device code)
-    # codex exec is too heavy for a preflight check — instead verify credentials exist
     local codex_home="${CODEX_HOME:-$HOME/.codex}"
     if [[ -f "$codex_home/auth.json" ]] || [[ -n "${CODEX_API_KEY:-${OPENAI_API_KEY:-}}" ]]; then
         log OK "Codex CLI credentials found"
     else
-        # Fallback: try codex auth status if available
         if "$CODEX_CMD" auth status &>/dev/null 2>&1; then
             log OK "Codex CLI authenticated"
         else
@@ -243,7 +238,6 @@ preflight() {
         else
             log WARN "No git remote configured. Push/PR/merge will be skipped."
         fi
-        # Verify base branch exists
         if git -C "$PROJECT_DIR" rev-parse --verify "$BASE_BRANCH" &>/dev/null 2>&1; then
             log OK "Base branch '$BASE_BRANCH' exists"
         else
@@ -299,7 +293,6 @@ preflight() {
 }
 
 # ─── Extract prompt content from markdown ────────────────────────────────────
-# Reads the content between ``` code fences in the markdown file
 extract_prompt() {
     local file="$1"
 
@@ -308,16 +301,13 @@ extract_prompt() {
         return 1
     fi
 
-    # Extract content between ``` markers (the prompt block)
     local content
     content=$(sed -n '/^```$/,/^```$/{ /^```$/d; p; }' "$file" 2>/dev/null || true)
 
-    # If no fenced block found, use everything after the first ## heading
     if [[ -z "$content" ]]; then
         content=$(sed -n '/^## \/.*prompt/,$ { /^## \/.*prompt/d; p; }' "$file" 2>/dev/null || true)
     fi
 
-    # Last resort: use the whole file
     if [[ -z "$content" ]]; then
         content=$(cat "$file")
     fi
@@ -343,14 +333,12 @@ run_with_retry() {
             return 0
         fi
 
-        # Run with timeout, capture exit code
         local exit_code=0
         local output_file
         output_file=$(mktemp)
 
         timeout "$timeout" "${cmd[@]}" > "$output_file" 2>&1 || exit_code=$?
 
-        # Log output to log file
         {
             echo "--- $step_name output (attempt $attempt) ---"
             cat "$output_file"
@@ -363,7 +351,6 @@ run_with_retry() {
             return 0
         fi
 
-        # Check for known transient errors
         local output_content
         output_content=$(cat "$output_file")
         rm -f "$output_file"
@@ -371,11 +358,10 @@ run_with_retry() {
         if echo "$output_content" | grep -qi "rate.limit\|429\|overloaded\|capacity\|timeout\|connection.*refused\|ECONNRESET\|502\|503\|504"; then
             log WARN "[$step_name] Transient error detected (exit code $exit_code). Retrying in ${delay}s..."
             sleep "$delay"
-            delay=$((delay * 2))  # Exponential backoff
+            delay=$((delay * 2))
             continue
         fi
 
-        # Non-transient error
         if [[ $attempt -lt $MAX_RETRIES ]]; then
             log WARN "[$step_name] Failed (exit code $exit_code). Retrying in ${delay}s..."
             sleep "$delay"
@@ -465,11 +451,9 @@ run_implement() {
 
     log STEP "  → \$speckit-implement (Codex $MODEL_IMPLEMENT)"
 
+    # codex exec runs in the current directory — cd to project first
     run_with_retry "implement [$feature_path]" "$TIMEOUT_IMPLEMENT" \
-        "$CODEX_CMD" exec "\$speckit-implement" \
-            --model "$MODEL_IMPLEMENT" \
-            -c "model_reasoning_effort=$CODEX_REASONING" \
-            --path "$PROJECT_DIR"
+        bash -c "cd \"$PROJECT_DIR\" && \"$CODEX_CMD\" exec \"\\\$speckit-implement\" --model \"$MODEL_IMPLEMENT\" -c \"model_reasoning_effort=$CODEX_REASONING\""
 }
 
 # ─── Step: Context Compression ───────────────────────────────────────────────
@@ -481,7 +465,6 @@ run_compact() {
         return 0
     fi
 
-    # Claude: start a fresh session with compaction instruction
     "$CLAUDE_CMD" -p "/compact Summarize all work done so far. Preserve key architectural decisions, file paths, and interfaces." \
         --model "$MODEL_TASKS" \
         --output-format text \
@@ -494,18 +477,15 @@ run_compact() {
 
 # ─── Git: Branch Management ──────────────────────────────────────────────────
 
-# Convert feature path to branch name: epic-02-api-gateway/feature-01-skeleton → speckit/epic-02-api-gateway/feature-01-skeleton
 feature_to_branch() {
     local feature_path="$1"
     echo "${BRANCH_PREFIX}/${feature_path}"
 }
 
-# Check if project has a git remote configured
 has_git_remote() {
     git -C "$PROJECT_DIR" remote get-url origin &>/dev/null 2>&1
 }
 
-# Create feature branch, commit, push, open PR, wait for CI, merge if green
 git_commit_push_and_merge() {
     local feature_path="$1"
     local feature_idx="$2"
@@ -518,7 +498,6 @@ git_commit_push_and_merge() {
     (
         cd "$PROJECT_DIR"
 
-        # Check if there are changes to commit
         if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
             log INFO "No changes to commit for $feature_path"
             return 0
@@ -529,12 +508,8 @@ git_commit_push_and_merge() {
 
         # ── Step 1: Create feature branch ────────────────────────────
         log INFO "  → Creating branch: $branch_name"
-
-        # Make sure we're on the base branch before creating the feature branch
         git checkout "$BASE_BRANCH" 2>/dev/null || true
         git pull origin "$BASE_BRANCH" --ff-only 2>/dev/null || true
-
-        # Create and switch to feature branch
         git checkout -b "$branch_name" 2>/dev/null || git checkout "$branch_name" 2>/dev/null
         log OK "  → On branch: $branch_name"
 
@@ -577,7 +552,6 @@ Models: specify=$MODEL_SPECIFY plan=$MODEL_PLAN implement=$MODEL_IMPLEMENT"
 ---
 *This PR was automatically generated by the SpecKit orchestrator.*"
 
-        # Check if PR already exists for this branch
         local existing_pr
         existing_pr=$(gh pr list --head "$branch_name" --json number --jq '.[0].number' 2>/dev/null || echo "")
 
@@ -593,7 +567,6 @@ Models: specify=$MODEL_SPECIFY plan=$MODEL_PLAN implement=$MODEL_IMPLEMENT"
                 --body "$pr_body" \
                 2>/dev/null | grep -oP '/pull/\K[0-9]+' || echo "")
 
-            # Fallback: try to extract PR number differently
             if [[ -z "$pr_number" ]]; then
                 pr_number=$(gh pr list --head "$branch_name" --json number --jq '.[0].number' 2>/dev/null || echo "")
             fi
@@ -651,7 +624,6 @@ Models: specify=$MODEL_SPECIFY plan=$MODEL_PLAN implement=$MODEL_IMPLEMENT"
             log INFO "  → Auto-merge disabled. PR #${pr_number} ready for manual review."
         fi
 
-        # Switch back to base branch for next feature
         git checkout "$BASE_BRANCH" 2>/dev/null || true
         git pull origin "$BASE_BRANCH" --ff-only 2>/dev/null || true
     )
@@ -659,29 +631,23 @@ Models: specify=$MODEL_SPECIFY plan=$MODEL_PLAN implement=$MODEL_IMPLEMENT"
 
 # ─── Git: Wait for CI ────────────────────────────────────────────────────────
 
-# Polls GitHub Actions status until all checks pass, fail, or timeout
-# Returns: "pass", "fail", "no_checks", or "timeout"
 wait_for_ci() {
     local pr_number="$1"
     local branch_name="$2"
     local elapsed=0
 
-    # Initial wait: give CI a moment to start
     sleep 10
     elapsed=10
 
     while [[ $elapsed -lt $CI_WAIT_TIMEOUT ]]; do
 
-        # Get check status using gh
         local status_json
         status_json=$(gh pr checks "$pr_number" --json "name,state,status" 2>/dev/null || echo "[]")
 
-        # No checks at all?
         local total_checks
         total_checks=$(echo "$status_json" | jq 'length' 2>/dev/null || echo "0")
 
         if [[ "$total_checks" == "0" ]]; then
-            # Wait a bit more — checks might not have registered yet
             if [[ $elapsed -gt 60 ]]; then
                 echo "no_checks"
                 return 0
@@ -692,22 +658,18 @@ wait_for_ci() {
             continue
         fi
 
-        # Count statuses
-        local pending completed succeeded failed
+        local pending succeeded failed
         pending=$(echo "$status_json" | jq '[.[] | select(.status != "COMPLETED")] | length' 2>/dev/null || echo "0")
-        completed=$(echo "$status_json" | jq '[.[] | select(.status == "COMPLETED")] | length' 2>/dev/null || echo "0")
         succeeded=$(echo "$status_json" | jq '[.[] | select(.state == "SUCCESS" or .state == "NEUTRAL" or .state == "SKIPPED")] | length' 2>/dev/null || echo "0")
         failed=$(echo "$status_json" | jq '[.[] | select(.state == "FAILURE" or .state == "ERROR" or .state == "CANCELLED")] | length' 2>/dev/null || echo "0")
 
         log INFO "    CI status: $succeeded passed, $failed failed, $pending pending (${elapsed}s/${CI_WAIT_TIMEOUT}s)"
 
-        # All completed?
         if [[ "$pending" == "0" ]]; then
             if [[ "$failed" == "0" ]]; then
                 echo "pass"
                 return 0
             else
-                # Log which checks failed
                 local failed_names
                 failed_names=$(echo "$status_json" | jq -r '.[] | select(.state == "FAILURE" or .state == "ERROR") | .name' 2>/dev/null || echo "unknown")
                 log ERROR "    Failed checks: $failed_names" >> "$LOG_FILE"
@@ -728,7 +690,6 @@ wait_for_ci() {
 parse_features() {
     local features=()
     while IFS= read -r line; do
-        # Skip comments and empty lines
         line=$(echo "$line" | sed 's/#.*//' | xargs)
         [[ -z "$line" ]] && continue
         features+=("$line")
@@ -752,7 +713,6 @@ run_features() {
         feature_idx=$((feature_idx + 1))
         CURRENT_FEATURE=$feature_idx
 
-        # Resume logic: skip until we find the resume target
         if [[ "$resuming" == "true" ]]; then
             if [[ "$feature_path" == "$RESUME_FROM" ]]; then
                 resuming=false
@@ -763,7 +723,6 @@ run_features() {
             fi
         fi
 
-        # Validate feature directory exists
         if [[ ! -d "$FEATURES_DIR/$feature_path" ]]; then
             log ERROR "Feature directory not found: $FEATURES_DIR/$feature_path"
             log WARN "Skipping feature. Check execution-order.txt."
@@ -853,11 +812,9 @@ parse_args() {
         esac
     done
 
-    # Defaults
     PROJECT_DIR="${PROJECT_DIR:-$(pwd)}"
     LOG_FILE="${LOG_FILE:-./estategap-orchestrator-$(date '+%Y%m%d-%H%M%S').log}"
 
-    # Validate required args
     if [[ -z "$FEATURES_DIR" ]] || [[ -z "$ORDER_FILE" ]]; then
         echo -e "${RED}Error: --features-dir and --order-file are required${NC}"
         echo ""
@@ -869,7 +826,6 @@ parse_args() {
 main() {
     parse_args "$@"
 
-    # Initialize log
     mkdir -p "$(dirname "$LOG_FILE")"
     touch "$LOG_FILE"
 
@@ -901,20 +857,16 @@ main() {
     log INFO "  Delete branch: $DELETE_BRANCH_AFTER_MERGE"
     log_separator
 
-    # Preflight
     preflight
 
-    # Constitution
     if [[ "$SKIP_CONSTITUTION" == "false" ]]; then
         run_constitution
     else
         log INFO "Skipping constitution (--skip-constitution)"
     fi
 
-    # Feature loop
     run_features
 
-    # Summary
     local end_time
     end_time=$(date +%s)
     local total_duration=$(( end_time - START_TIME ))
