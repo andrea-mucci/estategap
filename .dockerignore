@@ -3,6 +3,8 @@
 .specify/
 .agents/
 .codex/
+Dockerfile*
+.dockerignore
 .venv/
 **/.venv/
 __pycache__/
@@ -21,5 +23,9 @@ coverage/
 .env.*
 docs/
 specs/
+secrets/
+*.secret.yaml
+*.key
+*.crt
 .DS_Store
 Thumbs.db

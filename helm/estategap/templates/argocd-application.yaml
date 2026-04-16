@@ -1,0 +1,25 @@
+{{- if and .Values.argocd.enabled .Values.argocd.repoURL }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Values.argocd.applicationName }}
+  namespace: argocd
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.argocd.repoURL | quote }}
+    targetRevision: {{ .Values.argocd.targetRevision | quote }}
+    path: helm/estategap
+    helm:
+      valueFiles:
+        {{- toYaml .Values.argocd.valueFiles | nindent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: estategap-system
+  syncPolicy:
+    automated:
+      prune: {{ .Values.argocd.syncPolicy.prune }}
+      selfHeal: {{ .Values.argocd.syncPolicy.selfHeal }}
+{{- end }}

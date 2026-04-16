@@ -1,0 +1,131 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: estategap-gateway
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: api-rate-limit
+  namespace: estategap-gateway
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  rateLimit:
+    average: 100
+    burst: 200
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: websocket-upgrade
+  namespace: estategap-gateway
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  headers:
+    customRequestHeaders:
+      Connection: Upgrade
+      Upgrade: websocket
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app-route
+  namespace: estategap-gateway
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`app.{{ .Values.cluster.domain }}`)
+      kind: Rule
+      middlewares:
+        - name: https-redirect
+      services:
+        - name: frontend
+          namespace: estategap-gateway
+          port: 3000
+  tls:
+    secretName: estategap-tls
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: api-route
+  namespace: estategap-gateway
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`api.{{ .Values.cluster.domain }}`)
+      kind: Rule
+      middlewares:
+        - name: https-redirect
+        - name: api-rate-limit
+      services:
+        - name: api-gateway
+          namespace: estategap-gateway
+          port: 8080
+  tls:
+    secretName: estategap-tls
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ws-route
+  namespace: estategap-gateway
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`ws.{{ .Values.cluster.domain }}`)
+      kind: Rule
+      middlewares:
+        - name: https-redirect
+        - name: websocket-upgrade
+      services:
+        - name: websocket-server
+          namespace: estategap-gateway
+          port: 8081
+  tls:
+    secretName: estategap-tls
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana-route
+  namespace: estategap-gateway
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`grafana.{{ .Values.cluster.domain }}`)
+      kind: Rule
+      middlewares:
+        - name: https-redirect
+      services:
+        - name: grafana
+          namespace: monitoring
+          port: 80
+  tls:
+    secretName: estategap-tls

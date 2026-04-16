@@ -1,0 +1,17 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: estategap-tls
+  namespace: estategap-gateway
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  secretName: estategap-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.cluster.certIssuer | quote }}
+  dnsNames:
+    - app.{{ .Values.cluster.domain }}
+    - api.{{ .Values.cluster.domain }}
+    - ws.{{ .Values.cluster.domain }}
+    - grafana.{{ .Values.cluster.domain }}

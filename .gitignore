@@ -43,6 +43,14 @@ coverage/
 # Docker
 .docker/
 
+# Kubernetes
+*.secret.yaml
+secrets/
+.kube/
+kubeconfig*
+*.key
+*.crt
+
 # Tooling
 .codex/
 

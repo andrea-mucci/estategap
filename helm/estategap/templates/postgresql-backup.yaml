@@ -1,0 +1,14 @@
+{{- if and .Values.postgresql.enabled .Values.postgresql.backup.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: estategap-postgres-daily
+  namespace: estategap-system
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.postgresql.backup.schedule | quote }}
+  backupOwnerReference: self
+  cluster:
+    name: estategap-postgres
+{{- end }}

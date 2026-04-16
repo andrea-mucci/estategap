@@ -4,6 +4,10 @@
 .github/
 .specify/
 tmp/
+secrets/
+*.secret.yaml
+*.key
+*.crt
 *.swp
 *.bak
 *.tmp

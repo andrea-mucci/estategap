@@ -1,0 +1,127 @@
+{{- if .Values.nats.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nats-stream-setup
+  namespace: estategap-system
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nats-stream-setup
+  namespace: estategap-system
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nats-stream-setup
+  namespace: estategap-system
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+subjects:
+  - kind: ServiceAccount
+    name: nats-stream-setup
+    namespace: estategap-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: nats-stream-setup
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-stream-configs
+  namespace: estategap-system
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+data:
+  {{- range .Values.nats.streams }}
+  {{ .name }}.yaml: |
+    name: {{ .name }}
+    subjects:
+    {{- range .subjects }}
+      - {{ . }}
+    {{- end }}
+    retention: {{ .retention }}
+    max_age: {{ .maxAge }}
+    replicas: {{ min (int .replicas) (int $.Values.nats.replicas) }}
+    storage: {{ default "file" .storage }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nats-stream-setup
+  namespace: estategap-system
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        {{- include "estategap.labels" . | nindent 8 }}
+        app.kubernetes.io/component: nats-stream-setup
+    spec:
+      serviceAccountName: nats-stream-setup
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-nats
+          image: {{ include "estategap.serviceImage" (dict "root" . "image" .Values.nats.setupJob.waitImage) }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until kubectl get statefulset nats -n estategap-system >/dev/null 2>&1; do
+                sleep 2
+              done
+              kubectl rollout status statefulset/nats -n estategap-system --timeout=300s
+      containers:
+        - name: create-streams
+          image: {{ include "estategap.serviceImage" (dict "root" . "image" .Values.nats.setupJob.image) }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NATS_URL
+              value: nats://nats.estategap-system.svc.cluster.local:{{ .Values.nats.service.ports.client }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until nats stream ls --server "$NATS_URL" >/dev/null 2>&1; do
+                sleep 3
+              done
+              for file in /etc/nats-streams/*.yaml; do
+                stream="$(basename "$file" .yaml)"
+                if nats stream info "$stream" --server "$NATS_URL" >/dev/null 2>&1; then
+                  nats stream update "$stream" --config "$file" --server "$NATS_URL"
+                else
+                  nats stream add --config "$file" --server "$NATS_URL"
+                fi
+              done
+          volumeMounts:
+            - name: stream-configs
+              mountPath: /etc/nats-streams
+      volumes:
+        - name: stream-configs
+          configMap:
+            name: nats-stream-configs
+{{- end }}

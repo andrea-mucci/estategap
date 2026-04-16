@@ -1,3 +1,512 @@
-global: {}
-services: {}
-frontend: {}
+global:
+  storageClass: ""
+  imageRegistry: ""
+  imagePullSecrets: []
+
+cluster:
+  environment: staging
+  domain: estategap.com
+  certIssuer: letsencrypt-staging
+
+cnpg:
+  enabled: true
+  crds:
+    create: true
+  monitoring:
+    grafanaDashboard:
+      create: false
+
+nats:
+  enabled: true
+  fullnameOverride: nats
+  replicas: 3
+  storage:
+    size: 10Gi
+  service:
+    ports:
+      client: 4222
+      monitor: 8222
+  jetstream:
+    enabled: true
+    maxMemory: 1Gi
+    maxStorage: 10Gi
+  config:
+    cluster:
+      enabled: true
+      replicas: 3
+    jetstream:
+      enabled: true
+      fileStore:
+        enabled: true
+        pvc:
+          size: 10Gi
+      maxMemoryStore: 1Gi
+      maxFileStore: 10Gi
+  streams:
+    - name: raw-listings
+      subjects: ["listings.raw.>"]
+      retention: limits
+      maxAge: 168h
+      replicas: 3
+      storage: file
+    - name: normalized-listings
+      subjects: ["listings.normalized.>"]
+      retention: limits
+      maxAge: 168h
+      replicas: 3
+      storage: file
+    - name: enriched-listings
+      subjects: ["listings.enriched.>"]
+      retention: limits
+      maxAge: 720h
+      replicas: 3
+      storage: file
+    - name: scored-listings
+      subjects: ["listings.scored.>"]
+      retention: limits
+      maxAge: 720h
+      replicas: 3
+      storage: file
+    - name: alerts-triggers
+      subjects: ["alerts.triggers.>"]
+      retention: workqueue
+      maxAge: 24h
+      replicas: 3
+      storage: file
+    - name: alerts-notifications
+      subjects: ["alerts.notifications.>"]
+      retention: limits
+      maxAge: 168h
+      replicas: 3
+      storage: file
+    - name: scraper-commands
+      subjects: ["scraper.commands.>"]
+      retention: workqueue
+      maxAge: 1h
+      replicas: 3
+      storage: file
+    - name: price-changes
+      subjects: ["listings.price-change.>"]
+      retention: limits
+      maxAge: 2160h
+      replicas: 3
+      storage: file
+  setupJob:
+    image:
+      repository: natsio/nats-box
+      tag: latest
+    waitImage:
+      repository: bitnami/kubectl
+      tag: "1.30.3"
+
+postgresql:
+  enabled: true
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  instances: 2
+  database: estategap
+  owner: app
+  storage:
+    size: 200Gi
+  backup:
+    enabled: true
+    schedule: "0 2 * * *"
+    retentionPolicy: 30d
+    minioEndpoint: http://minio.estategap-system.svc.cluster.local:9000
+    destinationPath: s3://backups/postgresql
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+redis:
+  enabled: true
+  fullnameOverride: redis
+  architecture: replication
+  auth:
+    enabled: true
+    existingSecret: redis-credentials
+    existingSecretPasswordKey: redis-password
+  sentinel:
+    enabled: true
+    quorum: 2
+    service:
+      ports:
+        redis: 6379
+        sentinel: 26379
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+  replica:
+    replicaCount: 1
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+  commonConfiguration: |
+    maxmemory 1gb
+    maxmemory-policy allkeys-lru
+    appendonly yes
+    appendfsync everysec
+
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: latest
+  setupImage:
+    repository: minio/mc
+    tag: latest
+  storage:
+    size: 50Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  buckets:
+    - ml-models
+    - training-data
+    - listing-photos
+    - exports
+    - backups
+
+observability:
+  prometheus:
+    enabled: true
+    retention: 15d
+    storage:
+      size: 50Gi
+    grafana:
+      storage:
+        size: 10Gi
+      adminPasswordSecret: grafana-credentials
+    podMonitorNamespaces:
+      - estategap-gateway
+      - estategap-scraping
+      - estategap-pipeline
+      - estategap-intelligence
+      - estategap-notifications
+  loki:
+    enabled: true
+    storage:
+      size: 20Gi
+  tempo:
+    enabled: true
+    storage:
+      size: 10Gi
+
+prometheus:
+  enabled: true
+  namespaceOverride: monitoring
+  fullnameOverride: prometheus
+  alertmanager:
+    enabled: true
+  grafana:
+    enabled: true
+    fullnameOverride: grafana
+    ingress:
+      enabled: false
+    persistence:
+      enabled: true
+      size: 10Gi
+    admin:
+      existingSecret: grafana-credentials
+      userKey: admin-user
+      passwordKey: admin-password
+  prometheus:
+    prometheusSpec:
+      retention: 15d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 50Gi
+      podMonitorSelectorNilUsesHelmValues: false
+      podMonitorNamespaceSelector:
+        matchNames:
+          - estategap-gateway
+          - estategap-scraping
+          - estategap-pipeline
+          - estategap-intelligence
+          - estategap-notifications
+      additionalScrapeConfigs:
+        - job_name: estategap-pods
+          kubernetes_sd_configs:
+            - role: pod
+              namespaces:
+                names:
+                  - estategap-gateway
+                  - estategap-scraping
+                  - estategap-pipeline
+                  - estategap-intelligence
+                  - estategap-notifications
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_scrape]
+              action: keep
+              regex: "true"
+            - source_labels: [__meta_kubernetes_namespace]
+              target_label: namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              target_label: pod
+
+loki:
+  enabled: true
+  namespaceOverride: monitoring
+  fullnameOverride: loki
+  loki:
+    persistence:
+      enabled: true
+      size: 20Gi
+  promtail:
+    enabled: true
+    extraVolumes:
+      - name: pods
+        hostPath:
+          path: /var/log/pods
+      - name: containers
+        hostPath:
+          path: /var/lib/docker/containers
+    extraVolumeMounts:
+      - name: pods
+        mountPath: /var/log/pods
+        readOnly: true
+      - name: containers
+        mountPath: /var/lib/docker/containers
+        readOnly: true
+
+tempo:
+  enabled: true
+  namespaceOverride: monitoring
+  fullnameOverride: tempo
+  persistence:
+    enabled: true
+    size: 10Gi
+  service:
+    port: 3100
+  tempo:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+keda:
+  enabled: true
+
+argocd:
+  enabled: true
+  applicationName: estategap-staging
+  repoURL: ""
+  targetRevision: main
+  valueFiles:
+    - values-staging.yaml
+  syncPolicy:
+    prune: false
+    selfHeal: true
+
+sealedSecrets:
+  appSecrets:
+    postgresPassword: AgReplaceWithKubesealOutput
+    postgresReplicationPassword: AgReplaceWithKubesealOutput
+    redisPassword: AgReplaceWithKubesealOutput
+    minioRootUser: AgReplaceWithKubesealOutput
+    minioRootPassword: AgReplaceWithKubesealOutput
+    stripeSecretKey: AgReplaceWithKubesealOutput
+    stripeWebhookSecret: AgReplaceWithKubesealOutput
+    llmApiKeyAnthropic: AgReplaceWithKubesealOutput
+    llmApiKeyOpenai: AgReplaceWithKubesealOutput
+    jwtSecret: AgReplaceWithKubesealOutput
+    username: AgReplaceWithKubesealOutput
+    password: AgReplaceWithKubesealOutput
+    dbname: AgReplaceWithKubesealOutput
+  postgresqlBackupCredentials:
+    accessKeyId: AgReplaceWithKubesealOutput
+    secretAccessKey: AgReplaceWithKubesealOutput
+  redisCredentials:
+    redisPassword: AgReplaceWithKubesealOutput
+  minioCredentials:
+    rootUser: AgReplaceWithKubesealOutput
+    rootPassword: AgReplaceWithKubesealOutput
+  grafanaCredentials:
+    adminUser: AgReplaceWithKubesealOutput
+    adminPassword: AgReplaceWithKubesealOutput
+
+services:
+  api-gateway:
+    enabled: true
+    namespace: estategap-gateway
+    port: 8080
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/api-gateway
+      tag: latest
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 20
+      cpuTarget: 60
+
+  websocket-server:
+    enabled: true
+    namespace: estategap-gateway
+    port: 8081
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/websocket-server
+      tag: latest
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+  alert-engine:
+    enabled: true
+    namespace: estategap-notifications
+    port: 8080
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/alert-engine
+      tag: latest
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  scrape-orchestrator:
+    enabled: true
+    namespace: estategap-scraping
+    port: 8080
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/scrape-orchestrator
+      tag: latest
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  spider-workers:
+    enabled: true
+    namespace: estategap-scraping
+    port: 8080
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/spider-workers
+      tag: latest
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 800m
+        memory: 1Gi
+    keda:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 50
+      stream: scraper-commands
+      consumer: spider-worker-group
+      lagThreshold: "100"
+
+  pipeline:
+    enabled: true
+    namespace: estategap-pipeline
+    port: 8080
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/pipeline
+      tag: latest
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+  ml-scorer:
+    enabled: true
+    namespace: estategap-intelligence
+    port: 8080
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/ml-scorer
+      tag: latest
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    hpa:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 10
+      cpuTarget: 70
+
+  ai-chat:
+    enabled: true
+    namespace: estategap-intelligence
+    port: 8080
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/ai-chat
+      tag: latest
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    hpa:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 8
+      cpuTarget: 60
+
+  frontend:
+    enabled: true
+    namespace: estategap-gateway
+    port: 3000
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/frontend
+      tag: latest
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi

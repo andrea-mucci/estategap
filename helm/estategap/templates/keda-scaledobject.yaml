@@ -1,0 +1,26 @@
+{{- $service := index .Values.services "spider-workers" -}}
+{{- if and $service.enabled $service.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: spider-workers-scaler
+  namespace: estategap-scraping
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: spider-workers
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: {{ $service.keda.minReplicas }}
+  maxReplicaCount: {{ $service.keda.maxReplicas }}
+  triggers:
+    - type: nats-jetstream
+      metadata:
+        natsServerMonitoringEndpoint: nats.estategap-system.svc.cluster.local:8222
+        account: "$G"
+        stream: {{ $service.keda.stream | quote }}
+        consumer: {{ $service.keda.consumer | quote }}
+        lagThreshold: {{ $service.keda.lagThreshold | quote }}
+        useHttps: "false"
+{{- end }}
