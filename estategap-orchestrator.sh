@@ -17,7 +17,7 @@ CODEX_CMD="codex"
 MODEL_SPECIFY="claude-opus-4-6"         # /speckit.specify — max intelligence
 MODEL_PLAN="claude-sonnet-4-6"          # /speckit.plan
 MODEL_TASKS="claude-sonnet-4-6"         # /speckit.tasks
-MODEL_IMPLEMENT="gpt-5.4"              # /speckit.implement
+MODEL_IMPLEMENT="gpt-5.4"              # $speckit-implement (Codex syntax)
 
 # Max reasoning for all models
 CLAUDE_EFFORT="high"
@@ -454,10 +454,10 @@ run_tasks() {
 run_implement() {
     local feature_path="$1"
 
-    log STEP "  → /speckit.implement (Codex $MODEL_IMPLEMENT)"
+    log STEP "  → \$speckit-implement (Codex $MODEL_IMPLEMENT)"
 
     run_with_retry "implement [$feature_path]" "$TIMEOUT_IMPLEMENT" \
-        "$CODEX_CMD" exec "/speckit.implement" \
+        "$CODEX_CMD" exec "\$speckit-implement" \
             --model "$MODEL_IMPLEMENT" \
             -c "model_reasoning_effort=$CODEX_REASONING" \
             --ask-for-approval "$CODEX_APPROVAL" \
