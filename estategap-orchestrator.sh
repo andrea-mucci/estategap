@@ -109,9 +109,9 @@ ${BOLD}Dependencies:${NC}
   jq        JSON processor (apt install jq)
   timeout   GNU coreutils
 
-${BOLD}Authentication (all via OAuth, no API keys needed):${NC}
-  claude    Run 'claude' interactively once to login
-  codex     Run 'codex' interactively once to login
+${BOLD}Authentication (no API keys needed):${NC}
+  claude    Run 'claude' interactively once to login (OAuth)
+  codex     Run 'codex' interactively once to login (OAuth or device code)
   gh        Run 'gh auth login' once to authenticate
 
 ${BOLD}Examples:${NC}
@@ -228,20 +228,29 @@ preflight() {
         log WARN "Project dir is not a git repository. Git operations will be skipped."
     fi
 
-    # Check Claude OAuth session
+    # Check Claude authentication
+    local claude_config_dir="${HOME}/.claude"
     if "$CLAUDE_CMD" -p "echo ok" --output-format text --max-turns 1 &>/dev/null; then
-        log OK "Claude CLI authenticated (OAuth)"
+        log OK "Claude CLI authenticated"
+    elif [[ -d "$claude_config_dir" ]]; then
+        log WARN "Claude CLI config exists but test call failed. Will retry during execution."
     else
-        log ERROR "Claude CLI not authenticated. Run 'claude' interactively to login via OAuth."
+        log ERROR "Claude CLI not authenticated. Run 'claude' interactively to login."
         errors=$((errors + 1))
     fi
 
-    # Check Codex OAuth session
-    if "$CODEX_CMD" exec "echo ok" --ask-for-approval never &>/dev/null; then
-        log OK "Codex CLI authenticated (OAuth)"
+    # Check Codex authentication (supports OAuth and device code)
+    # codex exec is too heavy for a preflight check — instead verify credentials exist
+    local codex_home="${CODEX_HOME:-$HOME/.codex}"
+    if [[ -f "$codex_home/auth.json" ]] || [[ -n "${CODEX_API_KEY:-${OPENAI_API_KEY:-}}" ]]; then
+        log OK "Codex CLI credentials found"
     else
-        log ERROR "Codex CLI not authenticated. Run 'codex' interactively to login via OAuth."
-        errors=$((errors + 1))
+        # Fallback: try codex auth status if available
+        if "$CODEX_CMD" auth status &>/dev/null 2>&1; then
+            log OK "Codex CLI authenticated"
+        else
+            log WARN "Could not verify Codex authentication. If 'codex exec' fails later, run 'codex' interactively to login."
+        fi
     fi
 
     # Check features directory
