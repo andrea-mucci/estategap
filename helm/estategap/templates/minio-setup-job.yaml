@@ -1,0 +1,45 @@
+{{- if .Values.minio.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-bucket-setup
+  namespace: estategap-system
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "15"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        {{- include "estategap.labels" . | nindent 8 }}
+        app.kubernetes.io/component: minio-bucket-setup
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-buckets
+          image: {{ include "estategap.serviceImage" (dict "root" . "image" .Values.minio.setupImage) }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: root-password
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until mc alias set local http://minio.estategap-system.svc.cluster.local:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do
+                sleep 5
+              done
+              {{- range .Values.minio.buckets }}
+              mc mb --ignore-existing local/{{ . }}
+              {{- end }}
+{{- end }}

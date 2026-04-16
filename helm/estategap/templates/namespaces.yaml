@@ -1,0 +1,21 @@
+{{- $namespaces := list
+  (dict "name" "estategap-system" "tier" "system")
+  (dict "name" "estategap-gateway" "tier" "gateway")
+  (dict "name" "estategap-scraping" "tier" "scraping")
+  (dict "name" "estategap-pipeline" "tier" "pipeline")
+  (dict "name" "estategap-intelligence" "tier" "intelligence")
+  (dict "name" "estategap-notifications" "tier" "notifications")
+-}}
+{{- if .Values.observability.prometheus.enabled -}}
+{{- $namespaces = append $namespaces (dict "name" "monitoring" "tier" "system") -}}
+{{- end -}}
+{{- range $index, $ns := $namespaces }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns.name }}
+  labels:
+    app.kubernetes.io/managed-by: helm
+    estategap.io/tier: {{ $ns.tier }}
+{{- end }}

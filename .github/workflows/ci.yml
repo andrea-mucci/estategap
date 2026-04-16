@@ -1,0 +1,47 @@
+name: ci-helm
+
+on:
+  pull_request:
+    paths:
+      - "helm/**"
+      - "scripts/smoke-test.sh"
+      - ".github/workflows/ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "helm/**"
+      - "scripts/smoke-test.sh"
+      - ".github/workflows/ci.yml"
+
+jobs:
+  helm-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add nats https://nats-io.github.io/k8s/helm/charts
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add kedacore https://kedacore.github.io/charts
+          helm repo update
+
+      - name: Resolve chart dependencies
+        run: helm dependency update helm/estategap
+
+      - name: Lint chart
+        run: helm lint helm/estategap -f helm/estategap/values.yaml -f helm/estategap/values-staging.yaml
+
+      - name: Render staging manifests
+        run: helm template estategap helm/estategap -f helm/estategap/values.yaml -f helm/estategap/values-staging.yaml > /tmp/estategap-staging.yaml
+
+      - name: Render production manifests
+        run: helm template estategap helm/estategap -f helm/estategap/values.yaml -f helm/estategap/values-production.yaml > /tmp/estategap-production.yaml

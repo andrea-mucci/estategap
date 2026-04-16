@@ -1,0 +1,7 @@
+{{- $name := "alert-engine" -}}
+{{- $service := index .Values.services $name -}}
+{{- if $service.enabled }}
+{{ include "estategap.serviceDeployment" (dict "root" . "name" $name "port" $service.port) }}
+---
+{{ include "estategap.serviceService" (dict "root" . "name" $name "port" $service.port) }}
+{{- end }}

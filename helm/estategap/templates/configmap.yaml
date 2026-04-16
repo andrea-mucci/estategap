@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: estategap-config
+  namespace: estategap-system
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+data:
+  DATABASE_HOST: estategap-postgres-rw.estategap-system.svc.cluster.local
+  DATABASE_RO_HOST: estategap-postgres-r.estategap-system.svc.cluster.local
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: {{ .Values.postgresql.database | quote }}
+  REDIS_HOST: redis.estategap-system.svc.cluster.local
+  REDIS_PORT: "6379"
+  REDIS_SENTINEL_HOST: redis.estategap-system.svc.cluster.local
+  REDIS_SENTINEL_PORT: "26379"
+  NATS_URL: nats://nats.estategap-system.svc.cluster.local:4222
+  MINIO_ENDPOINT: http://minio.estategap-system.svc.cluster.local:9000
+  MINIO_BUCKET_ML_MODELS: {{ index .Values.minio.buckets 0 | quote }}
+  MINIO_BUCKET_TRAINING_DATA: {{ index .Values.minio.buckets 1 | quote }}
+  MINIO_BUCKET_LISTING_PHOTOS: {{ index .Values.minio.buckets 2 | quote }}
+  MINIO_BUCKET_EXPORTS: {{ index .Values.minio.buckets 3 | quote }}
+  MINIO_BUCKET_BACKUPS: {{ index .Values.minio.buckets 4 | quote }}

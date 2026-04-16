@@ -1,0 +1,39 @@
+cluster:
+  environment: production
+  certIssuer: letsencrypt-prod
+
+argocd:
+  # Required: set this to the canonical repository URL for ArgoCD sync.
+  repoURL: https://github.com/andrea-mucci/estategap.git
+
+services:
+  api-gateway:
+    image:
+      tag: 0.1.0
+    hpa:
+      minReplicas: 3
+      maxReplicas: 50
+  websocket-server:
+    image:
+      tag: 0.1.0
+  alert-engine:
+    image:
+      tag: 0.1.0
+  scrape-orchestrator:
+    image:
+      tag: 0.1.0
+  spider-workers:
+    image:
+      tag: 0.1.0
+  pipeline:
+    image:
+      tag: 0.1.0
+  ml-scorer:
+    image:
+      tag: 0.1.0
+  ai-chat:
+    image:
+      tag: 0.1.0
+  frontend:
+    image:
+      tag: 0.1.0

@@ -1,0 +1,47 @@
+{{- $policies := list
+  (dict "name" "allow-gateway-egress" "namespace" "estategap-gateway" "allowAll" true)
+  (dict "name" "restrict-scraping-egress" "namespace" "estategap-scraping" "allowedNamespaces" (list "estategap-system"))
+  (dict "name" "restrict-pipeline-egress" "namespace" "estategap-pipeline" "allowedNamespaces" (list "estategap-system"))
+  (dict "name" "restrict-intelligence-egress" "namespace" "estategap-intelligence" "allowedNamespaces" (list "estategap-system"))
+  (dict "name" "restrict-notifications-egress" "namespace" "estategap-notifications" "allowedNamespaces" (list "estategap-system" "estategap-gateway"))
+-}}
+{{- range $policy := $policies }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $policy.name }}
+  namespace: {{ $policy.namespace }}
+  labels:
+    {{- include "estategap.labels" $ | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    {{- if $policy.allowAll }}
+    - {}
+    {{- else }}
+    - to:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  {{- range $policy.allowedNamespaces }}
+                  - {{ . }}
+                  {{- end }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- end }}
+{{- end }}
