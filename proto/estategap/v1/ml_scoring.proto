@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package estategap.v1;
+
+import "estategap/v1/common.proto";
+import "estategap/v1/listings.proto";
+
+option go_package = "github.com/estategap/libs/proto/estategap/v1;estategapv1";
+
+service MLScoringService {
+  rpc ScoreListing(ScoreListingRequest) returns (ScoreListingResponse);
+  rpc ScoreBatch(ScoreBatchRequest) returns (ScoreBatchResponse);
+  rpc GetComparables(GetComparablesRequest) returns (GetComparablesResponse);
+}
+
+message ScoreListingRequest {
+  string listing_id = 1;
+  string country_code = 2;
+}
+
+message ScoreListingResponse {
+  string listing_id = 1;
+  float deal_score = 2;
+  repeated ShapValue shap_values = 3;
+  string model_version = 4;
+}
+
+message ShapValue {
+  string feature_name = 1;
+  float value = 2;
+  float contribution = 3;
+}
+
+message ScoreBatchRequest {
+  repeated string listing_ids = 1;
+  string country_code = 2;
+}
+
+message ScoreBatchResponse {
+  repeated ScoreListingResponse scores = 1;
+}
+
+message GetComparablesRequest {
+  string listing_id = 1;
+  string country_code = 2;
+  int32 limit = 3;
+}
+
+message GetComparablesResponse {
+  repeated Listing comparables = 1;
+}

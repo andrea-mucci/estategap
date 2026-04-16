@@ -1,0 +1,28 @@
+[project]
+name = "estategap-common"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2",
+    "nats-py[nkeys]>=2",
+    "asyncpg>=0.29",
+    "structlog>=24",
+    "grpcio>=1.62",
+    "grpcio-tools>=1.62",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "mypy",
+    "ruff",
+    "mypy-protobuf",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["estategap_common", "proto/estategap"]

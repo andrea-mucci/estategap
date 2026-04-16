@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package estategap.v1;
+
+option go_package = "github.com/estategap/libs/proto/estategap/v1;estategapv1";
+
+message Timestamp {
+  int64 millis = 1;
+}
+
+message Money {
+  int64 amount = 1;
+  string currency_code = 2;
+  int64 eur_amount = 3;
+}
+
+message GeoPoint {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message PaginationRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message PaginationResponse {
+  int32 total_count = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  bool has_next = 4;
+}

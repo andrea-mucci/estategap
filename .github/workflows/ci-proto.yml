@@ -1,0 +1,17 @@
+name: ci-proto
+
+on:
+  push:
+    branches: [main, 002-monorepo-foundation]
+  pull_request:
+    branches: [main, 002-monorepo-foundation]
+
+jobs:
+  lint-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-setup-action@v1
+      - run: buf lint
+      - run: buf generate
+      - run: git diff --exit-code

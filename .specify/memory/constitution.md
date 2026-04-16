@@ -1,50 +1,269 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+==================
+Version change: 0.0.0 → 1.0.0 (initial ratification)
+Modified principles: N/A (first version)
+Added sections:
+  - Core Principles (7 principles: Polyglot Service Architecture,
+    Event-Driven Communication, Country-First Data Sovereignty,
+    ML-Powered Intelligence, Code Quality Discipline,
+    Security & Ethical Scraping, Kubernetes-Native Deployment)
+  - Technology Stack (concrete tooling choices)
+  - Monorepo Structure & Development Workflow
+  - Governance
+Removed sections: N/A
+Templates requiring updates:
+  - .specify/templates/plan-template.md — ✅ no updates needed
+    (Constitution Check section is dynamic; plan structure already
+    supports polyglot/web layouts)
+  - .specify/templates/spec-template.md — ✅ no updates needed
+    (generic feature spec structure; no constitution-specific refs)
+  - .specify/templates/tasks-template.md — ✅ no updates needed
+    (phase-based task structure accommodates constitution principles)
+  - .specify/templates/commands/*.md — no command templates found
+Follow-up TODOs: none
+-->
+
+# EstateGap Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Polyglot Service Architecture
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+EstateGap MUST use a polyglot backend split by workload profile:
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- **Go** for high-throughput, latency-sensitive services: API Gateway,
+  WebSocket server, Alert Engine, Scrape Orchestrator.
+- **Python** for data-intensive and ML/AI services: scraping spiders,
+  data pipeline, ML scorer/trainer, AI conversational search.
+- **Next.js 15** (TypeScript, App Router) for the frontend with
+  shadcn/ui, Tailwind CSS 4, and MapLibre GL JS for maps.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Each service MUST be a standalone, independently deployable unit inside
+`services/`. No service may import another service's internal packages
+directly. Shared code lives in `libs/` (Go `pkg/`, Python `common/`).
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+**Rationale**: Go delivers the concurrency and low-latency guarantees
+required for real-time alerting and high-throughput API serving. Python
+provides the richest ecosystem for ML, scraping, and data processing.
+Separating by workload profile avoids language misuse.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### II. Event-Driven Communication
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+All inter-service communication MUST follow these rules:
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+- **Asynchronous events**: NATS JetStream for all event-driven
+  messaging between services (listing ingested, price changed, alert
+  triggered, model retrained).
+- **Synchronous calls**: gRPC with Protobuf for request/response
+  patterns between services.
+- **No direct HTTP**: Services MUST NOT call each other via REST/HTTP.
+  The API Gateway is the sole HTTP entry point for external clients.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+All inter-service contracts MUST be defined as Protobuf schemas in
+`proto/` and linted/generated via `buf`.
+
+**Rationale**: NATS JetStream provides durable, replay-capable event
+streams essential for audit trails and pipeline reliability. gRPC
+enforces typed contracts and avoids the drift that untyped HTTP
+causes. A single protocol definition source (proto/) eliminates
+contract ambiguity.
+
+### III. Country-First Data Sovereignty
+
+Country is a first-class entity. All data MUST be partitioned and
+queryable by country:
+
+- PostgreSQL 16 with PostGIS 3.4. Tables MUST be partitioned by
+  country code.
+- Prices MUST be stored in original currency AND EUR-normalized.
+- Areas MUST be stored in source unit AND m²-normalized.
+- All property listings MUST conform to a unified schema regardless
+  of source portal.
+- Supported property types: residential, commercial, industrial, land.
+- All mutations MUST be tracked: price history, status changes,
+  and full audit trail.
+- Redis 7 for caching and session storage. MinIO for object storage
+  (images, documents).
+
+**Rationale**: EstateGap covers 30+ portals across Europe and the USA.
+Country-based partitioning enables per-market query isolation,
+regulatory compliance per jurisdiction, and efficient scaling as new
+countries are added.
+
+### IV. ML-Powered Intelligence
+
+The ML and AI layer MUST follow these rules:
+
+- **ML scoring**: LightGBM models trained per country, exported to
+  ONNX format for inference. Models MUST be versioned and reproducible.
+- **Experiment tracking**: MLflow for all training runs, hyperparameter
+  searches, and model registry.
+- **Explainability**: SHAP values MUST accompany every deal score to
+  provide transparent reasoning to users.
+- **AI search**: LLM-powered conversational search with a
+  provider-agnostic abstraction layer (Claude, GPT, open-source models
+  via LiteLLM). Streaming responses delivered via WebSocket.
+- No single LLM vendor lock-in. The abstraction layer MUST allow
+  swapping providers without code changes to consuming services.
+
+**Rationale**: Per-country models capture local market dynamics that a
+single global model would miss. ONNX export decouples training
+(Python) from inference (can run in Go or Python). SHAP
+explainability builds user trust and satisfies potential regulatory
+requirements for automated financial advice.
+
+### V. Code Quality Discipline
+
+Every language in the stack MUST enforce strict quality gates:
+
+- **Go**: stdlib `net/http` + chi router. `pgx` for PostgreSQL (no
+  ORM). Structured logging via `slog`. Explicit error handling — no
+  panics. Lint: `golangci-lint`.
+- **Python**: Pydantic v2 for all data models. `asyncio` + `httpx`
+  for async HTTP. Scrapy + Playwright for scraping. `structlog` for
+  logging. Lint: `ruff` + `mypy` (strict mode). Package manager: `uv`.
+- **Frontend**: TypeScript strict mode. TanStack Query for server
+  state. Zustand for client state. `next-intl` for i18n (10
+  languages). React Hook Form + Zod for form validation.
+- **Testing**: Go: table-driven tests. Python: `pytest` +
+  `pytest-asyncio`. Frontend: Vitest + React Testing Library.
+  Integration tests with testcontainers across all languages.
+- **Protobuf**: `buf` for linting and code generation. Breaking
+  changes to proto files MUST go through a review process.
+
+**Rationale**: Consistent tooling per language reduces cognitive
+overhead. Strict linting and type checking catch defects before review.
+Table-driven and testcontainers-based testing ensures coverage is
+meaningful, not ceremonial.
+
+### VI. Security & Ethical Scraping
+
+Security and compliance are non-negotiable:
+
+- **Authentication**: JWT with short-lived access tokens + refresh
+  tokens. Google OAuth2 as an identity provider.
+- **GDPR compliance**: Data export, account deletion, and consent
+  management MUST be implemented from day one.
+- **Secrets management**: No secrets in code, ever. Kubernetes Sealed
+  Secrets for all sensitive configuration.
+- **Rate limiting**: Per subscription tier, enforced at the API
+  Gateway.
+- **Scraping ethics**: All spiders MUST respect `robots.txt`.
+  Geo-targeted proxies MUST be used. Throttling MUST be configurable
+  per portal. No aggressive scraping patterns that could harm source
+  portals.
+
+**Rationale**: EstateGap processes personal property data across
+multiple EU jurisdictions — GDPR compliance is a legal requirement,
+not a feature. Ethical scraping protects business continuity by
+avoiding IP bans and legal action from portal operators.
+
+### VII. Kubernetes-Native Deployment
+
+All deployment MUST be Kubernetes-native:
+
+- Every service MUST be containerized with a Dockerfile.
+- Helm charts in `helm/` for all deployment manifests.
+- ArgoCD for GitOps-based continuous deployment.
+- Infrastructure changes MUST be version-controlled and reviewed
+  like application code.
+- No manual cluster modifications. All state expressed declaratively.
+
+**Rationale**: Kubernetes provides the orchestration layer needed for
+a polyglot microservices architecture spanning multiple languages and
+runtimes. GitOps via ArgoCD ensures deployment state is auditable,
+reproducible, and rollback-safe.
+
+## Technology Stack
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| API Gateway | Go + chi | High-throughput HTTP entry point |
+| WebSocket Server | Go | Real-time alerts and AI streaming |
+| Alert Engine | Go + NATS | Event-driven deal notifications |
+| Scrape Orchestrator | Go + NATS | Schedules and coordinates spiders |
+| Scraping Spiders | Python + Scrapy + Playwright | Per-portal spider implementations |
+| Data Pipeline | Python + Pydantic v2 | Normalization, dedup, enrichment |
+| ML Scorer | Python + LightGBM + ONNX | Per-country deal scoring |
+| ML Trainer | Python + LightGBM + MLflow | Model training and registry |
+| AI Search | Python + LiteLLM | Conversational property search |
+| Frontend | Next.js 15 + TypeScript | App Router, shadcn/ui, Tailwind 4 |
+| Maps | MapLibre GL JS | Open-source map rendering |
+| Messaging | NATS JetStream | Async event bus |
+| RPC | gRPC + Protobuf | Synchronous inter-service calls |
+| Database | PostgreSQL 16 + PostGIS 3.4 | Country-partitioned tables |
+| Cache | Redis 7 | Sessions and query caching |
+| Object Storage | MinIO | Images, documents, model artifacts |
+| Container Orchestration | Kubernetes + Helm | All services containerized |
+| GitOps | ArgoCD | Declarative deployments |
+| Protobuf Tooling | buf | Linting and code generation |
+
+## Monorepo Structure & Development Workflow
+
+The repository MUST follow this layout:
+
+```text
+estategap/
+├── services/          # Go and Python microservices (one dir per service)
+│   ├── api-gateway/         # Go
+│   ├── websocket-server/    # Go
+│   ├── alert-engine/        # Go
+│   ├── scrape-orchestrator/ # Go
+│   ├── spiders/             # Python
+│   ├── pipeline/            # Python
+│   ├── ml-scorer/           # Python
+│   ├── ml-trainer/          # Python
+│   └── ai-search/           # Python
+├── frontend/          # Next.js 15 application
+├── proto/             # Shared Protobuf definitions
+├── helm/              # Helm charts for K8s deployment
+├── libs/              # Shared libraries
+│   ├── pkg/                 # Go shared packages
+│   └── common/              # Python shared packages
+└── docs/              # Architecture and requirements documentation
+```
+
+Development workflow rules:
+
+- Each service MUST have its own `Dockerfile`, dependency manifest,
+  and README.
+- Proto changes MUST be committed and generated before dependent
+  service changes.
+- CI MUST run linting, type checking, and tests for all affected
+  services on every PR.
+- Feature branches MUST target `main`. No long-lived release branches.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution is the highest-authority document for EstateGap
+technical decisions. All implementation work, code reviews, and
+architectural proposals MUST comply with the principles defined here.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+### Amendment Procedure
+
+1. Propose an amendment as a PR modifying this constitution file.
+2. The amendment MUST include rationale for the change.
+3. Breaking changes to principles require MAJOR version bump and
+   migration plan for affected services.
+4. Non-breaking additions require MINOR version bump.
+5. Clarifications and typo fixes require PATCH version bump.
+
+### Compliance Review
+
+- Every PR MUST be checked against applicable constitution principles.
+- Architecture Decision Records (ADRs) in `docs/` MUST reference
+  the constitution principles they relate to.
+- Quarterly review of constitution relevance and accuracy.
+
+### Versioning Policy
+
+This constitution follows semantic versioning:
+
+- **MAJOR**: Principle removal, redefinition, or backward-incompatible
+  governance change.
+- **MINOR**: New principle or section added, material expansion of
+  existing guidance.
+- **PATCH**: Clarifications, wording improvements, typo fixes.
+
+**Version**: 1.0.0 | **Ratified**: 2026-04-16 | **Last Amended**: 2026-04-16

@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package estategap.v1;
+
+import "estategap/v1/common.proto";
+
+option go_package = "github.com/estategap/libs/proto/estategap/v1;estategapv1";
+
+service AIChatService {
+  rpc Chat(stream ChatRequest) returns (stream ChatResponse);
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+}
+
+message ChatRequest {
+  string conversation_id = 1;
+  string user_message = 2;
+  string country_code = 3;
+}
+
+message ChatResponse {
+  string conversation_id = 1;
+  string chunk = 2;
+  bool is_final = 3;
+  repeated string listing_ids = 4;
+}
+
+message GetConversationRequest {
+  string conversation_id = 1;
+}
+
+message GetConversationResponse {
+  string conversation_id = 1;
+  repeated ConversationTurn turns = 2;
+  Timestamp created_at = 3;
+}
+
+message ConversationTurn {
+  string role = 1;
+  string content = 2;
+  Timestamp timestamp = 3;
+}
+
+message ListConversationsRequest {
+  string user_id = 1;
+  PaginationRequest pagination = 2;
+}
+
+message ListConversationsResponse {
+  repeated ConversationSummary conversations = 1;
+  PaginationResponse pagination = 2;
+}
+
+message ConversationSummary {
+  string conversation_id = 1;
+  string preview = 2;
+  Timestamp created_at = 3;
+}
