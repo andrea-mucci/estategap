@@ -19,6 +19,7 @@ test:
 	@for svc in $(PYTHON_SERVICES); do \
 		(cd services/$$svc && UV_CACHE_DIR=$(UV_CACHE_DIR) uv run pytest -x); \
 	done
+	@UV_CACHE_DIR=$(UV_CACHE_DIR) uv run --project services/pipeline pytest tests/integration/test_schema -v --tb=short
 
 lint:
 	@command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint is required to run make lint"; exit 1; }
@@ -30,6 +31,7 @@ lint:
 	@for svc in $(PYTHON_SERVICES); do \
 		(cd services/$$svc && UV_CACHE_DIR=$(UV_CACHE_DIR) uv run ruff check . && UV_CACHE_DIR=$(UV_CACHE_DIR) uv run mypy --strict .); \
 	done
+	@(cd services/pipeline && UV_CACHE_DIR=$(UV_CACHE_DIR) uv run ruff check src/pipeline ../../libs/common/estategap_common/models ../../tests/integration/test_schema && UV_CACHE_DIR=$(UV_CACHE_DIR) uv run mypy --strict src/pipeline ../../libs/common/estategap_common/models ../../tests/integration/test_schema)
 	@(cd frontend && npm run lint)
 
 build-all:

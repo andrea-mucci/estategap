@@ -1,21 +1,36 @@
-"""AlertRule Pydantic model."""
+"""Alert models."""
+
+from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
+from typing import Any
+from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import Field
 
-from .listing import ListingType
+from ._base import EstateGapModel
 
 
-class AlertRule(BaseModel):
-    id: str
-    user_id: str
-    country_code: str
-    zone_ids: list[str]
-    listing_types: list[ListingType]
-    max_price_eur: Decimal | None = None
-    min_area_sqm: float | None = None
-    min_deal_score: float | None = None
+class AlertRule(EstateGapModel):
+    id: UUID
+    user_id: UUID
+    name: str
+    filters: dict[str, Any] = Field(default_factory=dict)
+    channels: dict[str, Any] = Field(default_factory=lambda: {"email": True})
     active: bool = True
+    last_triggered_at: datetime | None = None
+    trigger_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class AlertLog(EstateGapModel):
+    id: UUID
+    rule_id: UUID
+    listing_id: UUID
+    country: str
+    channel: str
+    status: str = "pending"
+    error_message: str | None = None
+    sent_at: datetime | None = None
     created_at: datetime
