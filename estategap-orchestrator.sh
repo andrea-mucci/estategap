@@ -30,7 +30,7 @@ RETRY_DELAY_BASE=30          # seconds, exponential backoff: 30, 60, 120, 240, 4
 # Context compression
 COMPACT_EVERY=0               # 0 = never, N = every N features
 
-# Permissions (fully unrestricted — agents can use any tool: docker, helm, kind, pip, npm, etc.)
+# Permissions (fully unrestricted — broad allowedTools pattern instead of --dangerously-skip-permissions which fails under root)
 CODEX_APPROVAL="never"        # never = fully autonomous, no approval prompts
 
 # Timeouts per step (seconds)
@@ -403,7 +403,7 @@ run_constitution() {
         "$CLAUDE_CMD" -p "/speckit.constitution $prompt" \
             --model "$MODEL_SPECIFY" \
             --output-format text \
-            --dangerously-skip-permissions \
+            --allowedTools "Bash(*),Read(*),Edit(*),Write(*),MultiEdit(*)" \
             --max-turns 30
 
     log OK "Constitution created."
@@ -422,7 +422,7 @@ run_specify() {
         "$CLAUDE_CMD" -p "/speckit.specify $prompt" \
             --model "$MODEL_SPECIFY" \
             --output-format text \
-            --dangerously-skip-permissions \
+            --allowedTools "Bash(*),Read(*),Edit(*),Write(*),MultiEdit(*)" \
             --max-turns 50
 }
 
@@ -439,7 +439,7 @@ run_plan() {
         "$CLAUDE_CMD" -p "/speckit.plan $prompt" \
             --model "$MODEL_PLAN" \
             --output-format text \
-            --dangerously-skip-permissions \
+            --allowedTools "Bash(*),Read(*),Edit(*),Write(*),MultiEdit(*)" \
             --max-turns 50 \
             --continue
 }
@@ -454,7 +454,7 @@ run_tasks() {
         "$CLAUDE_CMD" -p "/speckit.tasks" \
             --model "$MODEL_TASKS" \
             --output-format text \
-            --dangerously-skip-permissions \
+            --allowedTools "Bash(*),Read(*),Edit(*),Write(*),MultiEdit(*)" \
             --max-turns 30 \
             --continue
 }
@@ -486,7 +486,7 @@ run_compact() {
     "$CLAUDE_CMD" -p "/compact Summarize all work done so far. Preserve key architectural decisions, file paths, and interfaces." \
         --model "$MODEL_TASKS" \
         --output-format text \
-        --dangerously-skip-permissions \
+        --allowedTools "Bash(*),Read(*),Edit(*),Write(*),MultiEdit(*)" \
         --max-turns 5 \
     >> "$LOG_FILE" 2>&1 || log WARN "Context compression failed (non-critical)"
 
