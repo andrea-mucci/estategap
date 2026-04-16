@@ -1,0 +1,59 @@
+# EstateGap — Feature Execution Order
+# Format: epic-folder/feature-folder
+# Lines starting with # are comments
+# Empty lines are ignored
+
+# Epic 0 — Project Bootstrap & K8s Setup
+epic-00-bootstrap/feature-01-repo-and-tooling
+epic-00-bootstrap/feature-02-kubernetes-foundation
+
+# Epic 1 — Database Schema & Shared Models
+epic-01-database/feature-01-schema-and-migrations
+epic-01-database/feature-02-shared-data-models
+
+# Epic 2 — API Gateway (Go)
+epic-02-api-gateway/feature-01-skeleton-and-auth
+epic-02-api-gateway/feature-02-listings-and-zones-api
+epic-02-api-gateway/feature-03-subscriptions-and-payments
+epic-02-api-gateway/feature-04-api-docs-and-grpc
+
+# Epic 3 — Scraping Infrastructure
+epic-03-scraping/feature-01-orchestrator-and-proxy
+epic-03-scraping/feature-02-spider-framework-and-first-spiders
+
+# Epic 4 — Data Pipeline
+epic-04-pipeline/feature-01-normalizer-and-dedup
+epic-04-pipeline/feature-02-enricher-and-change-detector
+
+# Epic 5 — ML Pipeline
+epic-05-ml-pipeline/feature-01-training-and-features
+epic-05-ml-pipeline/feature-02-scorer-and-explainability
+
+# Epic 6 — Alerts & Notifications
+epic-06-alerts/feature-01-alert-engine
+epic-06-alerts/feature-02-multi-channel-dispatcher
+
+# Epic 7 — AI Conversational Search
+epic-07-ai-chat/feature-01-chat-backend-and-llm
+epic-07-ai-chat/feature-02-websocket-and-realtime
+
+# Epic 8 — Frontend
+epic-08-frontend/feature-01-foundation-and-auth
+epic-08-frontend/feature-02-ai-chat-ui
+epic-08-frontend/feature-03-dashboard-and-map
+epic-08-frontend/feature-04-listings-and-detail
+epic-08-frontend/feature-05-zones-portfolio-admin
+
+# Epic 9 — Multi-Country Expansion
+epic-09-multi-country/feature-01-european-spiders-and-enrichers
+epic-09-multi-country/feature-02-us-market-and-models
+
+# Epic 10 — Polish & Launch
+epic-10-polish-and-launch/feature-01-landing-and-onboarding
+epic-10-polish-and-launch/feature-02-performance-security-launch
+
+# Epic 11 — Testing & Quality Assurance
+epic-11-testing/feature-01-kind-environment-and-helm
+epic-11-testing/feature-02-unit-integration-and-contracts
+epic-11-testing/feature-03-e2e-api-and-playwright
+epic-11-testing/feature-04-use-case-journeys
