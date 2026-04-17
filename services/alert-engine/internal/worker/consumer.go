@@ -3,144 +3,124 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
-	"time"
+	"sync"
 
+	sharedbroker "github.com/estategap/libs/broker"
 	"github.com/estategap/services/alert-engine/internal/metrics"
 	"github.com/estategap/services/alert-engine/internal/model"
-	"github.com/nats-io/nats.go"
+	"github.com/segmentio/kafka-go"
 )
 
 const (
-	scoredStream          = "scored-listings"
-	scoredSubject         = "scored.listings"
-	scoredDurable         = "alert-engine-scored"
-	priceChangesStream    = "price-changes"
-	priceChangesSubject   = "listings.price-change.>"
-	priceChangesDurable   = "alert-engine-price"
-	defaultPriceBatchSize = 50
+	consumerGroup = "estategap.alert-engine"
+	scoredTopic   = "scored-listings"
+	priceTopic    = "price-changes"
 )
 
 type ScoredListingHandler func(context.Context, model.ScoredListingEvent) error
 type PriceChangeHandler func(context.Context, model.PriceChangeEvent) error
 
 type Consumer struct {
-	js      nats.JetStreamContext
+	broker  *sharedbroker.KafkaBroker
 	metrics *metrics.Registry
 }
 
-func NewConsumer(js nats.JetStreamContext, registry *metrics.Registry) *Consumer {
+func NewConsumer(messageBroker *sharedbroker.KafkaBroker, registry *metrics.Registry) *Consumer {
 	return &Consumer{
-		js:      js,
+		broker:  messageBroker,
 		metrics: registry,
 	}
 }
 
-func (c *Consumer) StartScoredListings(ctx context.Context, batchSize int, handler ScoredListingHandler) error {
-	if batchSize <= 0 {
-		batchSize = 100
+func (c *Consumer) Start(
+	ctx context.Context,
+	_ int,
+	scoredHandler ScoredListingHandler,
+	priceHandler PriceChangeHandler,
+) error {
+	type subscription struct {
+		topic   string
+		handler sharedbroker.MessageHandler
 	}
 
-	sub, err := c.js.PullSubscribe(
-		scoredSubject,
-		scoredDurable,
-		nats.BindStream(scoredStream),
-		nats.ManualAck(),
-		nats.AckWait(30*time.Second),
-		nats.MaxAckPending(batchSize),
-	)
-	if err != nil {
+	subscriptions := []subscription{
+		{topic: scoredTopic, handler: c.wrapScoredHandler(scoredHandler)},
+		{topic: priceTopic, handler: c.wrapPriceHandler(priceHandler)},
+	}
+
+	errCh := make(chan error, len(subscriptions))
+	var wg sync.WaitGroup
+	for _, sub := range subscriptions {
+		reader, err := c.broker.NewReader(sub.topic, consumerGroup)
+		if err != nil {
+			return err
+		}
+		sharedbroker.StartLagPoller(ctx, reader, consumerGroup)
+
+		wg.Add(1)
+		go func(rd *kafka.Reader, handler sharedbroker.MessageHandler) {
+			defer wg.Done()
+			if err := c.broker.ConsumeReader(ctx, rd, consumerGroup, handler); err != nil && ctx.Err() == nil {
+				errCh <- err
+			}
+		}(reader, sub.handler)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-ctx.Done():
+		<-done
+		return nil
+	case err := <-errCh:
+		<-done
 		return err
+	case <-done:
+		return nil
 	}
-
-	return c.consumeScored(ctx, sub, batchSize, handler)
 }
 
-func (c *Consumer) StartPriceChanges(ctx context.Context, handler PriceChangeHandler) error {
-	sub, err := c.js.PullSubscribe(
-		priceChangesSubject,
-		priceChangesDurable,
-		nats.BindStream(priceChangesStream),
-		nats.ManualAck(),
-		nats.AckWait(30*time.Second),
-		nats.MaxAckPending(defaultPriceBatchSize),
-	)
-	if err != nil {
-		return err
-	}
-
-	return c.consumePriceChanges(ctx, sub, defaultPriceBatchSize, handler)
-}
-
-func (c *Consumer) consumeScored(ctx context.Context, sub *nats.Subscription, batchSize int, handler ScoredListingHandler) error {
-	for {
-		if ctx.Err() != nil {
+func (c *Consumer) wrapScoredHandler(handler ScoredListingHandler) sharedbroker.MessageHandler {
+	return func(ctx context.Context, message sharedbroker.Message) error {
+		var event model.ScoredListingEvent
+		if err := json.Unmarshal(message.Value, &event); err != nil {
+			slog.Warn("discarding malformed scored listing event", "error", err)
 			return nil
 		}
 
-		msgs, err := sub.Fetch(batchSize, nats.MaxWait(2*time.Second))
-		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, nats.ErrTimeout) {
-				continue
-			}
+		if c.metrics != nil {
+			c.metrics.EventsProcessed.WithLabelValues("scored_listing").Inc()
+		}
+
+		if err := handler(ctx, event); err != nil {
+			slog.Error("scored listing handler failed", "listing_id", event.ListingID, "error", err)
 			return err
 		}
-
-		for _, msg := range msgs {
-			var event model.ScoredListingEvent
-			if err := json.Unmarshal(msg.Data, &event); err != nil {
-				slog.Warn("discarding malformed scored listing event", "error", err)
-				_ = msg.Ack()
-				continue
-			}
-
-			if c.metrics != nil {
-				c.metrics.EventsProcessed.WithLabelValues("scored_listing").Inc()
-			}
-
-			if err := handler(ctx, event); err != nil {
-				slog.Error("scored listing handler failed", "listing_id", event.ListingID, "error", err)
-				_ = msg.Nak()
-				continue
-			}
-			_ = msg.Ack()
-		}
+		return nil
 	}
 }
 
-func (c *Consumer) consumePriceChanges(ctx context.Context, sub *nats.Subscription, batchSize int, handler PriceChangeHandler) error {
-	for {
-		if ctx.Err() != nil {
+func (c *Consumer) wrapPriceHandler(handler PriceChangeHandler) sharedbroker.MessageHandler {
+	return func(ctx context.Context, message sharedbroker.Message) error {
+		var event model.PriceChangeEvent
+		if err := json.Unmarshal(message.Value, &event); err != nil {
+			slog.Warn("discarding malformed price change event", "error", err)
 			return nil
 		}
 
-		msgs, err := sub.Fetch(batchSize, nats.MaxWait(2*time.Second))
-		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, nats.ErrTimeout) {
-				continue
-			}
+		if c.metrics != nil {
+			c.metrics.EventsProcessed.WithLabelValues("price_change").Inc()
+		}
+
+		if err := handler(ctx, event); err != nil {
+			slog.Error("price change handler failed", "listing_id", event.ListingID, "error", err)
 			return err
 		}
-
-		for _, msg := range msgs {
-			var event model.PriceChangeEvent
-			if err := json.Unmarshal(msg.Data, &event); err != nil {
-				slog.Warn("discarding malformed price change event", "error", err)
-				_ = msg.Ack()
-				continue
-			}
-
-			if c.metrics != nil {
-				c.metrics.EventsProcessed.WithLabelValues("price_change").Inc()
-			}
-
-			if err := handler(ctx, event); err != nil {
-				slog.Error("price change handler failed", "listing_id", event.ListingID, "error", err)
-				_ = msg.Nak()
-				continue
-			}
-			_ = msg.Ack()
-		}
+		return nil
 	}
 }

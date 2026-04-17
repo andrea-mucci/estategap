@@ -5,10 +5,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -19,7 +17,6 @@ import (
 	grpcclient "github.com/estategap/services/api-gateway/internal/grpc"
 	"github.com/estategap/services/api-gateway/internal/handler"
 	gatewaymw "github.com/estategap/services/api-gateway/internal/middleware"
-	"github.com/estategap/services/api-gateway/internal/natsutil"
 	"github.com/estategap/services/api-gateway/internal/redisclient"
 	"github.com/estategap/services/api-gateway/internal/repository"
 	"github.com/estategap/services/api-gateway/internal/service"
@@ -67,12 +64,6 @@ func run() error {
 	defer func() { _ = redisClient.Close() }()
 	cacheClient := cachepkg.NewClient(redisClient)
 
-	natsConn, err := natsutil.Connect(cfg.NATSURL)
-	if err != nil {
-		return err
-	}
-	defer natsConn.Close()
-
 	usersRepo := repository.NewUsersRepo(primaryPool, replicaPool)
 	listingsRepo := repository.NewListingsRepo(replicaPool)
 	dashboardRepo := repository.NewDashboardRepo(replicaPool, cacheClient)
@@ -81,7 +72,7 @@ func run() error {
 	alertRulesRepo := repository.NewAlertRulesRepo(primaryPool, replicaPool)
 	subsRepo := repository.NewSubscriptionsRepo(primaryPool, replicaPool)
 	portfolioRepo := repository.NewPortfolioRepo(primaryPool, replicaPool)
-	adminRepo := repository.NewAdminRepo(primaryPool, replicaPool, redisClient, deriveNATSMonitorURL(cfg.NATSURL))
+	adminRepo := repository.NewAdminRepo(primaryPool, replicaPool, redisClient)
 
 	authService := service.NewAuthService(cfg.JWTSecret, redisClient)
 	stripeService := service.NewStripeService(cfg)
@@ -120,7 +111,7 @@ func run() error {
 	}
 	defer chatClient.Close()
 
-	healthHandler := handler.NewHealthHandler(primaryPool, redisClient, natsConn)
+	healthHandler := handler.NewHealthHandler(primaryPool, redisClient)
 	authHandler := handler.NewAuthHandler(authService, usersRepo)
 	googleOAuthHandler := handler.NewGoogleOAuthHandler(oauthService)
 	dashboardHandler := handler.NewDashboardHandler(dashboardRepo, usersRepo)
@@ -132,7 +123,7 @@ func run() error {
 	alertRulesHandler := handler.NewAlertRulesHandler(alertRulesRepo, cacheClient)
 	subscriptionsHandler := handler.NewSubscriptionsHandler(stripeService, subsRepo, usersRepo, redisClient)
 	portfolioHandler := handler.NewPortfolioHandler(portfolioRepo)
-	adminHandler := handler.NewAdminHandler(adminRepo, natsConn, redisClient)
+	adminHandler := handler.NewAdminHandler(adminRepo, redisClient)
 	meExportHandler := handler.NewMeExportHandler(usersRepo, alertRulesRepo, portfolioRepo, redisClient)
 	meDeleteHandler := handler.NewMeDeleteHandler(usersRepo, authService, redisClient)
 	dataRemovalRequestHandler := handler.NewDataRemovalRequestHandler()
@@ -223,26 +214,4 @@ func run() error {
 	defer cancel()
 
 	return server.Shutdown(shutdownCtx)
-}
-
-func deriveNATSMonitorURL(natsURL string) string {
-	trimmed := strings.TrimSpace(natsURL)
-	if trimmed == "" {
-		return "http://nats:8222/jsz?streams=true&consumers=true"
-	}
-
-	parsed, err := url.Parse(trimmed)
-	if err != nil {
-		return "http://nats:8222/jsz?streams=true&consumers=true"
-	}
-
-	host := parsed.Hostname()
-	if host == "" {
-		host = parsed.Path
-	}
-	if host == "" {
-		host = "nats"
-	}
-
-	return "http://" + host + ":8222/jsz?streams=true&consumers=true"
 }

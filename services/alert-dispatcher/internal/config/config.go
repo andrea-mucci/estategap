@@ -12,8 +12,8 @@ type Config struct {
 	DatabaseURL             string
 	DatabaseReplicaURL      string
 	RedisURL                string
-	NATSURL                 string
-	NATSConsumerName        string
+	KafkaBrokers            string
+	KafkaTopicPrefix        string
 	AWSRegion               string
 	AWSSesFromAddress       string
 	AWSSesFromName          string
@@ -36,8 +36,8 @@ func Load() (*Config, error) {
 
 	v.SetDefault("DATABASE_REPLICA_URL", "")
 	v.SetDefault("REDIS_URL", "redis://localhost:6379")
-	v.SetDefault("NATS_URL", "nats://localhost:4222")
-	v.SetDefault("NATS_CONSUMER_NAME", "alert-dispatcher")
+	v.SetDefault("KAFKA_BROKERS", "localhost:9092")
+	v.SetDefault("KAFKA_TOPIC_PREFIX", "estategap.")
 	v.SetDefault("AWS_REGION", "eu-west-1")
 	v.SetDefault("AWS_SES_FROM_NAME", "EstateGap Alerts")
 	v.SetDefault("BASE_URL", "https://api.estategap.com")
@@ -50,8 +50,8 @@ func Load() (*Config, error) {
 		DatabaseURL:             strings.TrimSpace(v.GetString("DATABASE_URL")),
 		DatabaseReplicaURL:      strings.TrimSpace(v.GetString("DATABASE_REPLICA_URL")),
 		RedisURL:                strings.TrimSpace(v.GetString("REDIS_URL")),
-		NATSURL:                 strings.TrimSpace(v.GetString("NATS_URL")),
-		NATSConsumerName:        strings.TrimSpace(v.GetString("NATS_CONSUMER_NAME")),
+		KafkaBrokers:            strings.TrimSpace(v.GetString("KAFKA_BROKERS")),
+		KafkaTopicPrefix:        strings.TrimSpace(v.GetString("KAFKA_TOPIC_PREFIX")),
 		AWSRegion:               strings.TrimSpace(v.GetString("AWS_REGION")),
 		AWSSesFromAddress:       strings.TrimSpace(v.GetString("AWS_SES_FROM_ADDRESS")),
 		AWSSesFromName:          strings.TrimSpace(v.GetString("AWS_SES_FROM_NAME")),
@@ -71,11 +71,14 @@ func Load() (*Config, error) {
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
-	if cfg.NATSURL == "" {
-		return nil, fmt.Errorf("NATS_URL is required")
+	if cfg.KafkaBrokers == "" {
+		return nil, fmt.Errorf("KAFKA_BROKERS is required")
 	}
 	if cfg.DatabaseReplicaURL == "" {
 		cfg.DatabaseReplicaURL = cfg.DatabaseURL
+	}
+	if cfg.KafkaTopicPrefix == "" {
+		cfg.KafkaTopicPrefix = "estategap."
 	}
 	if cfg.HealthPort <= 0 {
 		cfg.HealthPort = 8081
@@ -88,9 +91,6 @@ func Load() (*Config, error) {
 	}
 	if cfg.BatchSize <= 0 {
 		cfg.BatchSize = 50
-	}
-	if cfg.NATSConsumerName == "" {
-		cfg.NATSConsumerName = "alert-dispatcher"
 	}
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = "INFO"

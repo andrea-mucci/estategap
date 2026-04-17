@@ -7,18 +7,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	sharedbroker "github.com/estategap/libs/broker"
 	sharedlogger "github.com/estategap/libs/logger"
 	"github.com/estategap/services/scrape-orchestrator/internal/config"
 	"github.com/estategap/services/scrape-orchestrator/internal/db"
 	"github.com/estategap/services/scrape-orchestrator/internal/handler"
 	"github.com/estategap/services/scrape-orchestrator/internal/middleware"
-	"github.com/estategap/services/scrape-orchestrator/internal/natsutil"
 	"github.com/estategap/services/scrape-orchestrator/internal/redisclient"
 	"github.com/estategap/services/scrape-orchestrator/internal/scheduler"
 	"github.com/go-chi/chi/v5"
+	"github.com/segmentio/kafka-go"
 )
 
 func main() {
@@ -51,11 +53,14 @@ func run() error {
 	}
 	defer func() { _ = redisClient.Close() }()
 
-	natsClient, err := natsutil.New(cfg.NATSURL)
+	kafkaBroker, err := sharedbroker.NewKafkaBroker(sharedbroker.KafkaConfig{
+		Brokers:     splitCSV(cfg.KafkaBrokers),
+		TopicPrefix: cfg.KafkaTopicPrefix,
+	})
 	if err != nil {
 		return err
 	}
-	defer natsClient.Close()
+	defer func() { _ = kafkaBroker.Close() }()
 
 	sched := scheduler.New(cfg.JobTTL)
 	if cfg.TestScheduleOverride != "" {
@@ -66,7 +71,7 @@ func run() error {
 		slog.Info("[test-mode] Using schedule override: " + cfg.TestScheduleOverride)
 		sched.SetFrequencyOverride(override)
 	}
-	if err := sched.Start(ctx, dbClient, natsClient, redisClient); err != nil {
+	if err := sched.Start(ctx, dbClient, kafkaBroker, redisClient); err != nil {
 		return err
 	}
 	defer sched.Stop()
@@ -75,7 +80,10 @@ func run() error {
 	triggerHandler := handler.NewTriggerHandler(sched)
 	statusHandler := handler.NewStatusHandler(redisClient)
 	statsHandler := handler.NewStatsHandler(redisClient)
-	healthHandler := handler.NewHealthHandler(dbClient, natsClient, redisClient)
+	healthHandler := handler.NewHealthHandler(dbClient, &kafkaHealthChecker{
+		dialer:  kafkaBroker.Dialer(),
+		brokers: splitCSV(cfg.KafkaBrokers),
+	}, redisClient)
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestLogger())
@@ -110,8 +118,34 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	if err := natsClient.Drain(); err != nil {
-		slog.Warn("failed to drain nats connection", "error", err)
-	}
 	return server.Shutdown(shutdownCtx)
+}
+
+type kafkaHealthChecker struct {
+	dialer  *kafka.Dialer
+	brokers []string
+}
+
+func (k *kafkaHealthChecker) Ping(ctx context.Context) error {
+	if k == nil || k.dialer == nil || len(k.brokers) == 0 {
+		return errors.New("kafka broker not configured")
+	}
+
+	conn, err := k.dialer.DialContext(ctx, "tcp", k.brokers[0])
+	if err != nil {
+		return err
+	}
+	return conn.Close()
+}
+
+func splitCSV(raw string) []string {
+	parts := strings.Split(raw, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+	return values
 }

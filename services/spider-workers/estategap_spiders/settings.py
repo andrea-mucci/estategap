@@ -9,7 +9,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Config(BaseSettings):
     """Environment-backed service configuration."""
 
-    nats_url: str = "nats://localhost:4222"
+    kafka_brokers: str = "localhost:9092"
+    kafka_topic_prefix: str = "estategap."
+    kafka_max_retries: int = 3
     redis_url: str = "redis://localhost:6379/0"
     estategap_test_mode: bool = Field(default=False, alias="ESTATEGAP_TEST_MODE")
     fixture_minio_bucket: str = Field(default="fixtures", alias="FIXTURE_MINIO_BUCKET")
@@ -28,9 +30,6 @@ class Config(BaseSettings):
     max_concurrent_per_portal: int = 3
     session_rotation_every: int = 10
     quarantine_ttl_days: int = 30
-    consumer_stream: str = "SCRAPER_COMMANDS"
-    consumer_subject: str = "scraper.commands.>"
-    consumer_durable: str = "spider-worker"
     request_timeout_seconds: float = 30.0
     transient_retry_delay_seconds: float = 5.0
     user_agent_seed: int | None = Field(default=None)
@@ -52,6 +51,8 @@ class Config(BaseSettings):
             self.session_rotation_every = 1
         if self.quarantine_ttl_days < 1:
             self.quarantine_ttl_days = 1
+        if self.kafka_max_retries < 1:
+            self.kafka_max_retries = 3
         if self.request_timeout_seconds <= 0:
             self.request_timeout_seconds = 30.0
         if self.transient_retry_delay_seconds <= 0:

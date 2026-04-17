@@ -26,7 +26,6 @@ jobs:
 
       - name: Add Helm repositories
         run: |
-          helm repo add nats https://nats-io.github.io/k8s/helm/charts
           helm repo add cnpg https://cloudnative-pg.github.io/charts
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts

@@ -196,7 +196,9 @@ async def test_full_pipeline_end_to_end(tmp_path) -> None:
         config = Config(
             DATABASE_URL=dsn,
             MLFLOW_TRACKING_URI=f"file://{tmp_path / 'mlruns'}",
-            NATS_URL="nats://localhost:4222",
+            KAFKA_BROKERS="localhost:9092",
+            KAFKA_TOPIC_PREFIX="estategap.",
+            KAFKA_MAX_RETRIES=3,
             MINIO_ENDPOINT=endpoint,
             MINIO_ACCESS_KEY="minioadmin",
             MINIO_SECRET_KEY="minioadmin",

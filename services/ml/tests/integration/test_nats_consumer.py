@@ -11,46 +11,46 @@ pytest.importorskip("asyncpg")
 pytest.importorskip("testcontainers")
 
 import asyncpg
+from estategap_common.broker import Message
 from testcontainers.postgres import PostgresContainer
 
-from estategap_ml.scorer.nats_consumer import NatsConsumer
+from estategap_ml.scorer.kafka_consumer import KafkaConsumer
 
 from tests.scorer_support import asyncpg_dsn, build_fake_bundle, make_listing, prepare_scorer_database
 
 
-class FakeMessage:
-    def __init__(self, payload: dict[str, object]) -> None:
-        self.data = json.dumps(payload).encode("utf-8")
-        self.acked = False
-        self.nacked = False
-        self.termed = False
-
-    async def ack(self) -> None:
-        self.acked = True
-
-    async def nak(self, delay: int | None = None) -> None:
-        self.nacked = True
-
-    async def term(self) -> None:
-        self.termed = True
+class FakeConsumer:
+    async def stop(self) -> None:
+        return None
 
 
-class FakeJetStream:
+class FakeBroker:
     def __init__(self) -> None:
-        self._callback = None
-        self.published: dict[str, list[bytes]] = {}
+        self._messages: asyncio.Queue[dict[str, object]] = asyncio.Queue()
+        self.published: dict[str, list[dict[str, object]]] = {}
 
-    async def subscribe(self, subject: str, **kwargs: object) -> None:
-        self._callback = kwargs["cb"]
+    async def create_consumer(self, topics: list[str], group: str) -> FakeConsumer:
+        return FakeConsumer()
 
-    async def publish(self, subject: str, payload: bytes) -> None:
-        self.published.setdefault(subject, []).append(payload)
+    async def consume(self, consumer: FakeConsumer, group: str, handler) -> None:
+        while True:
+            payload = await self._messages.get()
+            try:
+                await handler(
+                    Message(
+                        key="ES",
+                        value=json.dumps(payload).encode("utf-8"),
+                        topic="estategap.enriched-listings",
+                    )
+                )
+            finally:
+                self._messages.task_done()
 
-    async def send(self, subject: str, payload: dict[str, object]) -> FakeMessage:
-        msg = FakeMessage(payload)
-        assert self._callback is not None
-        await self._callback(msg)
-        return msg
+    async def publish(self, topic: str, key: str, value: bytes) -> None:
+        self.published.setdefault(topic, []).append({"key": key, "value": json.loads(value.decode("utf-8"))})
+
+    async def send(self, payload: dict[str, object]) -> None:
+        await self._messages.put(payload)
 
 
 @pytest.mark.asyncio
@@ -61,17 +61,18 @@ async def test_consume_loop_updates_db_and_publishes_event() -> None:
         await prepare_scorer_database(dsn, [make_listing(id=listing_id)])
         db_pool = await asyncpg.create_pool(dsn)
         try:
-            jetstream = FakeJetStream()
+            broker = FakeBroker()
             registry = SimpleNamespace(get=lambda country: build_fake_bundle(country_code=country))
-            consumer = NatsConsumer(
+            consumer = KafkaConsumer(
                 config=SimpleNamespace(scorer_batch_size=50, scorer_batch_flush_seconds=0.1),
                 db_pool=db_pool,
                 registry=registry,
-                jetstream=jetstream,
+                broker=broker,
             )
             task = asyncio.create_task(consumer.consume_loop())
             await asyncio.sleep(0.05)
-            msg = await jetstream.send("enriched.listings", {"id": str(listing_id)})
+            await broker.send({"id": str(listing_id)})
+            row = None
             for _ in range(40):
                 async with db_pool.acquire() as conn:
                     row = await conn.fetchrow(
@@ -85,8 +86,7 @@ async def test_consume_loop_updates_db_and_publishes_event() -> None:
             assert float(row["estimated_price_eur"]) == pytest.approx(245000.0)
             assert row["deal_tier"] == 1
             assert row["model_version"] == "es_national_v1"
-            assert msg.acked is True
-            assert "scored.listings" in jetstream.published
+            assert "scored-listings" in broker.published
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
         finally:

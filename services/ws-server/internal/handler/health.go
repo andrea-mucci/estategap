@@ -6,22 +6,25 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 	ggrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
 
+type brokerChecker interface {
+	Ping(context.Context) error
+}
+
 type HealthHandler struct {
 	redis *redis.Client
-	nats  *nats.Conn
+	kafka brokerChecker
 	grpc  *ggrpc.ClientConn
 }
 
-func NewHealthHandler(redisClient *redis.Client, natsConn *nats.Conn, grpcConn *ggrpc.ClientConn) *HealthHandler {
+func NewHealthHandler(redisClient *redis.Client, kafkaClient brokerChecker, grpcConn *ggrpc.ClientConn) *HealthHandler {
 	return &HealthHandler{
 		redis: redisClient,
-		nats:  natsConn,
+		kafka: kafkaClient,
 		grpc:  grpcConn,
 	}
 }
@@ -37,8 +40,8 @@ func (h *HealthHandler) Readiness(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	failures := make([]string, 0, 3)
-	if h.nats == nil || h.nats.Status() != nats.CONNECTED {
-		failures = append(failures, "nats")
+	if h.kafka == nil || h.kafka.Ping(ctx) != nil {
+		failures = append(failures, "kafka")
 	}
 	if h.redis == nil || h.redis.Ping(ctx).Err() != nil {
 		failures = append(failures, "redis")

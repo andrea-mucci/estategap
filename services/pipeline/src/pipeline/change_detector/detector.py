@@ -51,7 +51,7 @@ class Detector:
         self,
         event: ScrapeCycleEvent,
         pool: asyncpg.Pool,
-        jetstream: Any,
+        publisher: Any,
     ) -> None:
         cycle_listing_ids = await self._resolve_cycle_listing_ids(event, pool)
         active_rows = await self._fetch_listing_states(
@@ -77,7 +77,7 @@ class Detector:
         await self._detect_price_changes(
             event=event,
             pool=pool,
-            jetstream=jetstream,
+            publisher=publisher,
             active_rows=active_rows,
             listing_ids=to_check_price,
         )
@@ -196,7 +196,7 @@ class Detector:
         *,
         event: ScrapeCycleEvent,
         pool: asyncpg.Pool,
-        jetstream: Any,
+        publisher: Any,
         active_rows: dict[UUID, ListingState],
         listing_ids: set[UUID],
     ) -> None:
@@ -264,8 +264,9 @@ class Detector:
                         drop_percentage=drop_percentage,
                         recorded_at=event.completed_at,
                     )
-                    await jetstream.publish(
-                        f"listings.price-change.{event.country.lower()}",
+                    await publisher.publish(
+                        "price-changes",
+                        event.country.upper(),
                         price_event.model_dump_json().encode(),
                     )
 

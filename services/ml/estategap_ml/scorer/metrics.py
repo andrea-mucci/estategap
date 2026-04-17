@@ -34,7 +34,7 @@ SCORER_INFERENCE_DURATION_SECONDS = Histogram(
 )
 SCORER_BATCH_SIZE = Histogram(
     "scorer_batch_size",
-    "Number of listings flushed in one NATS scoring batch.",
+    "Number of listings flushed in one Kafka scoring batch.",
     labelnames=["country"],
 )
 SCORER_ACTIVE_MODEL_VERSION = Gauge(

@@ -1,4 +1,4 @@
-"""Batching NATS consumer that normalizes raw portal listings."""
+"""Batching Kafka consumer that normalizes raw portal listings."""
 
 from __future__ import annotations
 
@@ -11,10 +11,9 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-import nats
 import structlog
-from nats.aio.msg import Msg
-from nats.js.api import AckPolicy, ConsumerConfig
+from estategap_common.broker import KafkaBroker, KafkaConfig, Message
+from estategap_common.broker.kafka_lag import start_lag_poller
 from pydantic import ValidationError
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
@@ -43,22 +42,23 @@ class NormalizerService:
         settings: NormalizerSettings,
         mapper: PortalMapper,
         writer: ListingWriter,
-        jetstream: Any,
+        broker: KafkaBroker,
     ) -> None:
         self._settings = settings
         self._mapper = mapper
         self._writer = writer
-        self._jetstream = jetstream
-        self._batch: list[Msg] = []
+        self._broker = broker
+        self._batch: list[tuple[Message, asyncio.Future[None]]] = []
         self._batch_lock = asyncio.Lock()
         self._flush_task: asyncio.Task[None] | None = None
 
-    async def handle_message(self, message: Msg) -> None:
+    async def handle_message(self, message: Message) -> None:
         """Queue a message for batch processing."""
 
-        batch: list[Msg] | None = None
+        completion: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        batch: list[tuple[Message, asyncio.Future[None]]] | None = None
         async with self._batch_lock:
-            self._batch.append(message)
+            self._batch.append((message, completion))
             if len(self._batch) >= self._settings.batch_size:
                 batch = self._take_batch_locked()
                 if self._flush_task is not None:
@@ -66,12 +66,10 @@ class NormalizerService:
                     self._flush_task = None
             elif self._flush_task is None:
                 self._flush_task = asyncio.create_task(self._flush_after_timeout())
-                return
-            else:
-                return
 
         if batch is not None:
             await self._process_batch(batch)
+        await completion
 
     async def close(self) -> None:
         """Flush any outstanding messages and stop the timeout task."""
@@ -97,25 +95,33 @@ class NormalizerService:
         except asyncio.CancelledError:
             raise
 
-    def _take_batch_locked(self) -> list[Msg]:
+    def _take_batch_locked(self) -> list[tuple[Message, asyncio.Future[None]]]:
         batch = list(self._batch)
         self._batch.clear()
         return batch
 
-    async def _process_batch(self, messages: list[Msg]) -> None:
+    async def _process_batch(self, messages: list[tuple[Message, asyncio.Future[None]]]) -> None:
         started = time.perf_counter()
-        exchange_rates = await self._writer.load_exchange_rates()
-        valid_rows: list[tuple[Msg, NormalizedListing]] = []
+        try:
+            exchange_rates = await self._writer.load_exchange_rates()
+        except Exception as exc:  # noqa: BLE001
+            for _, completion in messages:
+                if not completion.done():
+                    completion.set_exception(exc)
+            return
+
+        valid_rows: list[tuple[Message, asyncio.Future[None], NormalizedListing]] = []
         batch_portal = "unknown"
         batch_country = "unknown"
 
-        for message in messages:
+        for message, completion in messages:
             clear_contextvars()
             payload: dict[str, Any] | None = None
             try:
-                payload = json.loads(message.data)
+                payload = json.loads(message.value)
             except json.JSONDecodeError as exc:
-                await self._quarantine_and_ack(
+                await self._quarantine_and_complete(
+                    completion=completion,
                     message=message,
                     portal="unknown",
                     country="unknown",
@@ -126,7 +132,7 @@ class NormalizerService:
                         portal=None,
                         reason="invalid_json",
                         error_detail=str(exc),
-                        raw_payload={"raw_message": message.data.decode("utf-8", errors="replace")},
+                        raw_payload={"raw_message": message.value.decode("utf-8", errors="replace")},
                     ),
                 )
                 continue
@@ -134,7 +140,8 @@ class NormalizerService:
             try:
                 raw = RawListing.model_validate(payload)
             except ValidationError as exc:
-                await self._quarantine_and_ack(
+                await self._quarantine_and_complete(
+                    completion=completion,
                     message=message,
                     portal=str(payload.get("portal", "unknown")),
                     country=str(payload.get("country_code", "unknown")).upper(),
@@ -163,7 +170,8 @@ class NormalizerService:
 
             mapping = self._mapper.get(raw.country_code, raw.portal)
             if mapping is None:
-                await self._quarantine_and_ack(
+                await self._quarantine_and_complete(
+                    completion=completion,
                     message=message,
                     portal=portal,
                     country=country,
@@ -186,7 +194,8 @@ class NormalizerService:
                     raise _QuarantineSignal("missing_location")
                 normalized = _build_normalized_listing(raw, mapped)
             except _QuarantineSignal as exc:
-                await self._quarantine_and_ack(
+                await self._quarantine_and_complete(
+                    completion=completion,
                     message=message,
                     portal=portal,
                     country=country,
@@ -201,7 +210,8 @@ class NormalizerService:
                 )
                 continue
             except ValidationError as exc:
-                await self._quarantine_and_ack(
+                await self._quarantine_and_complete(
+                    completion=completion,
                     message=message,
                     portal=portal,
                     country=country,
@@ -217,7 +227,8 @@ class NormalizerService:
                 )
                 continue
             except Exception as exc:  # noqa: BLE001
-                await self._quarantine_and_ack(
+                await self._quarantine_and_complete(
+                    completion=completion,
                     message=message,
                     portal=portal,
                     country=country,
@@ -233,28 +244,37 @@ class NormalizerService:
                 )
                 continue
 
-            valid_rows.append((message, normalized))
+            valid_rows.append((message, completion, normalized))
 
         try:
-            await self._writer.upsert_batch([row for _, row in valid_rows])
+            await self._writer.upsert_batch([row for _, _, row in valid_rows])
         except Exception as exc:  # noqa: BLE001
             LOGGER.error("normalizer_batch_failed", error=str(exc), size=len(valid_rows))
-            for message, _ in valid_rows:
-                await message.nak()
-            raise
+            for _, completion, _ in valid_rows:
+                if not completion.done():
+                    completion.set_exception(exc)
+            return
 
-        for message, listing in valid_rows:
+        for message, completion, listing in valid_rows:
             bind_contextvars(
                 portal=listing.source,
                 country=listing.country,
                 source_id=listing.source_id,
                 trace_id=self._trace_id(message, listing.source_id),
             )
-            await self._jetstream.publish(
-                f"normalized.listings.{listing.country.lower()}",
-                listing.model_dump_json().encode(),
-            )
-            await message.ack()
+            try:
+                await self._broker.publish(
+                    "normalized-listings",
+                    listing.country.upper(),
+                    listing.model_dump_json().encode(),
+                )
+            except Exception as exc:  # noqa: BLE001
+                if not completion.done():
+                    completion.set_exception(exc)
+                continue
+
+            if not completion.done():
+                completion.set_result(None)
             PIPELINE_MESSAGES_PROCESSED.labels(
                 service="normalizer",
                 portal=listing.source,
@@ -267,16 +287,18 @@ class NormalizerService:
             country=batch_country,
         ).observe(time.perf_counter() - started)
 
-    async def _quarantine_and_ack(
+    async def _quarantine_and_complete(
         self,
         *,
-        message: Msg,
+        completion: asyncio.Future[None],
+        message: Message,
         portal: str,
         country: str,
         record: QuarantineRecord,
     ) -> None:
         await self._writer.write_quarantine(record)
-        await message.ack()
+        if not completion.done():
+            completion.set_result(None)
         PIPELINE_MESSAGES_QUARANTINED.labels(
             service="normalizer",
             portal=portal,
@@ -289,9 +311,8 @@ class NormalizerService:
         ).inc()
 
     @staticmethod
-    def _trace_id(message: Msg, fallback: str) -> str:
-        headers = getattr(message, "headers", None) or {}
-        return headers.get("trace_id") or headers.get("Trace-Id") or fallback
+    def _trace_id(message: Message, fallback: str) -> str:
+        return message.headers.get("trace_id") or message.headers.get("Trace-Id") or fallback
 
 
 class _QuarantineSignal(Exception):
@@ -370,31 +391,32 @@ async def run(settings: NormalizerSettings) -> None:
     pool = await create_pool(settings.database_url)
     mapper = PortalMapper(PortalMapper.load_all(settings.mappings_dir))
     writer = ListingWriter(pool)
-    nc = await nats.connect(settings.nats_url)
-    js = nc.jetstream()
-    service = NormalizerService(settings=settings, mapper=mapper, writer=writer, jetstream=js)
-    await js.subscribe(
-        "raw.listings.*",
-        durable="normalizer",
-        stream="RAW_LISTINGS",
-        manual_ack=True,
-        cb=service.handle_message,
-        config=ConsumerConfig(
-            ack_policy=AckPolicy.EXPLICIT,
-            max_deliver=5,
-            ack_wait=30,
-            max_ack_pending=100,
+    broker = KafkaBroker(
+        KafkaConfig(
+            brokers=settings.kafka_brokers,
+            topic_prefix=settings.kafka_topic_prefix,
+            max_retries=settings.kafka_max_retries,
         ),
+        service_name="pipeline-normalizer",
     )
-    LOGGER.info("normalizer_started", subject="raw.listings.*", durable="normalizer")
+    consumer = await broker.create_consumer(["raw-listings"], "estategap.pipeline-normalizer")
+    lag_task = asyncio.create_task(start_lag_poller(consumer, "estategap.pipeline-normalizer"))
+    service = NormalizerService(settings=settings, mapper=mapper, writer=writer, broker=broker)
+    LOGGER.info(
+        "normalizer_started",
+        topic=broker.full_topic_name("raw-listings"),
+        group="estategap.pipeline-normalizer",
+    )
     try:
-        await asyncio.Event().wait()
+        await broker.consume(consumer, "estategap.pipeline-normalizer", service.handle_message)
     except asyncio.CancelledError:
         LOGGER.info("normalizer_cancelled")
         raise
     finally:
+        lag_task.cancel()
+        await asyncio.gather(lag_task, return_exceptions=True)
         await service.close()
-        await nc.close()
+        await broker.stop()
         await pool.close()
 
 

@@ -16,105 +16,22 @@ cnpg:
     grafanaDashboard:
       create: false
 
-nats:
-  enabled: true
-  fullnameOverride: nats
-  replicas: 3
-  storage:
-    size: 10Gi
-  service:
-    ports:
-      client: 4222
-      monitor: 8222
-  jetstream:
-    enabled: true
-    maxMemory: 1Gi
-    maxStorage: 10Gi
-  config:
-    cluster:
-      enabled: true
-      replicas: 3
-    jetstream:
-      enabled: true
-      fileStore:
-        enabled: true
-        pvc:
-          size: 10Gi
-      maxMemoryStore: 1Gi
-      maxFileStore: 10Gi
-  streams:
-    - name: raw-listings
-      subjects: ["listings.raw.>"]
-      retention: limits
-      maxAge: 168h
-      replicas: 3
-      storage: file
-    - name: normalized-listings
-      subjects: ["listings.normalized.>"]
-      retention: limits
-      maxAge: 168h
-      replicas: 3
-      storage: file
-    - name: enriched-listings
-      subjects: ["listings.enriched.>", "enriched.listings"]
-      retention: limits
-      maxAge: 720h
-      replicas: 3
-      storage: file
-    - name: scored-listings
-      subjects: ["listings.scored.>", "scored.listings"]
-      retention: limits
-      maxAge: 720h
-      replicas: 3
-      storage: file
-    - name: alerts-triggers
-      subjects: ["alerts.triggers.>"]
-      retention: workqueue
-      maxAge: 24h
-      replicas: 3
-      storage: file
-    - name: alerts-notifications
-      subjects: ["alerts.notifications.>"]
-      retention: limits
-      maxAge: 168h
-      replicas: 3
-      storage: file
-    - name: scraper-commands
-      subjects: ["scraper.commands.>"]
-      retention: workqueue
-      maxAge: 1h
-      replicas: 3
-      storage: file
-    - name: scraper-cycle
-      subjects: ["scraper.cycle.>"]
-      retention: workqueue
-      maxAge: 1h
-      replicas: 3
-      storage: file
-    - name: price-changes
-      subjects: ["listings.price-change.>"]
-      retention: limits
-      maxAge: 2160h
-      replicas: 3
-      storage: file
-  consumers:
-    - stream: scored-listings
-      name: alert-engine-scored
-      filterSubject: scored.listings
-      ackWait: 30s
-      maxAckPending: 100
-    - stream: price-changes
-      name: alert-engine-price
-      filterSubject: listings.price-change.>
-      ackWait: 30s
-      maxAckPending: 50
-  setupJob:
+kafka:
+  brokers: kafka-bootstrap.estategap-system.svc.cluster.local:9092
+  topicPrefix: estategap.
+  tls:
+    enabled: false
+  sasl:
+    enabled: false
+    username: ""
+    secretName: ""
+  consumer:
+    maxRetries: 3
+  initJob:
+    replicationFactor: 3
     image:
-      repository: natsio/nats-box
+      repository: bitnami/kafka
       tag: latest
-    waitImage:
-      repository: bitnami/kubectl
-      tag: "1.30.3"
 
 postgresql:
   enabled: true
@@ -392,13 +309,11 @@ sealedSecrets:
   mlTrainerSecrets:
     databaseUrl: AgReplaceWithKubesealOutput
     mlflowTrackingUri: AgReplaceWithKubesealOutput
-    natsUrl: AgReplaceWithKubesealOutput
     minioEndpoint: AgReplaceWithKubesealOutput
     minioAccessKey: AgReplaceWithKubesealOutput
     minioSecretKey: AgReplaceWithKubesealOutput
   mlScorerSecrets:
     databaseUrl: AgReplaceWithKubesealOutput
-    natsUrl: AgReplaceWithKubesealOutput
     minioEndpoint: AgReplaceWithKubesealOutput
     minioAccessKey: AgReplaceWithKubesealOutput
     minioSecretKey: AgReplaceWithKubesealOutput
@@ -495,7 +410,7 @@ loadTests:
   apiBaseUrl: https://staging.estategap.com
   wsUrl: wss://staging.estategap.com/chat
   alertsTriggerUrl: https://staging.estategap.com/api/v1/internal/alerts/trigger
-  natsHttpPublishUrl: ""
+  pipelineHttpPublishUrl: ""
   prometheusRemoteWriteUrl: ""
 
 services:
@@ -695,8 +610,6 @@ services:
           secretKeyRef:
             name: alert-engine-secrets
             key: REDIS_URL
-      NATS_URL:
-        value: nats://nats.estategap-system.svc.cluster.local:4222
       RULE_CACHE_REFRESH_INTERVAL:
         value: 60s
       WORKER_POOL_SIZE:
@@ -747,7 +660,6 @@ services:
       baseUrl: https://api.estategap.com
       workerPoolSize: 16
       batchSize: 50
-      natsConsumerName: alert-dispatcher
       awsRegion: eu-west-1
       awsSesFromAddress: alerts@estategap.com
       awsSesFromName: EstateGap Alerts
@@ -784,8 +696,6 @@ services:
         value: postgres://estategap:replace-me@estategap-postgres-rw.estategap-system.svc.cluster.local:5432/estategap?sslmode=disable
       REDIS_URL:
         value: redis://redis.estategap-system.svc.cluster.local:6379
-      NATS_URL:
-        value: nats://nats.estategap-system.svc.cluster.local:4222
       HTTP_PORT:
         value: "8082"
       PORTAL_RELOAD_INTERVAL:
@@ -881,8 +791,6 @@ services:
     env:
       LOG_LEVEL:
         value: INFO
-      NATS_URL:
-        value: nats://nats.estategap-system.svc.cluster.local:4222
       REDIS_URL:
         value: redis://redis.estategap-system.svc.cluster.local:6379/0
       PROXY_MANAGER_ADDR:
@@ -920,7 +828,7 @@ services:
       minReplicas: 1
       maxReplicas: 50
       stream: scraper-commands
-      consumer: spider-worker-group
+      consumer: estategap.spider-workers
       lagThreshold: "100"
 
   pipeline:

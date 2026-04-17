@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 )
@@ -15,17 +14,21 @@ type dbPinger interface {
 	Ping(context.Context) error
 }
 
+type brokerChecker interface {
+	Ping(context.Context) error
+}
+
 type Router struct {
 	db    dbPinger
 	redis *redis.Client
-	nats  *nats.Conn
+	kafka brokerChecker
 }
 
-func New(db dbPinger, redisClient *redis.Client, natsConn *nats.Conn) http.Handler {
+func New(db dbPinger, redisClient *redis.Client, kafkaClient brokerChecker) http.Handler {
 	r := &Router{
 		db:    db,
 		redis: redisClient,
-		nats:  natsConn,
+		kafka: kafkaClient,
 	}
 
 	router := chi.NewRouter()
@@ -56,9 +59,11 @@ func (r *Router) readyz(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
-	if r.nats != nil && r.nats.Status() == nats.CLOSED {
-		http.Error(w, "nats not ready", http.StatusServiceUnavailable)
-		return
+	if r.kafka != nil {
+		if err := r.kafka.Ping(ctx); err != nil {
+			http.Error(w, "kafka not ready", http.StatusServiceUnavailable)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)

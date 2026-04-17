@@ -68,16 +68,16 @@ class _FakePool:
         return _Acquire(self._conn)
 
 
-class _FakeJetStream:
+class _FakeBroker:
     def __init__(self) -> None:
-        self.published: list[tuple[str, bytes]] = []
+        self.published: list[tuple[str, str, bytes]] = []
 
-    async def publish(self, subject: str, payload: bytes) -> None:
-        self.published.append((subject, payload))
+    async def publish(self, topic: str, key: str, payload: bytes) -> None:
+        self.published.append((topic, key, payload))
 
 
 def _settings() -> ChangeDetectorSettings:
-    return ChangeDetectorSettings(database_url="postgresql://example", nats_url="nats://example")
+    return ChangeDetectorSettings(database_url="postgresql://example", kafka_brokers="localhost:9092")
 
 
 @pytest.mark.asyncio
@@ -135,7 +135,7 @@ async def test_change_detector_handles_delist_relist_and_price_drop() -> None:
         ],
     )
     pool = _FakePool(conn)
-    jetstream = _FakeJetStream()
+    broker = _FakeBroker()
     detector = Detector(_settings())
     event = ScrapeCycleEvent(
         cycle_id="cycle-1",
@@ -145,14 +145,14 @@ async def test_change_detector_handles_delist_relist_and_price_drop() -> None:
         listing_ids=[str(drop_id), str(relist_id)],
     )
 
-    await detector.run_cycle(event, pool, jetstream)
+    await detector.run_cycle(event, pool, broker)
 
     delist_args = conn.executemany_calls[0][1]
     relist_args = conn.executemany_calls[1][1]
     assert delist_args == [(missing_id, "ES")]
     assert relist_args == [(relist_id, "ES")]
     assert any("INSERT INTO price_history" in sql for sql, _ in conn.execute_calls)
-    assert jetstream.published[0][0] == "listings.price-change.es"
+    assert broker.published[0][0] == "price-changes"
 
 
 @pytest.mark.asyncio
@@ -204,7 +204,7 @@ async def test_change_detector_does_not_publish_for_price_increase_or_equal_pric
         ],
     )
     detector = Detector(_settings())
-    jetstream = _FakeJetStream()
+    broker = _FakeBroker()
     event = ScrapeCycleEvent(
         cycle_id="cycle-2",
         portal="idealista",
@@ -213,11 +213,11 @@ async def test_change_detector_does_not_publish_for_price_increase_or_equal_pric
         listing_ids=[str(increase_id), str(unchanged_id)],
     )
 
-    await detector.run_cycle(event, _FakePool(conn), jetstream)
+    await detector.run_cycle(event, _FakePool(conn), broker)
 
     inserts = [sql for sql, _ in conn.execute_calls if "INSERT INTO price_history" in sql]
     assert len(inserts) == 1
-    assert jetstream.published == []
+    assert broker.published == []
 
 
 @pytest.mark.asyncio

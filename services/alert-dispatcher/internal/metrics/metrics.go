@@ -37,7 +37,7 @@ func New() *Registry {
 			}, []string{"channel"}),
 			ConsumerLag: prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "dispatcher_consumer_lag",
-				Help: "Approximate number of pending notifications in JetStream.",
+				Help: "Approximate number of pending Kafka notifications.",
 			}),
 		}
 		prometheus.MustRegister(

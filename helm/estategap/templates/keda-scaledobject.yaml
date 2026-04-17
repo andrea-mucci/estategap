@@ -15,12 +15,11 @@ spec:
   minReplicaCount: {{ $service.keda.minReplicas }}
   maxReplicaCount: {{ $service.keda.maxReplicas }}
   triggers:
-    - type: nats-jetstream
+    - type: kafka
       metadata:
-        natsServerMonitoringEndpoint: nats.estategap-system.svc.cluster.local:8222
-        account: "$G"
-        stream: {{ $service.keda.stream | quote }}
-        consumer: {{ $service.keda.consumer | quote }}
+        bootstrapServers: {{ .Values.kafka.brokers | quote }}
+        consumerGroup: {{ $service.keda.consumer | quote }}
+        topic: {{ printf "%s%s" .Values.kafka.topicPrefix $service.keda.stream | quote }}
         lagThreshold: {{ $service.keda.lagThreshold | quote }}
-        useHttps: "false"
+        offsetResetPolicy: latest
 {{- end }}

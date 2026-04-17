@@ -1,0 +1,101 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics-init
+  namespace: estategap-system
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka-topics-init
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        {{- include "estategap.labels" . | nindent 8 }}
+        app.kubernetes.io/component: kafka-topics-init
+    spec:
+      {{- include "estategap.imagePullSecrets" . | nindent 6 }}
+      restartPolicy: OnFailure
+      containers:
+        - name: kafka-topics-init
+          image: {{ include "estategap.serviceImage" (dict "root" . "image" .Values.kafka.initJob.image) }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ .Values.kafka.brokers | quote }}
+            - name: KAFKA_TOPIC_PREFIX
+              value: {{ .Values.kafka.topicPrefix | quote }}
+            - name: KAFKA_TLS_ENABLED
+              value: {{ ternary "true" "false" .Values.kafka.tls.enabled | quote }}
+            - name: KAFKA_REPLICATION_FACTOR
+              value: {{ printf "%v" .Values.kafka.initJob.replicationFactor | quote }}
+            {{- if .Values.kafka.sasl.enabled }}
+            - name: KAFKA_SASL_USERNAME
+              value: {{ .Values.kafka.sasl.username | quote }}
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kafka.sasl.secretName | quote }}
+                  key: KAFKA_SASL_PASSWORD
+            {{- end }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              KAFKA_BIN="/opt/bitnami/kafka/bin/kafka-topics.sh"
+              COMMAND_CONFIG=""
+
+              if [ "${KAFKA_TLS_ENABLED}" = "true" ] || [ -n "${KAFKA_SASL_USERNAME:-}" ] || [ -n "${KAFKA_SASL_PASSWORD:-}" ]; then
+                SECURITY_PROTOCOL="SSL"
+                if [ -n "${KAFKA_SASL_USERNAME:-}" ] || [ -n "${KAFKA_SASL_PASSWORD:-}" ]; then
+                  SECURITY_PROTOCOL="SASL_PLAINTEXT"
+                  if [ "${KAFKA_TLS_ENABLED}" = "true" ]; then
+                    SECURITY_PROTOCOL="SASL_SSL"
+                  fi
+                fi
+                cat >/tmp/client.properties <<EOF
+              security.protocol=${SECURITY_PROTOCOL}
+              EOF
+                if [ -n "${KAFKA_SASL_USERNAME:-}" ] || [ -n "${KAFKA_SASL_PASSWORD:-}" ]; then
+                  cat >>/tmp/client.properties <<EOF
+              sasl.mechanism=PLAIN
+              sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_SASL_USERNAME}" password="${KAFKA_SASL_PASSWORD}";
+              EOF
+                fi
+                COMMAND_CONFIG="--command-config /tmp/client.properties"
+              fi
+
+              until ${KAFKA_BIN} --bootstrap-server "${KAFKA_BROKERS}" ${COMMAND_CONFIG} --list >/dev/null 2>&1; do
+                echo "waiting for kafka brokers at ${KAFKA_BROKERS}"
+                sleep 5
+              done
+
+              create_topic() {
+                topic="$1"
+                partitions="$2"
+                retention_ms="$3"
+                ${KAFKA_BIN} \
+                  --bootstrap-server "${KAFKA_BROKERS}" \
+                  ${COMMAND_CONFIG} \
+                  --create \
+                  --if-not-exists \
+                  --topic "${KAFKA_TOPIC_PREFIX}${topic}" \
+                  --partitions "${partitions}" \
+                  --replication-factor "${KAFKA_REPLICATION_FACTOR}" \
+                  --config "retention.ms=${retention_ms}" \
+                  --config "cleanup.policy=delete"
+              }
+
+              create_topic raw-listings 10 604800000
+              create_topic normalized-listings 10 604800000
+              create_topic enriched-listings 10 604800000
+              create_topic scored-listings 10 604800000
+              create_topic price-changes 10 604800000
+              create_topic alerts-triggers 5 259200000
+              create_topic alerts-notifications 5 259200000
+              create_topic scraper-commands 5 86400000
+              create_topic scraper-cycle 5 86400000
+              create_topic dead-letter 3 604800000

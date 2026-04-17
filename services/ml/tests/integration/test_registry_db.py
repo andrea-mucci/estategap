@@ -107,7 +107,9 @@ async def test_maybe_promote_respects_threshold(tmp_path) -> None:
         config = Config(
             DATABASE_URL=dsn,
             MLFLOW_TRACKING_URI="file:///tmp/mlruns",
-            NATS_URL="nats://localhost:4222",
+            KAFKA_BROKERS="localhost:9092",
+            KAFKA_TOPIC_PREFIX="estategap.",
+            KAFKA_MAX_RETRIES=3,
             MINIO_ENDPOINT="http://localhost:9000",
             MINIO_ACCESS_KEY="minioadmin",
             MINIO_SECRET_KEY="minioadmin",
@@ -143,7 +145,9 @@ async def test_maybe_promote_promotes_first_run_and_clear_win(tmp_path) -> None:
         config = Config(
             DATABASE_URL=dsn,
             MLFLOW_TRACKING_URI="file:///tmp/mlruns",
-            NATS_URL="nats://localhost:4222",
+            KAFKA_BROKERS="localhost:9092",
+            KAFKA_TOPIC_PREFIX="estategap.",
+            KAFKA_MAX_RETRIES=3,
             MINIO_ENDPOINT="http://localhost:9000",
             MINIO_ACCESS_KEY="minioadmin",
             MINIO_SECRET_KEY="minioadmin",

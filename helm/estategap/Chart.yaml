@@ -1,5 +1,4 @@
 # Add the required repositories before running `helm dependency update`:
-#   helm repo add nats https://nats-io.github.io/k8s/helm/charts
 #   helm repo add cnpg https://cloudnative-pg.github.io/charts
 #   helm repo add bitnami https://charts.bitnami.com/bitnami
 #   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -11,10 +10,6 @@ version: 0.1.0
 appVersion: "0.1.0"
 description: EstateGap platform infrastructure umbrella chart
 dependencies:
-  - name: nats
-    repository: https://nats-io.github.io/k8s/helm/charts
-    version: ">=1.0.0 <2.0.0"
-    condition: nats.enabled
   - name: cloudnative-pg
     repository: https://cloudnative-pg.github.io/charts
     version: ">=0.0.0 <1.0.0"

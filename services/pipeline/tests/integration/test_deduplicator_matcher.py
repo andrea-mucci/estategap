@@ -13,33 +13,20 @@ from pipeline.deduplicator.matcher import (
 from pipeline.normalizer.writer import ListingWriter
 
 
-class FakeJetStream:
-    def __init__(self) -> None:
-        self.published: list[tuple[str, bytes]] = []
-
-    async def publish(self, subject: str, payload: bytes) -> None:
-        self.published.append((subject, payload))
-
-
 class FakeMessage:
     def __init__(self, payload: bytes) -> None:
         self.data = payload
+        self.value = payload
         self.headers: dict[str, str] = {}
-        self.acked = False
-        self.nacked = False
-
-    async def ack(self) -> None:
-        self.acked = True
-
-    async def nak(self) -> None:
-        self.nacked = True
 
 
 @pytest.fixture
 def deduplicator_settings(database_url: str) -> DeduplicatorSettings:
     return DeduplicatorSettings.model_construct(
         database_url=database_url,
-        nats_url="nats://unused:4222",
+        kafka_brokers="localhost:9092",
+        kafka_topic_prefix="estategap.",
+        kafka_max_retries=3,
         proximity_meters=50,
         area_tolerance=0.10,
         address_threshold=85,
@@ -150,7 +137,7 @@ async def test_deduplicator_skips_postgis_when_location_missing(
     listing = normalized_listing_factory(source_id="no-gps", location_wkt=None, address="Unknown address")
     await writer.upsert_batch([listing])
 
-    service = DeduplicatorService(deduplicator_settings, asyncpg_pool, FakeJetStream())
+    service = DeduplicatorService(deduplicator_settings, asyncpg_pool)
     message = FakeMessage(listing.model_dump_json().encode())
 
     await service.handle_message(message)
@@ -160,6 +147,4 @@ async def test_deduplicator_skips_postgis_when_location_missing(
         listing.id,
     )
 
-    assert message.acked is True
-    assert message.nacked is False
     assert canonical_id == listing.id

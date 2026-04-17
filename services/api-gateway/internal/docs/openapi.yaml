@@ -1001,7 +1001,7 @@ paths:
                 checks:
                   postgres: ok
                   redis: ok
-                  nats: ok
+                  redis: ok
         "503":
           description: One or more dependencies are unavailable
           content:
@@ -1011,7 +1011,7 @@ paths:
                 checks:
                   postgres: error
                   redis: ok
-                  nats: ok
+                  redis: ok
 
   /metrics:
     get:

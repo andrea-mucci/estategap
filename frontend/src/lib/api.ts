@@ -109,13 +109,6 @@ export type CountryConfig = {
   portals: PortalConfig[];
 };
 export type SystemHealth = {
-  nats: {
-    subjects: Array<{
-      subject: string;
-      consumer_lag: number;
-      message_count: number;
-    }>;
-  };
   database: {
     size_bytes: number;
     active_connections: number;

@@ -5,7 +5,6 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"net/http/httptest"
@@ -15,20 +14,19 @@ import (
 	"testing"
 	"time"
 
+	sharedbroker "github.com/estategap/libs/broker"
+	"github.com/estategap/testhelpers"
 	estategapv1 "github.com/estategap/libs/proto/estategap/v1"
 	"github.com/estategap/services/ws-server/internal/config"
 	grpcclient "github.com/estategap/services/ws-server/internal/grpc"
 	"github.com/estategap/services/ws-server/internal/handler"
 	"github.com/estategap/services/ws-server/internal/hub"
 	"github.com/estategap/services/ws-server/internal/metrics"
-	wsnats "github.com/estategap/services/ws-server/internal/nats"
+	wskafka "github.com/estategap/services/ws-server/internal/kafka"
 	"github.com/estategap/services/ws-server/internal/protocol"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
-	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	ggrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
@@ -145,49 +143,20 @@ func TestChatStreamingIntegration(t *testing.T) {
 
 func TestDealAlertIntegration(t *testing.T) {
 	ctx := context.Background()
-	natsContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "nats:2.10-alpine",
-			ExposedPorts: []string{"4222/tcp"},
-			Cmd:          []string{"-js"},
-			WaitingFor:   wait.ForListeningPort("4222/tcp"),
-		},
-		Started: true,
-	})
-	if err != nil {
-		t.Fatalf("start nats container: %v", err)
-	}
-	defer testcontainers.TerminateContainer(natsContainer)
+	bootstrapAddr, cleanup := testhelpers.StartKafkaContainer(t)
+	defer cleanup()
 
-	host, _ := natsContainer.Host(ctx)
-	port, _ := natsContainer.MappedPort(ctx, "4222/tcp")
-	natsURL := fmt.Sprintf("nats://%s:%s", host, port.Port())
-
-	natsConn, err := nats.Connect(natsURL)
+	kafkaBroker, err := sharedbroker.NewKafkaBroker(sharedbroker.KafkaConfig{Brokers: []string{bootstrapAddr}})
 	if err != nil {
-		t.Fatalf("connect nats: %v", err)
+		t.Fatalf("create kafka broker: %v", err)
 	}
-	defer natsConn.Close()
-
-	js, err := natsConn.JetStream()
-	if err != nil {
-		t.Fatalf("jetstream: %v", err)
-	}
-	if _, err := js.AddStream(&nats.StreamConfig{
-		Name:     "ALERTS",
-		Subjects: []string{"alerts.notifications.>"},
-	}); err != nil {
-		t.Fatalf("add alerts stream: %v", err)
-	}
+	defer func() { _ = kafkaBroker.Close() }()
 
 	cfg := testConfig()
-	cfg.NATSAddr = natsURL
+	cfg.KafkaBrokers = bootstrapAddr
 
 	h := hub.New(cfg.MaxConnections)
-	consumer := wsnats.New(js, h, cfg)
-	if err := consumer.Setup(); err != nil {
-		t.Fatalf("consumer setup: %v", err)
-	}
+	consumer := wskafka.New(kafkaBroker, h, cfg)
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -224,7 +193,7 @@ func TestDealAlertIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal event: %v", err)
 	}
-	if _, err := js.Publish("alerts.notifications.IT", payload); err != nil {
+	if err := kafkaBroker.Publish(ctx, "alerts-notifications", "user-123", payload); err != nil {
 		t.Fatalf("publish event: %v", err)
 	}
 
@@ -419,13 +388,14 @@ func testConfig() *config.Config {
 		JWTSecret:       "test-secret",
 		RedisAddr:       "localhost:6379",
 		AIChatGRPCAddr:  "127.0.0.1:50053",
-		NATSAddr:        "nats://localhost:4222",
+		KafkaBrokers:    "localhost:9092",
+		KafkaTopicPrefix: "estategap.",
 		MaxConnections:  100,
 		PingInterval:    time.Second,
 		PongTimeout:     time.Second,
 		IdleTimeout:     time.Minute,
 		ShutdownTimeout: 2 * time.Second,
-		NATSWorkers:     1,
+		KafkaWorkers:    1,
 		LogLevel:        "DEBUG",
 	}
 }

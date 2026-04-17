@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from tests.e2e.helpers.nats_injector import ScoredListingEvent, publish_scored_listing
+from tests.e2e.helpers.kafka_injector import ScoredListingEvent, publish_scored_listing
 
 
 pytestmark = [pytest.mark.ws]
@@ -55,7 +55,7 @@ async def test_matching_scored_listing_pushes_deal_alert(
     )
 
     async with ws_client("pro") as client:
-        await publish_scored_listing("nats://localhost:4222", event)
+        await publish_scored_listing("localhost:9092", event)
         try:
             while True:
                 message = await client.next_message(timeout=10.0)

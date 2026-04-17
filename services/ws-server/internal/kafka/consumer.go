@@ -1,30 +1,28 @@
-package wsnats
+package wskafka
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 	"time"
 
+	sharedbroker "github.com/estategap/libs/broker"
 	"github.com/estategap/services/ws-server/internal/config"
 	"github.com/estategap/services/ws-server/internal/hub"
 	"github.com/estategap/services/ws-server/internal/metrics"
 	"github.com/estategap/services/ws-server/internal/protocol"
-	"github.com/nats-io/nats.go"
+	"github.com/segmentio/kafka-go"
 )
 
 const (
-	streamName    = "ALERTS"
-	durableName   = "ws-server-notifications"
-	subjectFilter = "alerts.notifications.>"
+	consumerGroup = "estategap.ws-server"
+	topicName     = "alerts-notifications"
 )
 
 type Consumer struct {
-	js     nats.JetStreamContext
+	broker *sharedbroker.KafkaBroker
 	hub    *hub.Hub
 	cfg    *config.Config
-	sub    *nats.Subscription
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
@@ -50,75 +48,39 @@ type notificationSummary struct {
 	Address     string  `json:"address,omitempty"`
 }
 
-func New(js nats.JetStreamContext, hub *hub.Hub, cfg *config.Config) *Consumer {
+func New(messageBroker *sharedbroker.KafkaBroker, h *hub.Hub, cfg *config.Config) *Consumer {
 	return &Consumer{
-		js:  js,
-		hub: hub,
-		cfg: cfg,
+		broker: messageBroker,
+		hub:    h,
+		cfg:    cfg,
 	}
-}
-
-func (c *Consumer) Setup() error {
-	if _, err := c.js.ConsumerInfo(streamName, durableName); err != nil {
-		if _, addErr := c.js.AddConsumer(streamName, &nats.ConsumerConfig{
-			Durable:       durableName,
-			Name:          durableName,
-			FilterSubject: subjectFilter,
-			AckPolicy:     nats.AckExplicitPolicy,
-			AckWait:       10 * time.Second,
-			MaxDeliver:    1,
-			MaxAckPending: 1000,
-			DeliverPolicy: nats.DeliverNewPolicy,
-			ReplayPolicy:  nats.ReplayInstantPolicy,
-		}); addErr != nil {
-			return addErr
-		}
-	}
-
-	sub, err := c.js.PullSubscribe(
-		subjectFilter,
-		durableName,
-		nats.Bind(streamName, durableName),
-		nats.ManualAck(),
-		nats.AckWait(10*time.Second),
-		nats.MaxAckPending(1000),
-	)
-	if err != nil {
-		return err
-	}
-
-	c.sub = sub
-	return nil
 }
 
 func (c *Consumer) Start(ctx context.Context) error {
-	if c.sub == nil {
-		if err := c.Setup(); err != nil {
-			return err
-		}
-	}
-
 	runCtx, cancel := context.WithCancel(ctx)
 	c.cancel = cancel
 
-	errCh := make(chan error, 1)
-	workers := c.cfg.NATSWorkers
+	workers := c.cfg.KafkaWorkers
 	if workers <= 0 {
 		workers = 4
 	}
 
+	errCh := make(chan error, workers)
 	for i := 0; i < workers; i++ {
+		reader, err := c.broker.NewReader(topicName, consumerGroup)
+		if err != nil {
+			return err
+		}
+		sharedbroker.StartLagPoller(runCtx, reader, consumerGroup)
+
 		c.wg.Add(1)
-		go func() {
+		go func(rd *kafka.Reader) {
 			defer c.wg.Done()
-			if err := c.worker(runCtx); err != nil && !errors.Is(err, context.Canceled) {
-				select {
-				case errCh <- err:
-				default:
-				}
+			if err := c.broker.ConsumeReader(runCtx, rd, consumerGroup, c.handleMessage); err != nil && runCtx.Err() == nil {
+				errCh <- err
 				cancel()
 			}
-		}()
+		}(reader)
 	}
 
 	done := make(chan struct{})
@@ -134,6 +96,8 @@ func (c *Consumer) Start(ctx context.Context) error {
 	case err := <-errCh:
 		<-done
 		return err
+	case <-done:
+		return nil
 	}
 }
 
@@ -141,39 +105,14 @@ func (c *Consumer) Stop() {
 	if c.cancel != nil {
 		c.cancel()
 	}
-	if c.sub != nil {
-		_ = c.sub.Unsubscribe()
-	}
 	c.wg.Wait()
 }
 
-func (c *Consumer) worker(ctx context.Context) error {
-	for {
-		if ctx.Err() != nil {
-			return nil
-		}
-
-		msgs, err := c.sub.Fetch(10, nats.MaxWait(2*time.Second))
-		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, nats.ErrTimeout) {
-				continue
-			}
-			return err
-		}
-
-		for _, msg := range msgs {
-			c.handleMessage(msg)
-		}
-	}
-}
-
-func (c *Consumer) handleMessage(msg *nats.Msg) {
-	defer func() { _ = msg.Ack() }()
-
+func (c *Consumer) handleMessage(_ context.Context, message sharedbroker.Message) error {
 	var event notificationEvent
-	if err := json.Unmarshal(msg.Data, &event); err != nil {
-		metrics.NATSNotificationsSkippedTotal.Inc()
-		return
+	if err := json.Unmarshal(message.Value, &event); err != nil {
+		metrics.NotificationsSkippedTotal.Inc()
+		return nil
 	}
 
 	payload := protocol.DealAlertPayload{
@@ -198,13 +137,14 @@ func (c *Consumer) handleMessage(msg *nats.Msg) {
 
 	raw, err := protocol.MarshalEnvelope("deal_alert", "", payload)
 	if err != nil {
-		metrics.NATSNotificationsSkippedTotal.Inc()
-		return
+		metrics.NotificationsSkippedTotal.Inc()
+		return nil
 	}
 
 	if c.hub.Send(event.UserID, raw) {
-		metrics.NATSNotificationsDeliveredTotal.Inc()
-		return
+		metrics.NotificationsDeliveredTotal.Inc()
+		return nil
 	}
-	metrics.NATSNotificationsSkippedTotal.Inc()
+	metrics.NotificationsSkippedTotal.Inc()
+	return nil
 }

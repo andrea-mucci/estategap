@@ -13,20 +13,17 @@ import (
 	"github.com/estategap/services/api-gateway/internal/respond"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 )
 
 type AdminHandler struct {
 	repo        *repository.AdminRepo
-	natsConn    *nats.Conn
 	redisClient *redis.Client
 }
 
-func NewAdminHandler(repo *repository.AdminRepo, natsConn *nats.Conn, redisClient *redis.Client) *AdminHandler {
+func NewAdminHandler(repo *repository.AdminRepo, redisClient *redis.Client) *AdminHandler {
 	return &AdminHandler{
 		repo:        repo,
-		natsConn:    natsConn,
 		redisClient: redisClient,
 	}
 }
@@ -87,7 +84,16 @@ func (h *AdminHandler) TriggerRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.natsConn.Publish("ml.retrain.requested", payload); err != nil {
+	if err := h.redisClient.XAdd(r.Context(), &redis.XAddArgs{
+		Stream:       "ml:retrain:requested",
+		MaxLenApprox: 1000,
+		Values: map[string]any{
+			"country":      country,
+			"requested_by": ctxkey.String(r.Context(), ctxkey.UserEmail),
+			"job_id":       jobID,
+			"payload":      string(payload),
+		},
+	}).Err(); err != nil {
 		writeError(w, r, http.StatusServiceUnavailable, "failed to queue retrain job")
 		return
 	}

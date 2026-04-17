@@ -31,70 +31,19 @@ observability:
   tempo:
     enabled: false
 
-nats:
-  replicas: 1
-  streams:
-    - name: raw-listings
-      subjects: ["listings.raw.>"]
-      retention: limits
-      maxAge: 168h
-      replicas: 1
-      storage: file
-    - name: normalized-listings
-      subjects: ["listings.normalized.>"]
-      retention: limits
-      maxAge: 168h
-      replicas: 1
-      storage: file
-    - name: enriched-listings
-      subjects: ["listings.enriched.>", "enriched.listings"]
-      retention: limits
-      maxAge: 720h
-      replicas: 1
-      storage: file
-    - name: scored-listings
-      subjects: ["listings.scored.>", "scored.listings"]
-      retention: limits
-      maxAge: 720h
-      replicas: 1
-      storage: file
-    - name: alerts-triggers
-      subjects: ["alerts.triggers.>"]
-      retention: workqueue
-      maxAge: 24h
-      replicas: 1
-      storage: file
-    - name: alerts-notifications
-      subjects: ["alerts.notifications.>"]
-      retention: limits
-      maxAge: 168h
-      replicas: 1
-      storage: file
-    - name: scraper-commands
-      subjects: ["scraper.commands.>"]
-      retention: workqueue
-      maxAge: 1h
-      replicas: 1
-      storage: file
-    - name: scraper-cycle
-      subjects: ["scraper.cycle.>"]
-      retention: workqueue
-      maxAge: 1h
-      replicas: 1
-      storage: file
-    - name: price-changes
-      subjects: ["listings.price-change.>"]
-      retention: limits
-      maxAge: 2160h
-      replicas: 1
-      storage: file
-  config:
-    cluster:
-      replicas: 1
-    jetstream:
-      fileStore:
-        pvc:
-          size: 1Gi
+kafka:
+  brokers: kafka-bootstrap.estategap-system.svc.cluster.local:9092
+  topicPrefix: estategap.
+  tls:
+    enabled: false
+  sasl:
+    enabled: false
+    username: ""
+    secretName: ""
+  consumer:
+    maxRetries: 3
+  initJob:
+    replicationFactor: 1
 
 postgresql:
   instances: 1

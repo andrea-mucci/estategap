@@ -33,12 +33,12 @@ var (
 		Help:    "Duration of chat gRPC streams opened by ws-server.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"status"})
-	NATSNotificationsDeliveredTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "ws_nats_notifications_delivered_total",
+	NotificationsDeliveredTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "ws_notifications_delivered_total",
 		Help: "Total deal alert notifications delivered to connected users.",
 	})
-	NATSNotificationsSkippedTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "ws_nats_notifications_skipped_total",
+	NotificationsSkippedTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "ws_notifications_skipped_total",
 		Help: "Total deal alert notifications skipped because no active connection received them.",
 	})
 )

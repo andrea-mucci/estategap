@@ -13,26 +13,19 @@ from pipeline.normalizer.mapper import PortalMapper
 from pipeline.normalizer.writer import ListingWriter
 
 
-class FakeJetStream:
+class FakeBroker:
     def __init__(self) -> None:
-        self.published: list[tuple[str, bytes]] = []
+        self.published: list[tuple[str, str, bytes]] = []
 
-    async def publish(self, subject: str, payload: bytes) -> None:
-        self.published.append((subject, payload))
+    async def publish(self, topic: str, key: str, payload: bytes) -> None:
+        self.published.append((topic, key, payload))
 
 
 class FakeMessage:
     def __init__(self, payload: bytes) -> None:
         self.data = payload
+        self.value = payload
         self.headers: dict[str, str] = {}
-        self.acked = False
-        self.nacked = False
-
-    async def ack(self) -> None:
-        self.acked = True
-
-    async def nak(self) -> None:
-        self.nacked = True
 
 
 @pytest.fixture
@@ -40,7 +33,9 @@ def normalizer_settings(database_url: str) -> NormalizerSettings:
     repo_root = Path(__file__).resolve().parents[4]
     return NormalizerSettings.model_construct(
         database_url=database_url,
-        nats_url="nats://unused:4222",
+        kafka_brokers="localhost:9092",
+        kafka_topic_prefix="estategap.",
+        kafka_max_retries=3,
         batch_size=1,
         batch_timeout=0.01,
         mappings_dir=repo_root / "services" / "pipeline" / "config" / "mappings",
@@ -145,12 +140,12 @@ async def test_normalizer_quarantine_paths(
     expected_reason: str,
     expected_error_fragment: str | None,
 ) -> None:
-    jetstream = FakeJetStream()
+    broker = FakeBroker()
     service = NormalizerService(
         settings=normalizer_settings,
         mapper=PortalMapper(PortalMapper.load_all(normalizer_settings.mappings_dir)),
         writer=ListingWriter(asyncpg_pool),
-        jetstream=jetstream,
+        broker=broker,
     )
     fake_message = FakeMessage(message)
 
@@ -161,9 +156,7 @@ async def test_normalizer_quarantine_paths(
     )
     listings_count = await asyncpg_pool.fetchval("SELECT COUNT(*) FROM listings")
 
-    assert fake_message.acked is True
-    assert fake_message.nacked is False
-    assert jetstream.published == []
+    assert broker.published == []
     assert listings_count == 0
     assert quarantine_row is not None
     assert quarantine_row["reason"] == expected_reason

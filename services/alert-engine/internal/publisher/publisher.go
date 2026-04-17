@@ -3,12 +3,10 @@ package publisher
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strings"
 
+	sharedbroker "github.com/estategap/libs/broker"
 	"github.com/estategap/services/alert-engine/internal/metrics"
 	"github.com/estategap/services/alert-engine/internal/model"
-	"github.com/nats-io/nats.go"
 )
 
 type NotificationEvent = model.NotificationEvent
@@ -16,18 +14,18 @@ type ListingSummary = model.ListingSummary
 type DigestListing = model.DigestListing
 
 type Publisher struct {
-	js      nats.JetStreamContext
+	broker  sharedbroker.Publisher
 	metrics *metrics.Registry
 }
 
-func New(js nats.JetStreamContext, registry *metrics.Registry) *Publisher {
+func New(messageBroker sharedbroker.Publisher, registry *metrics.Registry) *Publisher {
 	return &Publisher{
-		js:      js,
+		broker:  messageBroker,
 		metrics: registry,
 	}
 }
 
-func (p *Publisher) PublishNotification(ctx context.Context, countryCode string, event NotificationEvent) error {
+func (p *Publisher) PublishNotification(ctx context.Context, event NotificationEvent) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -37,8 +35,7 @@ func (p *Publisher) PublishNotification(ctx context.Context, countryCode string,
 		return err
 	}
 
-	subject := fmt.Sprintf("alerts.notifications.%s", strings.ToUpper(strings.TrimSpace(countryCode)))
-	if _, err := p.js.Publish(subject, payload); err != nil {
+	if err := p.broker.Publish(ctx, "alerts-notifications", event.UserID, payload); err != nil {
 		return err
 	}
 

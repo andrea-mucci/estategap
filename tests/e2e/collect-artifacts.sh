@@ -2,7 +2,8 @@
 set -euo pipefail
 
 OUTPUT_DIR="${1:-reports/e2e/artifacts}"
-mkdir -p "$OUTPUT_DIR"/{logs,describe,db,nats}
+mkdir -p "$OUTPUT_DIR"/{logs,describe,db,kafka}
+KAFKA_BROKERS="${KAFKA_BROKERS:-localhost:9092}"
 
 for namespace in estategap-gateway estategap-system monitoring; do
   if ! kubectl get namespace "$namespace" >/dev/null 2>&1; then
@@ -26,12 +27,12 @@ if command -v pg_dump >/dev/null 2>&1; then
     >"$OUTPUT_DIR/db/dump.sql" 2>"$OUTPUT_DIR/db/dump.stderr" || true
 fi
 
-if command -v nats >/dev/null 2>&1; then
+if command -v kafka-topics.sh >/dev/null 2>&1; then
   {
-    nats stream info raw-listings || true
-    nats stream info normalized-listings || true
-    nats stream info enriched-listings || true
-    nats stream info scored-listings || true
-    nats stream info alerts-notifications || true
-  } >"$OUTPUT_DIR/nats/stream-info.txt" 2>&1
+    for topic in raw-listings normalized-listings enriched-listings scored-listings alerts-notifications; do
+      echo "### ${topic}"
+      kafka-topics.sh --bootstrap-server "${KAFKA_BROKERS}" --describe --topic "estategap.${topic}" || true
+      echo
+    done
+  } >"$OUTPUT_DIR/kafka/topic-info.txt" 2>&1
 fi

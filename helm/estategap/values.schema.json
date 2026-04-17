@@ -187,77 +187,60 @@
       },
       "additionalProperties": true
     },
-    "nats": {
+    "kafka": {
       "type": "object",
       "properties": {
-        "enabled": {
-          "type": "boolean"
+        "brokers": {
+          "type": "string",
+          "minLength": 1
         },
-        "replicas": {
-          "type": "integer",
-          "minimum": 1
+        "topicPrefix": {
+          "type": "string",
+          "minLength": 1
         },
-        "storage": {
-          "$ref": "#/$defs/storageSpec"
-        },
-        "streams": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "subjects": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "replicas": {
-                "type": "integer",
-                "minimum": 1
-              }
-            },
-            "additionalProperties": true
-          }
-        },
-        "config": {
+        "tls": {
           "type": "object",
           "properties": {
-            "cluster": {
-              "type": "object",
-              "properties": {
-                "enabled": {
-                  "type": "boolean"
-                },
-                "replicas": {
-                  "type": "integer",
-                  "minimum": 1
-                }
-              },
-              "additionalProperties": true
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": true
+        },
+        "sasl": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
             },
-            "jetstream": {
-              "type": "object",
-              "properties": {
-                "enabled": {
-                  "type": "boolean"
-                },
-                "fileStore": {
-                  "type": "object",
-                  "properties": {
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "pvc": {
-                      "$ref": "#/$defs/storageSpec"
-                    }
-                  },
-                  "additionalProperties": true
-                }
-              },
-              "additionalProperties": true
+            "username": {
+              "type": "string"
+            },
+            "secretName": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "consumer": {
+          "type": "object",
+          "properties": {
+            "maxRetries": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": true
+        },
+        "initJob": {
+          "type": "object",
+          "properties": {
+            "replicationFactor": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "image": {
+              "$ref": "#/$defs/imageSpec"
             }
           },
           "additionalProperties": true
@@ -453,8 +436,8 @@
       "type": "object",
       "additionalProperties": true
     },
-    "nats": {
-      "$ref": "#/$defs/nats"
+    "kafka": {
+      "$ref": "#/$defs/kafka"
     },
     "postgresql": {
       "$ref": "#/$defs/postgresql"

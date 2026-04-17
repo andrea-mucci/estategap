@@ -9,8 +9,10 @@ from uuid import UUID
 
 import grpc
 from estategap.v1 import common_pb2, listings_pb2, ml_scoring_pb2, ml_scoring_pb2_grpc
-from estategap_common.models import ScoredListingEvent, ScoringResult, ShapFeatureEvent
+from estategap_common.broker import KafkaBroker
+from estategap_common.models import ScoringResult
 
+from ..kafka_publisher import publish_scored_listing
 from .comparables import ComparablesFinder
 from .db_writer import write_scores
 from .inference import _deal_tier, score_listing
@@ -77,14 +79,14 @@ class MLScoringServicer(ml_scoring_pb2_grpc.MLScoringServiceServicer):
         config: Any,
         db_pool: Any,
         registry: ModelRegistry,
-        jetstream: Any,
+        broker: KafkaBroker,
         shap_explainer: ShapExplainer | None = None,
         comparables_finder: ComparablesFinder | None = None,
     ) -> None:
         self._config = config
         self._db_pool = db_pool
         self._registry = registry
-        self._jetstream = jetstream
+        self._broker = broker
         self._shap_explainer = shap_explainer
         self._comparables_finder = comparables_finder
 
@@ -126,29 +128,7 @@ class MLScoringServicer(ml_scoring_pb2_grpc.MLScoringServiceServicer):
         return {row["id"]: dict(row) for row in rows}
 
     async def _publish_result(self, result: Any) -> None:
-        event = ScoredListingEvent(
-            listing_id=result.listing_id,
-            country_code=result.country.upper(),
-            estimated_price_eur=result.estimated_price,
-            deal_score=result.deal_score,
-            deal_tier=result.deal_tier,
-            confidence_low_eur=result.confidence_low,
-            confidence_high_eur=result.confidence_high,
-            model_version=result.model_version,
-            scoring_method=result.scoring_method,
-            model_confidence=result.model_confidence,
-            scored_at=result.scored_at,
-            shap_features=[
-                ShapFeatureEvent(
-                    feature=value.feature_name,
-                    value=value.value,
-                    shap_value=value.contribution,
-                    label=value.label,
-                )
-                for value in result.shap_features
-            ],
-        )
-        await self._jetstream.publish("scored.listings", event.model_dump_json().encode("utf-8"))
+        await publish_scored_listing(self._broker, result)
 
     def _result_proto(self, result: Any) -> ml_scoring_pb2.ScoreListingResponse:
         return ml_scoring_pb2.ScoreListingResponse(

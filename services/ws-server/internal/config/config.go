@@ -13,13 +13,14 @@ type Config struct {
 	JWTSecret       string
 	RedisAddr       string
 	AIChatGRPCAddr  string
-	NATSAddr        string
+	KafkaBrokers    string
+	KafkaTopicPrefix string
 	MaxConnections  int
 	PingInterval    time.Duration
 	PongTimeout     time.Duration
 	IdleTimeout     time.Duration
 	ShutdownTimeout time.Duration
-	NATSWorkers     int
+	KafkaWorkers    int
 	LogLevel        string
 }
 
@@ -34,13 +35,14 @@ func Load() (*Config, error) {
 	v.SetDefault("PORT", 8081)
 	v.SetDefault("REDIS_ADDR", "localhost:6379")
 	v.SetDefault("AI_CHAT_GRPC_ADDR", "ai-chat:50053")
-	v.SetDefault("NATS_ADDR", "nats://localhost:4222")
+	v.SetDefault("KAFKA_BROKERS", "localhost:9092")
+	v.SetDefault("KAFKA_TOPIC_PREFIX", "estategap.")
 	v.SetDefault("MAX_CONNECTIONS", 10000)
 	v.SetDefault("PING_INTERVAL", "30s")
 	v.SetDefault("PONG_TIMEOUT", "10s")
 	v.SetDefault("IDLE_TIMEOUT", "30m")
 	v.SetDefault("SHUTDOWN_TIMEOUT", "5s")
-	v.SetDefault("NATS_WORKERS", 4)
+	v.SetDefault("KAFKA_WORKERS", 4)
 	v.SetDefault("LOG_LEVEL", "INFO")
 
 	_ = v.ReadInConfig()
@@ -67,13 +69,14 @@ func Load() (*Config, error) {
 		JWTSecret:       strings.TrimSpace(v.GetString("JWT_SECRET")),
 		RedisAddr:       strings.TrimSpace(v.GetString("REDIS_ADDR")),
 		AIChatGRPCAddr:  strings.TrimSpace(v.GetString("AI_CHAT_GRPC_ADDR")),
-		NATSAddr:        strings.TrimSpace(v.GetString("NATS_ADDR")),
+		KafkaBrokers:    strings.TrimSpace(v.GetString("KAFKA_BROKERS")),
+		KafkaTopicPrefix: strings.TrimSpace(v.GetString("KAFKA_TOPIC_PREFIX")),
 		MaxConnections:  v.GetInt("MAX_CONNECTIONS"),
 		PingInterval:    pingInterval,
 		PongTimeout:     pongTimeout,
 		IdleTimeout:     idleTimeout,
 		ShutdownTimeout: shutdownTimeout,
-		NATSWorkers:     v.GetInt("NATS_WORKERS"),
+		KafkaWorkers:    v.GetInt("KAFKA_WORKERS"),
 		LogLevel:        strings.ToUpper(strings.TrimSpace(v.GetString("LOG_LEVEL"))),
 	}
 
@@ -83,11 +86,14 @@ func Load() (*Config, error) {
 	if cfg.MaxConnections <= 0 {
 		cfg.MaxConnections = 10000
 	}
-	if cfg.NATSWorkers <= 0 {
-		cfg.NATSWorkers = 4
+	if cfg.KafkaWorkers <= 0 {
+		cfg.KafkaWorkers = 4
 	}
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = "INFO"
+	}
+	if cfg.KafkaTopicPrefix == "" {
+		cfg.KafkaTopicPrefix = "estategap."
 	}
 
 	var missing []string
@@ -98,7 +104,7 @@ func Load() (*Config, error) {
 		{name: "JWT_SECRET", value: cfg.JWTSecret},
 		{name: "REDIS_ADDR", value: cfg.RedisAddr},
 		{name: "AI_CHAT_GRPC_ADDR", value: cfg.AIChatGRPCAddr},
-		{name: "NATS_ADDR", value: cfg.NATSAddr},
+		{name: "KAFKA_BROKERS", value: cfg.KafkaBrokers},
 	} {
 		if env.value == "" {
 			missing = append(missing, env.name)

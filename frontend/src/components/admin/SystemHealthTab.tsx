@@ -32,8 +32,8 @@ export function SystemHealthTab() {
 
   if (system.isLoading || !system.health) {
     return (
-      <div className="grid gap-4 xl:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
+      <div className="grid gap-4 xl:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, index) => (
           <Skeleton className="h-52 w-full" key={index} />
         ))}
       </div>
@@ -41,27 +41,7 @@ export function SystemHealthTab() {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-3">
-      <Card>
-        <CardHeader>
-          <CardTitle>NATS</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {system.health.nats.subjects.length === 0 ? (
-            <p className="text-sm text-slate-500">No JetStream subjects were reported.</p>
-          ) : (
-            system.health.nats.subjects.map((subject) => (
-              <div className="rounded-[20px] border border-slate-200 p-4" key={subject.subject}>
-                <p className="font-medium text-slate-950">{subject.subject}</p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Lag: {subject.consumer_lag.toLocaleString()} · Messages: {subject.message_count.toLocaleString()}
-                </p>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
+    <div className="grid gap-4 xl:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Database</CardTitle>

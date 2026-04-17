@@ -12,7 +12,9 @@ class NormalizerSettings(BaseSettings):
     """Environment-backed configuration for the normalizer service."""
 
     database_url: str = Field(validation_alias="DATABASE_URL")
-    nats_url: str = Field(validation_alias="NATS_URL")
+    kafka_brokers: str = Field(default="localhost:9092", validation_alias="KAFKA_BROKERS")
+    kafka_topic_prefix: str = Field(default="estategap.", validation_alias="KAFKA_TOPIC_PREFIX")
+    kafka_max_retries: int = Field(default=3, validation_alias="KAFKA_MAX_RETRIES")
     batch_size: int = Field(default=50, validation_alias="NORMALIZER_BATCH_SIZE")
     batch_timeout: float = Field(default=1.0, validation_alias="NORMALIZER_BATCH_TIMEOUT")
     mappings_dir: Path = Field(
@@ -26,6 +28,8 @@ class NormalizerSettings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_values(self) -> "NormalizerSettings":
+        if self.kafka_max_retries < 1:
+            self.kafka_max_retries = 3
         if self.batch_size < 1:
             self.batch_size = 1
         if self.batch_timeout <= 0:

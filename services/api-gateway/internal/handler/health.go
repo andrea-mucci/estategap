@@ -8,14 +8,12 @@ import (
 
 	"github.com/estategap/services/api-gateway/internal/respond"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 )
 
 type HealthHandler struct {
 	primary *pgxpool.Pool
 	redis   *redis.Client
-	nats    *nats.Conn
 }
 
 type readinessStatus struct {
@@ -23,11 +21,10 @@ type readinessStatus struct {
 	Checks map[string]string `json:"checks"`
 }
 
-func NewHealthHandler(primary *pgxpool.Pool, redisClient *redis.Client, natsConn *nats.Conn) *HealthHandler {
+func NewHealthHandler(primary *pgxpool.Pool, redisClient *redis.Client) *HealthHandler {
 	return &HealthHandler{
 		primary: primary,
 		redis:   redisClient,
-		nats:    natsConn,
 	}
 }
 
@@ -42,7 +39,6 @@ func (h *HealthHandler) Readyz(w http.ResponseWriter, r *http.Request) {
 	checks := map[string]string{
 		"postgres": "ok",
 		"redis":    "ok",
-		"nats":     "ok",
 	}
 
 	var (
@@ -66,7 +62,6 @@ func (h *HealthHandler) Readyz(w http.ResponseWriter, r *http.Request) {
 
 	run("postgres", h.primary.Ping)
 	run("redis", func(ctx context.Context) error { return h.redis.Ping(ctx).Err() })
-	run("nats", func(ctx context.Context) error { return h.nats.FlushWithContext(ctx) })
 	wg.Wait()
 
 	status := readinessStatus{Status: "ok", Checks: checks}

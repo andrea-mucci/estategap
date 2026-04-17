@@ -10,12 +10,12 @@ from pipeline.normalizer.writer import ListingWriter
 from tests.enricher.conftest import read_fixture
 
 
-class _FakeJetStream:
+class _FakeBroker:
     def __init__(self) -> None:
-        self.messages: list[tuple[str, bytes]] = []
+        self.messages: list[tuple[str, str, bytes]] = []
 
-    async def publish(self, subject: str, payload: bytes) -> None:
-        self.messages.append((subject, payload))
+    async def publish(self, topic: str, key: str, payload: bytes) -> None:
+        self.messages.append((topic, key, payload))
 
 
 class _FakePOI:
@@ -44,12 +44,11 @@ async def test_eu_pipeline_nl_enriches_listing(asyncpg_pool, normalized_listing_
         request=httpx.Request("GET", "https://example.test"),
     )
 
-    jetstream = _FakeJetStream()
+    broker = _FakeBroker()
     service = EnricherService(
-        EnricherSettings(database_url="postgresql://unused", nats_url="nats://unused"),
+        EnricherSettings(database_url="postgresql://unused", kafka_brokers="localhost:9092"),
         pool=asyncpg_pool,
-        jetstream=jetstream,
-        nats_client=jetstream,
+        broker=broker,
         poi_calculator=_FakePOI(),
     )
     service._enrichers_by_country["NL"] = [NetherlandsBAGEnricher(client=client)]
@@ -58,5 +57,4 @@ async def test_eu_pipeline_nl_enriches_listing(asyncpg_pool, normalized_listing_
 
     assert status == "completed"
     assert enriched.year_built == 1998
-    assert jetstream.messages
-
+    assert broker.messages

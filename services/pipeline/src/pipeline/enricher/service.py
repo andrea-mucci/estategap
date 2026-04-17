@@ -1,4 +1,4 @@
-"""NATS-driven enrichment worker."""
+"""Kafka-driven enrichment worker."""
 
 from __future__ import annotations
 
@@ -9,10 +9,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 import asyncpg  # type: ignore[import-untyped]
-import nats
 import structlog
-from nats.aio.msg import Msg
-from nats.js.api import AckPolicy, ConsumerConfig
+from estategap_common.broker import KafkaBroker, KafkaConfig, Message
+from estategap_common.broker.kafka_lag import start_lag_poller
 from pydantic import ValidationError
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
@@ -27,7 +26,6 @@ from .poi import POIDistanceCalculator
 
 
 LOGGER = structlog.get_logger(__name__)
-DEDUPLICATED_SUBJECT = "deduplicated.listings.*"
 
 
 class EnricherService:
@@ -38,50 +36,49 @@ class EnricherService:
         settings: EnricherSettings,
         *,
         pool: asyncpg.Pool | None = None,
-        jetstream: Any | None = None,
-        nats_client: Any | None = None,
+        broker: KafkaBroker | None = None,
         poi_calculator: POIDistanceCalculator | None = None,
     ) -> None:
         self._settings = settings
         self._pool = pool
-        self._jetstream = jetstream
-        self._nats_client = nats_client
+        self._broker = broker
         self._poi_calculator = poi_calculator
         self._owns_pool = pool is None
-        self._owns_nats = nats_client is None
+        self._owns_broker = broker is None
         self._enrichers_by_country: dict[str, list[BaseEnricher]] = {}
 
     async def run(self) -> None:
         if self._pool is None:
             self._pool = await create_pool(self._settings.database_url)
-        if self._nats_client is None:
-            self._nats_client = await nats.connect(self._settings.nats_url)
-        if self._jetstream is None:
-            self._jetstream = self._nats_client.jetstream()
+        if self._broker is None:
+            self._broker = KafkaBroker(
+                KafkaConfig(
+                    brokers=self._settings.kafka_brokers,
+                    topic_prefix=self._settings.kafka_topic_prefix,
+                    max_retries=self._settings.kafka_max_retries,
+                ),
+                service_name="pipeline-enricher",
+            )
         if self._poi_calculator is None:
             self._poi_calculator = POIDistanceCalculator(
                 pool=self._pool,
                 overpass_url=self._settings.overpass_url,
             )
-        await self._jetstream.subscribe(
-            DEDUPLICATED_SUBJECT,
-            durable="enricher",
-            manual_ack=True,
-            cb=self.handle_message,
-            config=ConsumerConfig(
-                ack_policy=AckPolicy.EXPLICIT,
-                max_deliver=5,
-                ack_wait=60,
-                max_ack_pending=100,
-            ),
+        consumer = await self._broker.create_consumer(["normalized-listings"], "estategap.pipeline-enricher")
+        lag_task = asyncio.create_task(start_lag_poller(consumer, "estategap.pipeline-enricher"))
+        LOGGER.info(
+            "enricher_started",
+            topic=self._broker.full_topic_name("normalized-listings"),
+            group="estategap.pipeline-enricher",
         )
-        LOGGER.info("enricher_started", subject=DEDUPLICATED_SUBJECT, durable="enricher")
         try:
-            await asyncio.Event().wait()
+            await self._broker.consume(consumer, "estategap.pipeline-enricher", self.handle_message)
         except asyncio.CancelledError:
             LOGGER.info("enricher_cancelled")
             raise
         finally:
+            lag_task.cancel()
+            await asyncio.gather(lag_task, return_exceptions=True)
             await self.close()
 
     async def close(self) -> None:
@@ -95,19 +92,18 @@ class EnricherService:
         if self._poi_calculator is not None and hasattr(self._poi_calculator, "aclose"):
             with contextlib.suppress(Exception):
                 await self._poi_calculator.aclose()
-        if self._owns_nats and self._nats_client is not None:
-            await self._nats_client.close()
+        if self._owns_broker and self._broker is not None:
+            await self._broker.stop()
         if self._owns_pool and self._pool is not None:
             await self._pool.close()
 
-    async def handle_message(self, message: Msg) -> None:
+    async def handle_message(self, message: Message) -> None:
         started = time.perf_counter()
         clear_contextvars()
         try:
-            listing = NormalizedListing.model_validate_json(message.data)
+            listing = NormalizedListing.model_validate_json(message.value)
         except ValidationError as exc:
             LOGGER.error("invalid_enrichment_listing", error=str(exc))
-            await message.ack()
             return
 
         bind_contextvars(
@@ -121,17 +117,15 @@ class EnricherService:
             _, status = await self.process_listing(listing)
         except Exception as exc:  # noqa: BLE001
             LOGGER.error("enricher_message_failed", error=str(exc), listing_id=str(listing.id))
-            await message.nak()
             raise
 
-        await message.ack()
         ENRICHER_LISTINGS_TOTAL.labels(country=listing.country, status=status).inc()
         ENRICHER_DURATION_SECONDS.labels(country=listing.country).observe(
             time.perf_counter() - started
         )
 
     async def process_listing(self, listing: NormalizedListing) -> tuple[NormalizedListing, str]:
-        if self._pool is None or self._jetstream is None or self._poi_calculator is None:
+        if self._pool is None or self._broker is None or self._poi_calculator is None:
             raise RuntimeError("EnricherService is not fully initialised")
 
         country = listing.country.upper()
@@ -147,8 +141,9 @@ class EnricherService:
         updates["enrichment_attempted_at"] = datetime.now(UTC)
         await self._apply_updates(listing_id=listing.id, country=listing.country, updates=updates)
         enriched_listing = listing.model_copy(update=updates)
-        await self._jetstream.publish(
-            f"listings.enriched.{listing.country.lower()}",
+        await self._broker.publish(
+            "enriched-listings",
+            listing.country.upper(),
             enriched_listing.model_dump_json().encode(),
         )
         return enriched_listing, status
@@ -191,9 +186,8 @@ class EnricherService:
             await conn.execute(sql, *values)
 
     @staticmethod
-    def _trace_id(message: Msg, fallback: str) -> str:
-        headers = getattr(message, "headers", None) or {}
-        return headers.get("trace_id") or headers.get("Trace-Id") or fallback
+    def _trace_id(message: Message, fallback: str) -> str:
+        return message.headers.get("trace_id") or message.headers.get("Trace-Id") or fallback
 
 
 def _resolve_overall_status(

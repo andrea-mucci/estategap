@@ -19,7 +19,7 @@ import (
 )
 
 type Publisher interface {
-	Publish(subject string, payload []byte) error
+	Publish(ctx context.Context, topic string, key string, payload []byte) error
 }
 
 type portalTicker struct {
@@ -38,7 +38,7 @@ type Scheduler struct {
 	publisher  Publisher
 	redis      *redisclient.Client
 	saveJobFn  func(context.Context, *job.ScrapeJob) error
-	publishNow func(string, []byte) error
+	publishNow func(context.Context, string, string, []byte) error
 }
 
 func New(jobTTL time.Duration) *Scheduler {
@@ -275,8 +275,8 @@ func (s *Scheduler) publishJob(ctx context.Context, portal db.Portal, mode strin
 		return "", err
 	}
 
-	subject := fmt.Sprintf("scraper.commands.%s.%s", scrapeJob.Country, scrapeJob.Portal)
-	if err := publish(subject, payload); err != nil {
+	messageKey := fmt.Sprintf("%s.%s", scrapeJob.Country, scrapeJob.Portal)
+	if err := publish(ctx, "scraper-commands", messageKey, payload); err != nil {
 		return "", err
 	}
 	if err := saveJobFn(ctx, scrapeJob); err != nil {

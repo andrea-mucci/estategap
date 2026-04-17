@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +20,9 @@ class Config(BaseSettings):
 
     database_url: str = Field(alias="DATABASE_URL")
     mlflow_tracking_uri: str = Field(alias="MLFLOW_TRACKING_URI")
-    nats_url: str = Field(alias="NATS_URL")
+    kafka_brokers: str = Field(default="localhost:9092", alias="KAFKA_BROKERS")
+    kafka_topic_prefix: str = Field(default="estategap.", alias="KAFKA_TOPIC_PREFIX")
+    kafka_max_retries: int = Field(default=3, alias="KAFKA_MAX_RETRIES")
     minio_endpoint: str = Field(alias="MINIO_ENDPOINT")
     minio_access_key: str = Field(alias="MINIO_ACCESS_KEY")
     minio_secret_key: str = Field(alias="MINIO_SECRET_KEY")
@@ -50,6 +52,12 @@ class Config(BaseSettings):
     shap_timeout_seconds: float = Field(default=2.0, alias="SHAP_TIMEOUT_SECONDS")
     prometheus_port: int = Field(default=9091, alias="PROMETHEUS_PORT")
     local_artifact_dir: Path = Field(default=Path("./artifacts"), alias="LOCAL_ARTIFACT_DIR")
+
+    @model_validator(mode="after")
+    def _validate_kafka(self) -> "Config":
+        if self.kafka_max_retries < 1:
+            self.kafka_max_retries = 3
+        return self
 
 
 __all__ = ["Config"]

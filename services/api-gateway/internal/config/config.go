@@ -20,7 +20,6 @@ type Config struct {
 	CSPReportOnly            bool
 	CSPReportURI             string
 	Port                     string
-	NATSURL                  string
 	LogLevel                 string
 	GRPCMLScorerAddr         string
 	GRPCChatAddr             string
@@ -70,7 +69,6 @@ func Load() (*Config, error) {
 		CSPReportOnly:            v.GetBool("CSP_REPORT_ONLY"),
 		CSPReportURI:             strings.TrimSpace(v.GetString("CSP_REPORT_URI")),
 		Port:                     strings.TrimSpace(v.GetString("PORT")),
-		NATSURL:                  strings.TrimSpace(v.GetString("NATS_URL")),
 		LogLevel:                 strings.ToUpper(strings.TrimSpace(v.GetString("LOG_LEVEL"))),
 		GRPCMLScorerAddr:         strings.TrimSpace(v.GetString("GRPC_ML_SCORER_ADDR")),
 		GRPCChatAddr:             strings.TrimSpace(v.GetString("GRPC_AI_CHAT_ADDR")),
@@ -109,7 +107,6 @@ func Load() (*Config, error) {
 		{name: "GOOGLE_CLIENT_ID", value: cfg.GoogleClientID},
 		{name: "GOOGLE_CLIENT_SECRET", value: cfg.GoogleClientSecret},
 		{name: "GOOGLE_REDIRECT_URL", value: cfg.GoogleRedirectURL},
-		{name: "NATS_URL", value: cfg.NATSURL},
 		{name: "STRIPE_SECRET_KEY", value: cfg.StripeSecretKey},
 		{name: "STRIPE_WEBHOOK_SECRET", value: cfg.StripeWebhookSecret},
 		{name: "STRIPE_SUCCESS_URL", value: cfg.StripeSuccessURL},

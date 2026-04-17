@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from tests.e2e.helpers.nats_injector import ScoredListingEvent, publish_scored_listing
+from tests.e2e.helpers.kafka_injector import ScoredListingEvent, publish_scored_listing
 
 
 pytestmark = [pytest.mark.concurrency]
@@ -52,7 +52,7 @@ async def test_two_users_receive_only_their_matching_alerts(
     )
 
     async with ws_client("pro") as pro_ws, ws_client("global") as global_ws:
-        await publish_scored_listing("nats://localhost:4222", event)
+        await publish_scored_listing("localhost:9092", event)
         try:
             pro_message, global_message = await asyncio.gather(
                 pro_ws.next_message(timeout=10.0),

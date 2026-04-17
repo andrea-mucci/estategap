@@ -1,0 +1,21 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: estategap-kafka-rules
+  namespace: monitoring
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: estategap.kafka
+      rules:
+        - alert: KafkaConsumerLagHigh
+          expr: estategap_kafka_consumer_lag > 10000
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Kafka consumer lag too high
+            description: Group {{ "{{" }} $labels.group {{ "}}" }} is {{ "{{" }} $value {{ "}}" }} messages behind on {{ "{{" }} $labels.topic {{ "}}" }} partition {{ "{{" }} $labels.partition {{ "}}" }}
+{{- end }}

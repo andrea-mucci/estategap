@@ -6,12 +6,14 @@ import asyncio
 
 import asyncpg
 import boto3
+from estategap_common.broker import KafkaBroker, KafkaConfig
+from estategap_common.broker.kafka_lag import start_lag_poller
 from estategap_common.logging import configure_logging
-import nats
 
 from estategap_ml import Config, logger
 
 from .comparables import ComparablesFinder
+from .kafka_consumer import CONSUMER_GROUP, INPUT_TOPIC
 from .metrics import start_http_server
 from .model_registry import ModelRegistry
 from .server import serve
@@ -23,7 +25,8 @@ async def main() -> int:
     configure_logging(level=config.log_level, service="ml-scorer")
     start_http_server(config.prometheus_port)
     db_pool = None
-    nc = None
+    broker = None
+    lag_task = None
     try:
         db_pool = await asyncpg.create_pool(config.database_url)
         s3_client = boto3.client(
@@ -32,8 +35,16 @@ async def main() -> int:
             aws_access_key_id=config.minio_access_key,
             aws_secret_access_key=config.minio_secret_key,
         )
-        nc = await nats.connect(config.nats_url)
-        js = nc.jetstream()
+        broker = KafkaBroker(
+            KafkaConfig(
+                brokers=config.kafka_brokers,
+                topic_prefix=config.kafka_topic_prefix,
+                max_retries=config.kafka_max_retries,
+            ),
+            service_name="ml-scorer",
+        )
+        consumer = await broker.create_consumer([INPUT_TOPIC], CONSUMER_GROUP)
+        lag_task = asyncio.create_task(start_lag_poller(consumer, CONSUMER_GROUP))
         shap_explainer = ShapExplainer(timeout_seconds=config.shap_timeout_seconds)
         registry = ModelRegistry(
             bucket=config.minio_bucket,
@@ -54,15 +65,18 @@ async def main() -> int:
             config,
             registry,
             db_pool,
-            js,
-            nats_connection=nc,
+            broker,
+            consumer=consumer,
             shap_explainer=shap_explainer,
             comparables_finder=comparables_finder,
         )
         return 0
     finally:
-        if nc is not None:
-            await nc.drain()
+        if lag_task is not None:
+            lag_task.cancel()
+            await asyncio.gather(lag_task, return_exceptions=True)
+        if broker is not None:
+            await broker.stop()
         if db_pool is not None:
             await db_pool.close()
 

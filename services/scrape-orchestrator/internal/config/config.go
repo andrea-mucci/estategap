@@ -12,7 +12,8 @@ import (
 type Config struct {
 	DatabaseURL          string
 	RedisURL             string
-	NATSURL              string
+	KafkaBrokers         string
+	KafkaTopicPrefix     string
 	HTTPPort             string
 	LogLevel             string
 	TestScheduleOverride string
@@ -41,7 +42,8 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		DatabaseURL:          strings.TrimSpace(v.GetString("DATABASE_URL")),
 		RedisURL:             strings.TrimSpace(v.GetString("REDIS_URL")),
-		NATSURL:              strings.TrimSpace(v.GetString("NATS_URL")),
+		KafkaBrokers:         strings.TrimSpace(v.GetString("KAFKA_BROKERS")),
+		KafkaTopicPrefix:     strings.TrimSpace(v.GetString("KAFKA_TOPIC_PREFIX")),
 		HTTPPort:             strings.TrimSpace(v.GetString("HTTP_PORT")),
 		LogLevel:             strings.ToUpper(strings.TrimSpace(v.GetString("LOG_LEVEL"))),
 		TestScheduleOverride: strings.TrimSpace(v.GetString("TEST_SCHEDULE_OVERRIDE")),
@@ -63,11 +65,15 @@ func Load() (*Config, error) {
 	}{
 		{name: "DATABASE_URL", value: cfg.DatabaseURL},
 		{name: "REDIS_URL", value: cfg.RedisURL},
-		{name: "NATS_URL", value: cfg.NATSURL},
+		{name: "KAFKA_BROKERS", value: cfg.KafkaBrokers},
 	} {
 		if env.value == "" {
 			missing = append(missing, env.name)
 		}
+	}
+
+	if cfg.KafkaTopicPrefix == "" {
+		cfg.KafkaTopicPrefix = "estategap."
 	}
 
 	if len(missing) > 0 {

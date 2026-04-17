@@ -64,7 +64,7 @@ func TestSchedulerReloadAddsAndRemovesTickers(t *testing.T) {
 		},
 	}
 	scheduler := New(time.Hour)
-	scheduler.publishNow = func(string, []byte) error { return nil }
+	scheduler.publishNow = func(context.Context, string, string, []byte) error { return nil }
 	scheduler.saveJobFn = func(context.Context, *job.ScrapeJob) error { return nil }
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -121,7 +121,7 @@ func TestSchedulerAppliesFrequencyOverride(t *testing.T) {
 		},
 	}
 	scheduler := New(time.Hour)
-	scheduler.publishNow = func(string, []byte) error { return nil }
+	scheduler.publishNow = func(context.Context, string, string, []byte) error { return nil }
 	scheduler.saveJobFn = func(context.Context, *job.ScrapeJob) error { return nil }
 	scheduler.SetFrequencyOverride(30 * time.Second)
 
@@ -163,18 +163,18 @@ func (s *stubStore) SetPortals(portals []db.Portal) {
 
 type stubPublisher struct {
 	mu       sync.Mutex
-	subjects []string
+	keys     []string
 }
 
-func (s *stubPublisher) Publish(subject string, _ []byte) error {
+func (s *stubPublisher) Publish(_ context.Context, _ string, key string, _ []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.subjects = append(s.subjects, subject)
+	s.keys = append(s.keys, key)
 	return nil
 }
 
 func (s *stubPublisher) Count() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return len(s.subjects)
+	return len(s.keys)
 }

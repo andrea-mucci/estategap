@@ -5,20 +5,18 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
+	sharedbroker "github.com/estategap/libs/broker"
+	"github.com/estategap/testhelpers"
 	"github.com/estategap/services/alert-dispatcher/internal/dispatcher"
 	"github.com/estategap/services/alert-dispatcher/internal/metrics"
 	"github.com/estategap/services/alert-dispatcher/internal/model"
 	"github.com/estategap/services/alert-dispatcher/internal/repository"
 	senderpkg "github.com/estategap/services/alert-dispatcher/internal/sender"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nats-io/nats.go"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type successSender struct{}
@@ -31,23 +29,8 @@ func (successSender) Send(_ context.Context, _ model.NotificationEvent, _ *model
 func TestConsumerCreatesSingleHistoryRecordPerEvent(t *testing.T) {
 	ctx := context.Background()
 
-	natsContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "nats:2.10-alpine",
-			ExposedPorts: []string{"4222/tcp"},
-			Cmd:          []string{"-js"},
-			WaitingFor:   wait.ForListeningPort("4222/tcp"),
-		},
-		Started: true,
-	})
-	if err != nil {
-		t.Fatalf("start nats container: %v", err)
-	}
-	defer testcontainers.TerminateContainer(natsContainer)
-
-	natsHost, _ := natsContainer.Host(ctx)
-	natsPort, _ := natsContainer.MappedPort(ctx, "4222/tcp")
-	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
+	bootstrapAddr, cleanup := testhelpers.StartKafkaContainer(t)
+	defer cleanup()
 
 	pgContainer, err := postgres.Run(ctx, "postgres:16-alpine",
 		postgres.WithDatabase("estategap"),
@@ -104,30 +87,18 @@ func TestConsumerCreatesSingleHistoryRecordPerEvent(t *testing.T) {
 	_, _ = primaryPool.Exec(ctx, `CREATE UNIQUE INDEX uq_alert_history_event_channel ON alert_history (event_id, channel) WHERE event_id IS NOT NULL`)
 	_, _ = primaryPool.Exec(ctx, `INSERT INTO users (id, email) VALUES ('11111111-1111-1111-1111-111111111111', 'user@example.com')`)
 
-	natsConn, err := nats.Connect(natsURL)
+	kafkaBroker, err := sharedbroker.NewKafkaBroker(sharedbroker.KafkaConfig{Brokers: []string{bootstrapAddr}})
 	if err != nil {
-		t.Fatalf("connect nats: %v", err)
+		t.Fatalf("create kafka broker: %v", err)
 	}
-	defer natsConn.Close()
-
-	js, err := natsConn.JetStream()
-	if err != nil {
-		t.Fatalf("jetstream: %v", err)
-	}
-	_, err = js.AddStream(&nats.StreamConfig{
-		Name:     "ALERTS",
-		Subjects: []string{"alerts.notifications.>"},
-	})
-	if err != nil {
-		t.Fatalf("add stream: %v", err)
-	}
+	defer func() { _ = kafkaBroker.Close() }()
 
 	userRepo := repository.NewUserRepo(primaryPool, replicaPool)
 	historyRepo := repository.NewHistoryRepo(primaryPool, replicaPool)
 	dispatcherSvc := dispatcher.New(map[string]senderpkg.Sender{
 		model.ChannelEmail: successSender{},
 	}, historyRepo, userRepo, metrics.New())
-	consumerSvc := New(js, dispatcherSvc, metrics.New(), "alert-dispatcher", 1)
+	consumerSvc := New(kafkaBroker, dispatcherSvc, metrics.New(), 1)
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -142,10 +113,10 @@ func TestConsumerCreatesSingleHistoryRecordPerEvent(t *testing.T) {
 		Channel: model.ChannelEmail,
 	}
 	payload, _ := json.Marshal(event)
-	if _, err := js.Publish("alerts.notifications.ES", payload); err != nil {
+	if err := kafkaBroker.Publish(ctx, "alerts-notifications", event.UserID, payload); err != nil {
 		t.Fatalf("publish first event: %v", err)
 	}
-	if _, err := js.Publish("alerts.notifications.ES", payload); err != nil {
+	if err := kafkaBroker.Publish(ctx, "alerts-notifications", event.UserID, payload); err != nil {
 		t.Fatalf("publish duplicate event: %v", err)
 	}
 

@@ -20,14 +20,19 @@ async def assert_listing_processed(pool: asyncpg.Pool, listing_id: UUID | str) -
         raise AssertionError(f"listing {listing_id} was not persisted")
 
 
-async def assert_nats_message_received(client: object, subject: str, timeout: float = 5.0) -> object:
-    subscription = await client.subscribe(subject)  # type: ignore[attr-defined]
+async def assert_kafka_message_received(client: object, topic: str, timeout: float = 5.0) -> object:
     try:
-        return await asyncio.wait_for(subscription.next_msg(timeout=timeout), timeout=timeout)
+        records = await asyncio.wait_for(  # type: ignore[attr-defined]
+            client.getmany(timeout_ms=int(timeout * 1000)),
+            timeout=timeout,
+        )
+        for partition_records in records.values():
+            for record in partition_records:
+                if getattr(record, "topic", "") == topic:
+                    return record
     except TimeoutError as exc:
-        raise AssertionError(f"no NATS message received on {subject} within {timeout}s") from exc
-    finally:
-        await subscription.unsubscribe()
+        raise AssertionError(f"no Kafka message received on {topic} within {timeout}s") from exc
+    raise AssertionError(f"no Kafka message received on {topic} within {timeout}s")
 
 
 async def assert_deal_score_set(pool: asyncpg.Pool, listing_id: UUID | str) -> None:
@@ -49,5 +54,5 @@ async def assert_deal_score_set(pool: asyncpg.Pool, listing_id: UUID | str) -> N
 __all__ = [
     "assert_deal_score_set",
     "assert_listing_processed",
-    "assert_nats_message_received",
+    "assert_kafka_message_received",
 ]
