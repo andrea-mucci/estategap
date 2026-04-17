@@ -15,15 +15,23 @@ async def export_training_data(country: str, dsn: str, limit: int | None = None)
     country_code = country.upper()
     conn = await asyncpg.connect(dsn)
     try:
-        final_price_exists = await conn.fetchval(
-            """
-            SELECT EXISTS (
-                SELECT 1
+        available_columns = {
+            row["column_name"]
+            for row in await conn.fetch(
+                """
+                SELECT column_name
                 FROM information_schema.columns
-                WHERE table_name = 'listings' AND column_name = 'final_price_eur'
+                WHERE table_name = 'listings'
+                """
             )
-            """
-        )
+        }
+        final_price_exists = "final_price_eur" in available_columns
+        def _select(column: str, *, alias: str | None = None, cast: str = "TEXT") -> str:
+            resolved_alias = alias or column
+            if column in available_columns:
+                return f"{column} AS {resolved_alias}" if alias else column
+            return f"NULL::{cast} AS {resolved_alias}"
+
         limit_sql = "LIMIT $2" if limit is not None else ""
         target_select = (
             "COALESCE(final_price_eur, asking_price_eur) AS final_price_eur"
@@ -54,7 +62,7 @@ async def export_training_data(country: str, dsn: str, limit: int | None = None)
                 energy_rating AS energy_cert,
                 condition,
                 year_built AS building_year,
-                NULL::NUMERIC AS community_fees_eur,
+                {_select("community_fees_monthly", alias="community_fees_eur", cast="NUMERIC")},
                 images_count AS photo_count,
                 days_on_market,
                 published_at AS listed_at,
@@ -62,7 +70,21 @@ async def export_training_data(country: str, dsn: str, limit: int | None = None)
                 dist_metro_m,
                 dist_train_m,
                 dist_beach_m,
-                data_completeness
+                data_completeness,
+                {_select("orientation")},
+                {_select("ape_rating")},
+                {_select("council_tax_band")},
+                {_select("epc_rating")},
+                {_select("tenure")},
+                {_select("uk_lr_last_price_gbp", cast="NUMERIC")},
+                {_select("omi_price_min_eur_m2", alias="omi_zone_min_price_eur_m2", cast="NUMERIC")},
+                {_select("omi_price_max_eur_m2", alias="omi_zone_max_price_eur_m2", cast="NUMERIC")},
+                {_select("dvf_median_price_m2", cast="NUMERIC")},
+                {_select("hoa_fees_monthly_usd", cast="NUMERIC")},
+                {_select("lot_size_m2", cast="NUMERIC")},
+                {_select("tax_assessed_value_usd", cast="NUMERIC")},
+                {_select("school_rating", cast="NUMERIC")},
+                {_select("zestimate_reference_usd", cast="NUMERIC")}
             FROM listings
             WHERE country = $1
               AND (status IN ('sold', 'delisted') OR days_on_market > 30)

@@ -53,6 +53,12 @@ async def get_active_champion(country: str, conn: asyncpg.Connection) -> MlModel
     return _row_to_model(row)
 
 
+async def get_champion_for_country(country: str, conn: asyncpg.Connection) -> MlModelVersion | None:
+    """Compatibility alias for champion lookup."""
+
+    return await get_active_champion(country=country, conn=conn)
+
+
 async def next_version_tag(country: str, city_scope: str, conn: asyncpg.Connection) -> str:
     """Return the next sequential model version tag for a country/scope."""
 
@@ -86,6 +92,9 @@ async def insert_staging_version(
     conn: asyncpg.Connection,
     feature_names: list[str] | None = None,
     dataset_ref: str | None = None,
+    transfer_learned: bool = False,
+    base_country: str | None = None,
+    confidence: str = "full",
 ) -> UUID:
     """Insert a new challenger row in staging status."""
 
@@ -101,10 +110,13 @@ async def insert_staging_version(
             feature_names,
             metrics,
             status,
+            transfer_learned,
+            base_country,
+            confidence,
             trained_at,
             created_at
         )
-        VALUES ($1, 'lightgbm', $2, $3, $4, $5, $6::jsonb, 'staging', $7, $7)
+        VALUES ($1, 'lightgbm', $2, $3, $4, $5, $6::jsonb, 'staging', $7, $8, $9, $10, $10)
         RETURNING id
         """,
         country.upper(),
@@ -113,6 +125,9 @@ async def insert_staging_version(
         dataset_ref or fe_path,
         feature_names or [],
         payload,
+        transfer_learned,
+        base_country.upper() if base_country else None,
+        confidence,
         datetime.now(tz=UTC),
     )
 
@@ -172,6 +187,9 @@ async def maybe_promote(
     version_tag: str,
     feature_names: list[str] | None = None,
     dataset_ref: str | None = None,
+    transfer_learned: bool = False,
+    base_country: str | None = None,
+    confidence: str = "full",
     dry_run: bool = False,
     minio_client: Any | None = None,
 ) -> bool:
@@ -203,6 +221,9 @@ async def maybe_promote(
                 conn=conn,
                 feature_names=feature_names,
                 dataset_ref=dataset_ref,
+                transfer_learned=transfer_learned,
+                base_country=base_country,
+                confidence=confidence,
             )
             if champion is None:
                 await promote_version(new_id=challenger_id, champion_id=champion.id if champion else None, conn=conn)
@@ -226,3 +247,15 @@ async def maybe_promote(
             return promoted
     finally:
         await conn.close()
+
+
+__all__ = [
+    "build_minio_client",
+    "get_active_champion",
+    "get_champion_for_country",
+    "insert_staging_version",
+    "maybe_promote",
+    "next_version_tag",
+    "promote_version",
+    "upload_artifacts",
+]

@@ -29,6 +29,9 @@ class ModelBundle:
     feature_engineer: Any
     input_name: str
     feature_names: list[str]
+    confidence: str
+    transfer_learned: bool
+    base_country: str | None
     loaded_at: datetime
 
 
@@ -81,6 +84,9 @@ def download_bundle(
     *,
     country_code: str,
     feature_names: list[str] | None = None,
+    confidence: str = "full",
+    transfer_learned: bool = False,
+    base_country: str | None = None,
     s3_client: Any,
 ) -> ModelBundle:
     """Download and load all artefacts for one model version."""
@@ -113,6 +119,9 @@ def download_bundle(
         feature_engineer=feature_engineer,
         input_name=session_point.get_inputs()[0].name,
         feature_names=resolved_feature_names,
+        confidence=confidence,
+        transfer_learned=transfer_learned,
+        base_country=base_country,
         loaded_at=datetime.now(tz=UTC),
     )
 
@@ -145,7 +154,10 @@ class ModelRegistry:
                     LOWER(country_code) AS country_code,
                     version_tag,
                     artifact_path,
-                    feature_names
+                    feature_names,
+                    COALESCE(confidence, 'full') AS confidence,
+                    COALESCE(transfer_learned, FALSE) AS transfer_learned,
+                    base_country
                 FROM model_versions
                 WHERE status = 'active'
                 ORDER BY country_code, trained_at DESC, created_at DESC
@@ -162,6 +174,9 @@ class ModelRegistry:
                 version_tag=row["version_tag"],
                 artifact_path=row["artifact_path"],
                 feature_names=list(row.get("feature_names") or []),
+                confidence=str(row.get("confidence") or "full"),
+                transfer_learned=bool(row.get("transfer_learned") or False),
+                base_country=row.get("base_country"),
                 s3_client=s3_client,
                 count_reload=False,
             )
@@ -173,6 +188,9 @@ class ModelRegistry:
         version_tag: str,
         artifact_path: str,
         feature_names: list[str] | None = None,
+        confidence: str = "full",
+        transfer_learned: bool = False,
+        base_country: str | None = None,
         s3_client: Any | None = None,
         count_reload: bool = True,
     ) -> ModelBundle:
@@ -187,6 +205,9 @@ class ModelRegistry:
             self._bucket,
             country_code=key,
             feature_names=feature_names,
+            confidence=confidence,
+            transfer_learned=transfer_learned,
+            base_country=base_country,
             s3_client=s3_client or self._s3_client,
         )
         self.bundles[key] = new_bundle
@@ -218,6 +239,9 @@ class ModelRegistry:
                         version_tag=row["version_tag"],
                         artifact_path=row["artifact_path"],
                         feature_names=list(row.get("feature_names") or []),
+                        confidence=str(row.get("confidence") or "full"),
+                        transfer_learned=bool(row.get("transfer_learned") or False),
+                        base_country=row.get("base_country"),
                     )
             await asyncio.sleep(self._poll_interval_seconds)
 

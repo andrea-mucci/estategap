@@ -1,0 +1,32 @@
+country: gb
+description: Great Britain feature configuration
+base_features:
+  - area_m2
+  - bedrooms
+  - bathrooms
+  - floor_number
+  - building_age_years
+  - zone_median_price_eur_m2
+  - dist_to_center_km
+  - dist_to_transit_km
+  - property_type_encoded
+  - photo_count
+  - is_new_construction
+country_specific_features:
+  - council_tax_band_encoded
+  - epc_rating
+  - leasehold_flag
+  - land_registry_last_price_gbp_m2
+optional_features:
+  - council_tax_band
+  - epc_rating
+  - leasehold_flag
+  - land_registry_last_price_gbp_m2
+encoding_rules:
+  council_tax_band:
+    categories: ["A", "B", "C", "D", "E", "F", "G", "H"]
+    strategy: ordinal
+  epc_rating:
+    categories: ["G", "F", "E", "D", "C", "B", "A"]
+    strategy: ordinal
+feature_drops: []

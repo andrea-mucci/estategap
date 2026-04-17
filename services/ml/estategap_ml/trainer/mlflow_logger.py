@@ -44,6 +44,8 @@ def log_training_run(
             slug = city.lower().replace(" ", "_")
             for metric_name, metric_value in city_metrics.items():
                 mlflow.log_metric(f"{metric_name}_{slug}", float(metric_value))
+            if "mape" in city_metrics:
+                mlflow.log_metric(f"mape_city_{slug}", float(city_metrics["mape"]))
         mlflow.log_artifact(str(onnx_path))
         mlflow.log_artifact(str(fe_path))
 

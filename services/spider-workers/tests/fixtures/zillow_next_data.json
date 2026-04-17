@@ -1,0 +1,98 @@
+{
+  "props": {
+    "pageProps": {
+      "searchPageState": {
+        "cat1": {
+          "searchResults": {
+            "listResults": [
+              {
+                "zpid": "111",
+                "detailUrl": "/homedetails/111_zpid/",
+                "unformattedPrice": 750000,
+                "area": 1000,
+                "beds": 2,
+                "baths": 1.5,
+                "monthlyHoaFee": "$250",
+                "latLong": {"latitude": 40.75, "longitude": -73.99},
+                "homeType": "Condo",
+                "address": {
+                  "streetAddress": "1 W 34th St",
+                  "city": "New York",
+                  "state": "NY",
+                  "zipcode": "10001"
+                }
+              },
+              {
+                "zpid": "222",
+                "detailUrl": "/homedetails/222_zpid/",
+                "unformattedPrice": 950000,
+                "area": 1250,
+                "beds": 3,
+                "baths": 2,
+                "latLong": {"latitude": 40.76, "longitude": -73.98},
+                "homeType": "Townhouse",
+                "address": {
+                  "streetAddress": "2 W 35th St",
+                  "city": "New York",
+                  "state": "NY",
+                  "zipcode": "10001"
+                }
+              },
+              {
+                "zpid": "333",
+                "detailUrl": "/homedetails/333_zpid/",
+                "unformattedPrice": 650000,
+                "area": 850,
+                "beds": 1,
+                "baths": 1,
+                "latLong": {"latitude": 40.74, "longitude": -73.97},
+                "homeType": "Apartment",
+                "address": {
+                  "streetAddress": "3 W 36th St",
+                  "city": "New York",
+                  "state": "NY",
+                  "zipcode": "10001"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "componentProps": {
+        "gdpClientCache": {
+          "111": {
+            "property": {
+              "zpid": "111",
+              "propertyUrl": "/homedetails/111_zpid/",
+              "price": 750000,
+              "livingArea": 1000,
+              "bedrooms": 2,
+              "bathrooms": 1.5,
+              "monthlyHoaFee": "$250",
+              "lotAreaValue": 500,
+              "taxAssessedValue": "$500000",
+              "zestimate": "$770000",
+              "description": "Bright Midtown condo",
+              "homeType": "Condo",
+              "latitude": 40.75,
+              "longitude": -73.99,
+              "address": {
+                "streetAddress": "1 W 34th St",
+                "city": "New York",
+                "state": "NY",
+                "zipcode": "10001"
+              },
+              "schools": [
+                {"rating": "8/10"},
+                {"rating": "6/10"}
+              ],
+              "taxHistory": [
+                {"year": 2025, "taxPaid": "$4200"}
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

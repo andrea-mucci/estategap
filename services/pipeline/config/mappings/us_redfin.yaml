@@ -1,0 +1,101 @@
+portal: redfin
+country: US
+
+fields:
+  price_usd_cents:
+    target: asking_price
+    transform: null
+  area_sqft:
+    target: built_area_sqft
+    transform: null
+  area_m2:
+    target: built_area_m2
+    transform: null
+  bedrooms:
+    target: bedrooms
+    transform: null
+  bathrooms:
+    target: bathrooms
+    transform: null
+  lat:
+    target: _lat
+    transform: null
+  lon:
+    target: _lon
+    transform: null
+  property_type:
+    target: property_type
+    transform: map_property_type
+  source_url:
+    target: source_url
+    transform: null
+  address:
+    target: address
+    transform: null
+  city:
+    target: city
+    transform: null
+  region:
+    target: region
+    transform: null
+  postal_code:
+    target: postal_code
+    transform: null
+  description_orig:
+    target: description_orig
+    transform: null
+  images_count:
+    target: images_count
+    transform: null
+  hoa_fees_monthly_usd:
+    target: hoa_fees_monthly_usd
+    transform: null
+  lot_size_sqft:
+    target: lot_size_sqft
+    transform: null
+  lot_size_m2:
+    target: lot_size_m2
+    transform: null
+  plot_area_m2:
+    target: plot_area_m2
+    transform: null
+  tax_assessed_value_usd:
+    target: tax_assessed_value_usd
+    transform: null
+  school_rating:
+    target: school_rating
+    transform: null
+  compete_score:
+    target: compete_score
+    transform: null
+  currency:
+    target: currency
+    transform: null
+
+property_type_map:
+  condo: residential
+  townhouse: residential
+  townhome: residential
+  single family residential: residential
+  single family: residential
+  multi-family: residential
+  land: land
+  lot/land: land
+
+condition_map: {}
+
+currency_field: currency
+area_unit_field: null
+country_uses_pieces: false
+expected_fields:
+  - asking_price
+  - built_area_sqft
+  - built_area_m2
+  - hoa_fees_monthly_usd
+  - lot_size_sqft
+  - lot_size_m2
+  - tax_assessed_value_usd
+  - school_rating
+  - compete_score
+  - location_wkt
+  - source_url

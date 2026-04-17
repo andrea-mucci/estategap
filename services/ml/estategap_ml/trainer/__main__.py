@@ -6,11 +6,12 @@ import argparse
 import asyncio
 
 import asyncpg
+from estategap_common.models._base import validate_country_code
 
 from estategap_ml import Config, logger
 from estategap_ml.nats_publisher import TrainingCompletedEvent, TrainingFailedEvent, publish_completed, publish_failed
 
-from .train import TrainingResult, run_training, run_transfer_training
+from .train import TrainingResult, get_active_countries, run_training, run_transfer_training
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -23,6 +24,54 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--dry-run", action="store_true", help="skip production-side promotion side effects")
     return parser
+
+
+async def _count_listings(config: Config, country: str) -> int:
+    conn = await asyncpg.connect(config.database_url)
+    try:
+        return int(
+            await conn.fetchval(
+                """
+                SELECT COUNT(*)::INTEGER
+                FROM listings
+                WHERE LOWER(country) = $1
+                """,
+                country.lower(),
+            )
+            or 0
+        )
+    finally:
+        await conn.close()
+
+
+def _normalize_country(value: str) -> str:
+    country = value.strip().upper()
+    validate_country_code(country)
+    return country.lower()
+
+
+async def _run_for_country(
+    *,
+    country: str,
+    listing_count: int,
+    config: Config,
+    dry_run: bool,
+    spain_result: TrainingResult | None = None,
+) -> TrainingResult:
+    if country == config.transfer_base_country.lower() or listing_count >= config.transfer_min_listings:
+        return await run_training(country, config, dry_run=dry_run)
+    if listing_count < 1000:
+        msg = f"{country.upper()} has only {listing_count} listings; at least 1000 are required"
+        raise ValueError(msg)
+    if spain_result is None:
+        msg = "Spain base model unavailable; skipping transfer-learning country."
+        raise RuntimeError(msg)
+    return await run_transfer_training(
+        country,
+        spain_booster=spain_result.model,
+        config=config,
+        dry_run=dry_run,
+    )
 
 
 async def _list_country_counts(config: Config) -> list[tuple[str, int]]:
@@ -75,42 +124,53 @@ async def main() -> int:
     config = Config()
     if args.country:
         try:
-            result = await run_training(args.country.lower(), config, dry_run=args.dry_run)
+            country = _normalize_country(args.country)
+        except ValueError as exc:
+            parser.error(str(exc))
+        try:
+            listing_count = await _count_listings(config, country)
+            if listing_count <= 0:
+                raise ValueError(f"No listings found for {country.upper()}")
+            spain_result = None
+            if country != config.transfer_base_country.lower() and listing_count < config.transfer_min_listings:
+                base_count = await _count_listings(config, config.transfer_base_country.lower())
+                if base_count >= config.transfer_min_listings:
+                    spain_result = await run_training(
+                        config.transfer_base_country.lower(),
+                        config,
+                        dry_run=args.dry_run,
+                    )
+            result = await _run_for_country(
+                country=country,
+                listing_count=listing_count,
+                config=config,
+                dry_run=args.dry_run,
+                spain_result=spain_result,
+            )
             await _publish_success(config, result)
             return 0
         except Exception as exc:  # pragma: no cover - operational path
-            logger.exception("single_country_training_failed", country=args.country.lower())
-            await _publish_failure(config, args.country.lower(), "training", exc)
+            logger.exception("single_country_training_failed", country=country)
+            await _publish_failure(config, country, "training", exc)
             return 1
 
     spain_result: TrainingResult | None = None
-    for country, listing_count in await _list_country_counts(config):
+    for country, listing_count in await get_active_countries(config, min_listings=1000):
         try:
-            if country == "es" or listing_count >= config.min_listings_per_country:
-                result = await run_training(country, config, dry_run=args.dry_run)
-                if country == "es":
-                    spain_result = result
-            else:
-                if spain_result is None:
-                    await _publish_failure(
-                        config,
-                        country,
-                        "training",
-                        RuntimeError("Spain base model unavailable; skipping transfer-learning country."),
-                    )
-                    continue
-                result = await run_transfer_training(
-                    country,
-                    spain_booster=spain_result.model,
-                    feature_engineer=spain_result.feature_engineer,
-                    config=config,
-                    dry_run=args.dry_run,
-                )
+            result = await _run_for_country(
+                country=country,
+                listing_count=listing_count,
+                config=config,
+                dry_run=args.dry_run,
+                spain_result=spain_result,
+            )
+            if country == config.transfer_base_country.lower():
+                spain_result = result
             await _publish_success(config, result)
         except Exception as exc:  # pragma: no cover - operational path
             logger.exception("country_training_failed", country=country)
             await _publish_failure(config, country, "training", exc)
-            if country == "es":
+            if country == config.transfer_base_country.lower():
                 spain_result = None
     return 0
 

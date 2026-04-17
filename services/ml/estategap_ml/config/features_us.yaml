@@ -1,0 +1,41 @@
+country: us
+description: United States feature configuration
+base_features:
+  - area_m2
+  - bedrooms
+  - bathrooms
+  - floor_number
+  - building_age_years
+  - zone_median_price_eur_m2
+  - dist_to_center_km
+  - dist_to_transit_km
+  - property_type_encoded
+  - photo_count
+  - is_new_construction
+country_specific_features:
+  - hoa_fees_monthly_usd
+  - lot_size_m2
+  - tax_assessed_value_usd
+  - school_rating
+  - zestimate_reference_usd
+optional_features:
+  - hoa_fees_monthly_usd
+  - lot_size_m2
+  - tax_assessed_value_usd
+  - school_rating
+  - zestimate_reference_usd
+encoding_rules: {}
+feature_drops:
+  - energy_cert_encoded
+  - community_fees_monthly
+  - orientation_encoded
+  - ape_rating
+  - omi_zone_min_price_eur_m2
+  - omi_zone_max_price_eur_m2
+  - dpe_rating
+  - dvf_median_transaction_price_eur_m2
+  - pieces_count
+  - council_tax_band_encoded
+  - epc_rating
+  - leasehold_flag
+  - land_registry_last_price_gbp_m2

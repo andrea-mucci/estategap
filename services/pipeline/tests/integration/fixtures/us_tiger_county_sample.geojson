@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "GEOID": "36061",
+        "STATEFP": "36",
+        "NAME": "New York County"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-74.0479, 40.6829],
+            [-73.9067, 40.6829],
+            [-73.9067, 40.8820],
+            [-74.0479, 40.8820],
+            [-74.0479, 40.6829]
+          ]
+        ]
+      }
+    }
+  ]
+}

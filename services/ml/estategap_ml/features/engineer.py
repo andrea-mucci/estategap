@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import UTC, datetime
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -15,8 +16,14 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
+from estategap_ml.config import CONFIG_DIR
+
 from .encoders import condition_encoder, energy_cert_encoder
+from .config import CountryFeatureConfig
 from .zone_stats import ZoneStats
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class FeatureEngineer(BaseEstimator, TransformerMixin):
@@ -73,6 +80,31 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         "has_photos",
         "data_completeness",
         "has_energy_cert",
+        "area_m2",
+        "zone_median_price_eur_m2",
+        "dist_to_center_km",
+        "dist_to_transit_km",
+        "property_type_encoded",
+        "is_new_construction",
+        "energy_cert_encoded",
+        "has_elevator",
+        "community_fees_monthly",
+        "orientation_encoded",
+        "ape_rating",
+        "omi_zone_min_price_eur_m2",
+        "omi_zone_max_price_eur_m2",
+        "dpe_rating",
+        "dvf_median_transaction_price_eur_m2",
+        "pieces_count",
+        "council_tax_band_encoded",
+        "epc_rating",
+        "leasehold_flag",
+        "land_registry_last_price_gbp_m2",
+        "hoa_fees_monthly_usd",
+        "lot_size_m2",
+        "tax_assessed_value_usd",
+        "school_rating",
+        "zestimate_reference_usd",
     ]
 
     def __init__(
@@ -80,10 +112,24 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         zone_stats: dict[UUID, ZoneStats],
         city_stats: dict[str, ZoneStats],
         country_stats: ZoneStats,
+        country: str = "ES",
     ) -> None:
         self.zone_stats = zone_stats
         self.city_stats = city_stats
         self.country_stats = country_stats
+        self.country = country.upper()
+        self.feature_config = self._load_feature_config(self.country)
+        self.features = list(self.feature_config.all_features)
+        self.encoding_rules = dict(self.feature_config.encoding_rules)
+
+    @staticmethod
+    def _load_feature_config(country: str) -> CountryFeatureConfig:
+        config_path = CONFIG_DIR / f"features_{country.lower()}.yaml"
+        try:
+            return CountryFeatureConfig.from_yaml(config_path)
+        except FileNotFoundError:
+            LOGGER.warning("feature_config_fallback", extra={"country": country, "path": str(config_path)})
+            return CountryFeatureConfig.from_yaml(CONFIG_DIR / "features_base.yaml")
 
     def fit(self, df: pd.DataFrame, y: Any = None) -> "FeatureEngineer":
         prepared = self.prepare_frame(df)
@@ -198,6 +244,43 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         frame["has_photos"] = (frame["photo_count"].fillna(0) > 0).astype(float)
         completeness = frame[self.OPTIONAL_COMPLETENESS_COLUMNS].notna().sum(axis=1)
         frame["data_completeness"] = completeness / float(len(self.OPTIONAL_COMPLETENESS_COLUMNS))
+        frame["area_m2"] = frame["built_area_m2"]
+        frame["zone_median_price_eur_m2"] = frame["zone_median_price_m2"]
+        frame["dist_to_center_km"] = pd.to_numeric(frame["dist_metro_m"], errors="coerce") / 1000.0
+        transit_distances = pd.concat(
+            [
+                pd.to_numeric(frame["dist_metro_m"], errors="coerce"),
+                pd.to_numeric(frame["dist_train_m"], errors="coerce"),
+            ],
+            axis=1,
+        )
+        frame["dist_to_transit_km"] = transit_distances.min(axis=1, skipna=True) / 1000.0
+        property_type_lookup = {value: index + 1 for index, value in enumerate(self.PROPERTY_TYPE_CATEGORIES)}
+        frame["property_type_encoded"] = (
+            frame["property_type"].fillna("other").astype(str).str.lower().map(property_type_lookup).fillna(0.0)
+        )
+        frame["is_new_construction"] = frame["condition"].fillna("").astype(str).str.lower().eq("new").astype(float)
+        frame["energy_cert_encoded"] = self._encode_series(frame["energy_cert"], "energy_cert")
+        frame["has_elevator"] = frame["has_lift"].fillna(False).astype(float)
+        frame["community_fees_monthly"] = pd.to_numeric(frame["community_fees_eur"], errors="coerce")
+        frame["orientation_encoded"] = self._encode_series(frame["orientation"], "orientation")
+        frame["ape_rating"] = self._encode_series(frame["ape_rating"], "ape_rating")
+        frame["dpe_rating"] = self._encode_series(frame["dpe_rating"], "dpe_rating")
+        frame["council_tax_band_encoded"] = self._encode_series(frame["council_tax_band"], "council_tax_band")
+        frame["epc_rating"] = self._encode_series(frame["epc_rating"], "epc_rating")
+        frame["leasehold_flag"] = (
+            frame["tenure"].fillna("").astype(str).str.contains("leasehold", case=False).astype(float)
+        )
+        frame["land_registry_last_price_gbp_m2"] = np.where(
+            frame["built_area_m2"].fillna(0) > 0,
+            pd.to_numeric(frame["uk_lr_last_price_gbp"], errors="coerce")
+            / frame["built_area_m2"].replace(0, np.nan),
+            np.nan,
+        )
+        frame["dvf_median_transaction_price_eur_m2"] = pd.to_numeric(
+            frame["dvf_median_price_m2"], errors="coerce"
+        )
+        frame["pieces_count"] = pd.to_numeric(frame["bedrooms"], errors="coerce").fillna(0.0) + 1.0
         for column in self.NUMERIC_COLUMNS:
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
         return frame
@@ -226,6 +309,21 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             "city",
             "lat",
             "lon",
+            "orientation",
+            "ape_rating",
+            "dpe_rating",
+            "council_tax_band",
+            "epc_rating",
+            "tenure",
+            "uk_lr_last_price_gbp",
+            "omi_zone_min_price_eur_m2",
+            "omi_zone_max_price_eur_m2",
+            "dvf_median_price_m2",
+            "hoa_fees_monthly_usd",
+            "lot_size_m2",
+            "tax_assessed_value_usd",
+            "school_rating",
+            "zestimate_reference_usd",
             "dist_metro_m",
             "dist_train_m",
             "dist_beach_m",
@@ -238,6 +336,15 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             if required not in df.columns:
                 df[required] = np.nan
         return df
+
+    def _encode_series(self, series: pd.Series, rule_name: str) -> pd.Series:
+        rule = self.encoding_rules.get(rule_name)
+        categories = rule.categories if rule is not None else []
+        if not categories:
+            return pd.Series(np.nan, index=series.index, dtype="float64")
+        mapping = {str(category).lower(): index + 1 for index, category in enumerate(categories)}
+        normalized = series.fillna("").astype(str).str.lower()
+        return normalized.map(mapping).fillna(0.0)
 
     def _resolve_zone_stats(self, row: pd.Series) -> tuple[float, int, float | None]:
         zone_id = row.get("zone_id")

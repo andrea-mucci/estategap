@@ -1,0 +1,32 @@
+country: es
+description: Spain feature configuration
+base_features:
+  - area_m2
+  - bedrooms
+  - bathrooms
+  - floor_number
+  - building_age_years
+  - zone_median_price_eur_m2
+  - dist_to_center_km
+  - dist_to_transit_km
+  - property_type_encoded
+  - photo_count
+  - is_new_construction
+country_specific_features:
+  - energy_cert_encoded
+  - has_elevator
+  - community_fees_monthly
+  - orientation_encoded
+optional_features:
+  - energy_cert
+  - has_lift
+  - community_fees_monthly
+  - orientation
+encoding_rules:
+  energy_cert:
+    categories: ["G", "F", "E", "D", "C", "B", "A"]
+    strategy: onehot
+  orientation:
+    categories: ["north", "east", "south", "west"]
+    strategy: onehot
+feature_drops: []

@@ -70,9 +70,12 @@ class NormalizedListing(EstateGapModel):
     price_per_m2_eur: Decimal | None = None
     property_category: PropertyCategory | None = None
     property_type: str | None = None
+    built_area_sqft: Decimal | None = None
     built_area_m2: Decimal
     usable_area_m2: Decimal | None = None
     plot_area_m2: Decimal | None = None
+    lot_size_sqft: Decimal | None = None
+    lot_size_m2: Decimal | None = None
     bedrooms: int | None = None
     bathrooms: int | None = None
     floor_number: int | None = None
@@ -109,6 +112,12 @@ class NormalizedListing(EstateGapModel):
     dist_airport_m: int | None = None
     dist_park_m: int | None = None
     dist_beach_m: int | None = None
+    hoa_fees_monthly_usd: int | None = None
+    tax_assessed_value_usd: int | None = None
+    school_rating: Decimal | None = None
+    zestimate_reference_usd: int | None = None
+    compete_score: int | None = None
+    mls_id: str | None = None
     condition: str | None = None
     energy_rating: str | None = None
     status: ListingStatus = ListingStatus.ACTIVE
