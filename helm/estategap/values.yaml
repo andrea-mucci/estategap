@@ -85,6 +85,12 @@ nats:
       maxAge: 1h
       replicas: 3
       storage: file
+    - name: scraper-cycle
+      subjects: ["scraper.cycle.>"]
+      retention: workqueue
+      maxAge: 1h
+      replicas: 3
+      storage: file
     - name: price-changes
       subjects: ["listings.price-change.>"]
       retention: limits
@@ -721,6 +727,46 @@ services:
       limits:
         cpu: "1"
         memory: 1Gi
+
+  pipeline-enricher:
+    enabled: true
+    namespace: estategap-pipeline
+    port: 9103
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/pipeline
+      tag: latest
+    command: ["python", "-m", "pipeline.enricher"]
+    env:
+      DATABASE_URL:
+        value: postgres://estategap:replace-me@estategap-postgres-rw.estategap-system.svc.cluster.local:5432/estategap?sslmode=disable
+      ENRICHER_CATASTRO_RATE_LIMIT:
+        value: "1.0"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  pipeline-change-detector:
+    enabled: true
+    namespace: estategap-pipeline
+    port: 9104
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/pipeline
+      tag: latest
+    command: ["python", "-m", "pipeline.change_detector"]
+    env:
+      DATABASE_URL:
+        value: postgres://estategap:replace-me@estategap-postgres-rw.estategap-system.svc.cluster.local:5432/estategap?sslmode=disable
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
 
   ml-scorer:
     enabled: true

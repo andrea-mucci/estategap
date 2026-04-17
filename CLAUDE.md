@@ -24,6 +24,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - Redis 7 (seen listing IDs, quarantine records) — no PostgreSQL writes in this service (011-spider-worker-framework)
 - Python 3.12 + nats-py (JetStream consumer), asyncpg (batch upsert), pydantic v2 (012-normalize-dedup-pipeline)
 - PostgreSQL 16 + PostGIS 3.4 (`listings` partitioned table + new `quarantine` table + (012-normalize-dedup-pipeline)
+- Python 3.12 + nats-py 2.6+, asyncpg 0.29+, httpx 0.27+, lxml 5.x (GML parsing), shapely 2.x (WKT conversion), pyosmium 3.7+ (OSM PBF loading), cachetools 5.x (Overpass TTL cache), pydantic-settings 2.2+, pydantic v2, structlog 24.x, prometheus-client 0.20+, estategap-common (shared models) (013-enrichment-change-detection)
+- PostgreSQL 16 + PostGIS 3.4 (`listings` partitioned table + new `pois` table); NATS JetStream (existing streams) (013-enrichment-change-detection)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -43,9 +45,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 013-enrichment-change-detection: Added Python 3.12 + nats-py 2.6+, asyncpg 0.29+, httpx 0.27+, lxml 5.x (GML parsing), shapely 2.x (WKT conversion), pyosmium 3.7+ (OSM PBF loading), cachetools 5.x (Overpass TTL cache), pydantic-settings 2.2+, pydantic v2, structlog 24.x, prometheus-client 0.20+, estategap-common (shared models)
 - 012-normalize-dedup-pipeline: Added Python 3.12 + nats-py (JetStream consumer), asyncpg (batch upsert), pydantic v2
 - 011-spider-worker-framework: Added Python 3.12 + nats-py, httpx, parsel, playwright, playwright-stealth, grpcio, redis, prometheus_client, pydantic-settings, structlog, uv
-- 010-scrape-orchestrator-proxy: Added Go 1.23
 
 
 <!-- MANUAL ADDITIONS START -->

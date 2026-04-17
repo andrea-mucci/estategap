@@ -139,12 +139,26 @@ spec:
         - name: {{ $name }}
           image: {{ include "estategap.serviceImage" (dict "root" $root "image" $service.image) }}
           imagePullPolicy: IfNotPresent
+          {{- if $service.command }}
+          command:
+            {{- toYaml $service.command | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ $port }}
               protocol: TCP
           env:
             {{- include "estategap.commonEnv" $root | nindent 12 }}
+            {{- range $envName, $envSpec := $service.env }}
+            - name: {{ $envName }}
+              {{- if hasKey $envSpec "value" }}
+              value: {{ $envSpec.value | quote }}
+              {{- end }}
+              {{- if hasKey $envSpec "valueFrom" }}
+              valueFrom:
+                {{- toYaml $envSpec.valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
           resources:
             {{- toYaml $service.resources | nindent 12 }}
 {{- end -}}
