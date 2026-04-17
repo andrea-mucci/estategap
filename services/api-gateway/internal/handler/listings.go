@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/estategap/libs/models"
+	cachepkg "github.com/estategap/services/api-gateway/internal/cache"
 	"github.com/estategap/services/api-gateway/internal/ctxkey"
 	"github.com/estategap/services/api-gateway/internal/repository"
 	"github.com/estategap/services/api-gateway/internal/respond"
@@ -16,12 +17,21 @@ import (
 )
 
 type ListingsHandler struct {
-	repo      *repository.ListingsRepo
-	usersRepo *repository.UsersRepo
+	repo          *repository.ListingsRepo
+	usersRepo     *repository.UsersRepo
+	topDealsCache cachepkg.TopDealsCache
 }
 
-func NewListingsHandler(repo *repository.ListingsRepo, usersRepo *repository.UsersRepo) *ListingsHandler {
-	return &ListingsHandler{repo: repo, usersRepo: usersRepo}
+func NewListingsHandler(
+	repo *repository.ListingsRepo,
+	usersRepo *repository.UsersRepo,
+	cacheClient ...*cachepkg.Client,
+) *ListingsHandler {
+	handler := &ListingsHandler{repo: repo, usersRepo: usersRepo}
+	if len(cacheClient) > 0 {
+		handler.topDealsCache = cachepkg.NewTopDealsCache(cacheClient[0])
+	}
+	return handler
 }
 
 func (h *ListingsHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +110,96 @@ func (h *ListingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusOK, listingDetailFromResult(item))
+}
+
+type cachedListingsResponse struct {
+	Data       []listingSummaryPayload `json:"data"`
+	Pagination map[string]any          `json:"pagination"`
+	Meta       map[string]any          `json:"meta"`
+}
+
+func (h *ListingsHandler) TopDeals(w http.ResponseWriter, r *http.Request) {
+	filter, err := buildListingFilter(r)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if r.URL.Query().Get("sort_by") == "" {
+		filter.SortBy = "deal_score"
+		filter.SortDir = "desc"
+	}
+
+	switch models.SubscriptionTier(ctxkey.String(r.Context(), ctxkey.UserTier)) {
+	case models.SubscriptionTierFree:
+		filter.FreeTierGate = true
+	case models.SubscriptionTierBasic:
+		userID, err := parseUserID(r.Context())
+		if err != nil {
+			writeError(w, r, http.StatusUnauthorized, "missing user id")
+			return
+		}
+
+		user, err := h.usersRepo.GetUserByID(r.Context(), userID)
+		if err != nil {
+			writeError(w, r, http.StatusServiceUnavailable, "failed to load user subscription")
+			return
+		}
+		filter.AllowedCountries = user.AllowedCountries
+	}
+
+	payload, hit, err := cachepkg.GetOrSetRequest(
+		r.Context(),
+		h.topDealsCache.RequestCache,
+		r,
+		func() (cachedListingsResponse, error) {
+			items, cursor, totalCount, _, err := h.repo.SearchListings(r.Context(), filter)
+			if err != nil {
+				return cachedListingsResponse{}, err
+			}
+
+			targetCurrency := strings.ToUpper(filter.Currency)
+			if targetCurrency == "" {
+				targetCurrency = "EUR"
+			}
+
+			responseItems := make([]listingSummaryPayload, 0, len(items))
+			for i := range items {
+				responseItems = append(responseItems, listingSummaryFromModel(&items[i], items[i].PriceConverted, targetCurrency))
+			}
+
+			return cachedListingsResponse{
+				Data: responseItems,
+				Pagination: map[string]any{
+					"next_cursor": cursor,
+					"has_more":    cursor != "",
+				},
+				Meta: map[string]any{
+					"total_count": totalCount,
+					"currency":    targetCurrency,
+				},
+			}, nil
+		},
+	)
+	if err != nil {
+		if errors.Is(err, repository.ErrInvalidInput) {
+			writeError(w, r, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeError(w, r, http.StatusServiceUnavailable, "failed to load top deals")
+		return
+	}
+
+	if hit {
+		w.Header().Set("X-Cache", "HIT")
+	} else {
+		w.Header().Set("X-Cache", "MISS")
+	}
+	if currency, ok := payload.Meta["currency"].(string); ok && currency != "" {
+		w.Header().Set("X-Currency", currency)
+	}
+
+	respond.JSON(w, http.StatusOK, payload)
 }
 
 func buildListingFilter(r *http.Request) (repository.ListingFilter, error) {

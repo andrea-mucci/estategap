@@ -1,0 +1,97 @@
+openapi: "3.1.0"
+info:
+  title: EstateGap Account Deletion
+  version: "1.0"
+
+paths:
+  /api/v1/me:
+    delete:
+      summary: Permanently delete the authenticated user's account
+      description: >
+        Initiates account deletion. PII fields are anonymised immediately. All data
+        (alert rules, portfolio, alert history, conversations) is hard-deleted within
+        30 days by an automated background job. A confirmation email is sent.
+
+        The request body requires a confirmation string to prevent accidental deletion.
+      operationId: deleteUserAccount
+      tags:
+        - GDPR
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAccountRequest"
+            example:
+              confirm: "delete my account"
+      responses:
+        "202":
+          description: >
+            Account deletion initiated. PII anonymised. Hard-delete scheduled within 30 days.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteAccountResponse"
+              example:
+                message: "Account deletion scheduled. PII anonymised immediately."
+                scheduled_hard_delete_after: "2026-05-17"
+        "400":
+          description: >
+            Missing or incorrect confirmation string.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "confirmation string must be exactly 'delete my account'"
+        "401":
+          description: Missing or invalid Bearer token
+        "409":
+          description: Account has already been deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "account is already pending deletion"
+        "500":
+          description: Internal server error
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DeleteAccountRequest:
+      type: object
+      required: [confirm]
+      properties:
+        confirm:
+          type: string
+          description: Must equal exactly "delete my account" (case-sensitive)
+          enum: ["delete my account"]
+
+    DeleteAccountResponse:
+      type: object
+      required: [message, scheduled_hard_delete_after]
+      properties:
+        message:
+          type: string
+        scheduled_hard_delete_after:
+          type: string
+          format: date
+          description: >
+            ISO-8601 date after which all records will be permanently deleted
+            (30 days from the deletion request date).
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

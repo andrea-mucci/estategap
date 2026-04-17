@@ -259,3 +259,41 @@ func (r *UsersRepo) UpdateOnboardingCompleted(
 	}
 	return nil
 }
+
+func (r *UsersRepo) AnonymiseUser(ctx context.Context, userID uuid.UUID) error {
+	var deletedAt *time.Time
+	if err := r.primary.QueryRow(ctx, `
+		SELECT deleted_at
+		FROM users
+		WHERE id = $1
+		LIMIT 1`,
+		pgUUID(userID),
+	).Scan(&deletedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if deletedAt != nil {
+		return ErrConflict
+	}
+
+	tag, err := r.primary.Exec(ctx, `
+		UPDATE users
+		SET deleted_at = NOW(),
+			anonymized_at = NOW(),
+			email = 'deleted-' || id::text || '@deleted.invalid',
+			display_name = 'Deleted User',
+			avatar_url = NULL,
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL`,
+		pgUUID(userID),
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

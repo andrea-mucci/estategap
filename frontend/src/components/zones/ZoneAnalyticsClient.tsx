@@ -1,19 +1,56 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
 
-import { ZoneComparisonTool } from "@/components/zones/ZoneComparisonTool";
 import { ZoneMetricsBar } from "@/components/zones/ZoneMetricsBar";
-import { ZonePriceHistogram } from "@/components/zones/ZonePriceHistogram";
-import { ZonePriceTrendChart } from "@/components/zones/ZonePriceTrendChart";
-import { ZoneVolumeChart } from "@/components/zones/ZoneVolumeChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { useExchangeRates } from "@/hooks/useExchangeRates";
 import { useZoneComparison } from "@/hooks/useZoneComparison";
 import { useZoneStats } from "@/hooks/useZoneStats";
 import type { ZoneDetail } from "@/lib/api";
+
+const ZonePriceTrendChart = dynamic(
+  () => import("@/components/zones/ZonePriceTrendChart").then((module) => module.ZonePriceTrendChart),
+  {
+    loading: () => <ChartPlaceholder />,
+    ssr: false,
+  },
+);
+
+const ZoneVolumeChart = dynamic(
+  () => import("@/components/zones/ZoneVolumeChart").then((module) => module.ZoneVolumeChart),
+  {
+    loading: () => <ChartPlaceholder />,
+    ssr: false,
+  },
+);
+
+const ZonePriceHistogram = dynamic(
+  () => import("@/components/zones/ZonePriceHistogram").then((module) => module.ZonePriceHistogram),
+  {
+    loading: () => <ChartPlaceholder />,
+    ssr: false,
+  },
+);
+
+const ZoneComparisonTool = dynamic(
+  () => import("@/components/zones/ZoneComparisonTool").then((module) => module.ZoneComparisonTool),
+  {
+    loading: () => <ChartPlaceholder />,
+    ssr: false,
+  },
+);
+
+function ChartPlaceholder() {
+  return (
+    <div className="grid min-h-[260px] place-items-center rounded-3xl bg-slate-50 text-sm text-slate-500">
+      Loading chart…
+    </div>
+  );
+}
 
 export function ZoneAnalyticsClient({
   initialZone,

@@ -12,6 +12,7 @@ func mountZoneRoutes(r chi.Router, zonesHandler *handler.ZonesHandler) {
 	r.Get("/zones/compare", zonesHandler.Compare)
 	r.Get("/zones", zonesHandler.List)
 	r.Post("/zones", zonesHandler.Create)
+	r.Get("/zones/{id}/stats", zonesHandler.Stats)
 	r.Get("/zones/{id}", zonesHandler.Get)
 	r.Get("/zones/{id}/analytics", zonesHandler.Analytics)
 	r.Get("/zones/{id}/price-distribution", zonesHandler.PriceDistribution)
@@ -29,8 +30,11 @@ func mountAuthenticatedV1Routes(
 	subscriptionsHandler *handler.SubscriptionsHandler,
 	portfolioHandler *handler.PortfolioHandler,
 	adminHandler *handler.AdminHandler,
+	meExportHandler *handler.MeExportHandler,
+	meDeleteHandler *handler.MeDeleteHandler,
 ) {
 	r.Get("/dashboard/summary", dashboardHandler.Summary)
+	r.Get("/listings/top-deals", listingsHandler.TopDeals)
 	r.Get("/listings", listingsHandler.List)
 	r.Get("/listings/{id}", listingsHandler.Get)
 	mountZoneRoutes(r, zonesHandler)
@@ -53,6 +57,8 @@ func mountAuthenticatedV1Routes(
 	r.Post("/subscriptions/checkout", subscriptionsHandler.Checkout)
 	r.Post("/subscriptions/portal", subscriptionsHandler.Portal)
 	r.Get("/subscriptions/me", subscriptionsHandler.Me)
+	r.Get("/me/export", meExportHandler.ServeHTTP)
+	r.Delete("/me", meDeleteHandler.ServeHTTP)
 	r.Group(func(r chi.Router) {
 		r.Use(gatewaymw.RequireAdmin)
 		r.Get("/admin/scraping/stats", adminHandler.ScrapingStats)

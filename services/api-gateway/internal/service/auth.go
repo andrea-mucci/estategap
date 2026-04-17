@@ -92,6 +92,62 @@ func (s *AuthService) RevokeRefreshToken(ctx context.Context, token string) erro
 	return s.redisClient.Del(ctx, refreshKey(token)).Err()
 }
 
+func (s *AuthService) RevokeUserSessions(ctx context.Context, userID uuid.UUID) error {
+	if s.redisClient == nil {
+		return nil
+	}
+
+	target := userID.String()
+	var cursor uint64
+	for {
+		keys, nextCursor, err := s.redisClient.Scan(ctx, cursor, "refresh:*", 100).Result()
+		if err != nil {
+			return err
+		}
+
+		for _, key := range keys {
+			value, err := s.redisClient.Get(ctx, key).Result()
+			if err != nil {
+				if errors.Is(err, redis.Nil) {
+					continue
+				}
+				return err
+			}
+			if value == target {
+				if err := s.redisClient.Del(ctx, key).Err(); err != nil {
+					return err
+				}
+			}
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	cursor = 0
+	legacyPattern := "session:" + target + ":*"
+	for {
+		keys, nextCursor, err := s.redisClient.Scan(ctx, cursor, legacyPattern, 100).Result()
+		if err != nil {
+			return err
+		}
+		if len(keys) > 0 {
+			if err := s.redisClient.Del(ctx, keys...).Err(); err != nil {
+				return err
+			}
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return nil
+}
+
 func (s *AuthService) ResolveRefreshToken(ctx context.Context, token string) (uuid.UUID, error) {
 	value, err := s.redisClient.Get(ctx, refreshKey(token)).Result()
 	if err != nil {

@@ -17,6 +17,8 @@ type Config struct {
 	GoogleClientSecret       string
 	GoogleRedirectURL        string
 	AllowedOrigins           []string
+	CSPReportOnly            bool
+	CSPReportURI             string
 	Port                     string
 	NATSURL                  string
 	LogLevel                 string
@@ -47,6 +49,8 @@ func Load() (*Config, error) {
 	v.SetDefault("PORT", "8080")
 	v.SetDefault("LOG_LEVEL", "INFO")
 	v.SetDefault("ALLOWED_ORIGINS", "")
+	v.SetDefault("CSP_REPORT_ONLY", true)
+	v.SetDefault("CSP_REPORT_URI", "")
 	v.SetDefault("GRPC_ML_SCORER_ADDR", "ml-scorer.estategap-intelligence.svc.cluster.local:50051")
 	v.SetDefault("GRPC_AI_CHAT_ADDR", "ai-chat-service.estategap-intelligence.svc.cluster.local:50051")
 	v.SetDefault("GRPC_TIMEOUT_SECONDS", 5)
@@ -63,6 +67,8 @@ func Load() (*Config, error) {
 		GoogleClientSecret:       strings.TrimSpace(v.GetString("GOOGLE_CLIENT_SECRET")),
 		GoogleRedirectURL:        strings.TrimSpace(v.GetString("GOOGLE_REDIRECT_URL")),
 		AllowedOrigins:           splitCSV(v.GetString("ALLOWED_ORIGINS")),
+		CSPReportOnly:            v.GetBool("CSP_REPORT_ONLY"),
+		CSPReportURI:             strings.TrimSpace(v.GetString("CSP_REPORT_URI")),
 		Port:                     strings.TrimSpace(v.GetString("PORT")),
 		NATSURL:                  strings.TrimSpace(v.GetString("NATS_URL")),
 		LogLevel:                 strings.ToUpper(strings.TrimSpace(v.GetString("LOG_LEVEL"))),

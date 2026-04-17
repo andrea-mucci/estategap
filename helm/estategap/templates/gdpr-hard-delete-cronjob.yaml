@@ -1,0 +1,131 @@
+{{- if .Values.gdpr.hardDeleteCron.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gdpr-hard-delete
+  namespace: estategap-system
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.gdpr.hardDeleteCron.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.gdpr.hardDeleteCron.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.gdpr.hardDeleteCron.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "estategap.labels" . | nindent 12 }}
+            app.kubernetes.io/component: gdpr-hard-delete
+        spec:
+          restartPolicy: OnFailure
+          volumes:
+            - name: work
+              emptyDir: {}
+          initContainers:
+            - name: hard-delete-db
+              image: bitnami/postgresql:16
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  psql \
+                    "host=${PGHOST} port=${PGPORT} user=${PGUSER} dbname=${PGDATABASE} password=${PGPASSWORD} sslmode=disable" \
+                    -v ON_ERROR_STOP=1 \
+                    -At <<'SQL' > /work/deleted-users.txt
+                  WITH expired_users AS (
+                    SELECT id
+                    FROM users
+                    WHERE deleted_at < NOW() - INTERVAL '30 days'
+                  ),
+                  deleted_history AS (
+                    DELETE FROM alert_history
+                    WHERE rule_id IN (
+                      SELECT id FROM alert_rules WHERE user_id IN (SELECT id FROM expired_users)
+                    )
+                  ),
+                  deleted_rules AS (
+                    DELETE FROM alert_rules
+                    WHERE user_id IN (SELECT id FROM expired_users)
+                  ),
+                  deleted_portfolio AS (
+                    DELETE FROM portfolio_properties
+                    WHERE user_id IN (SELECT id FROM expired_users)
+                  )
+                  DELETE FROM users
+                  WHERE id IN (SELECT id FROM expired_users)
+                  RETURNING id;
+                  SQL
+              env:
+                - name: PGHOST
+                  value: {{ .Values.gdpr.hardDeleteCron.database.host | quote }}
+                - name: PGPORT
+                  value: {{ .Values.gdpr.hardDeleteCron.database.port | quote }}
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.gdpr.hardDeleteCron.database.userSecretRef.name }}
+                      key: {{ .Values.gdpr.hardDeleteCron.database.userSecretRef.key }}
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.gdpr.hardDeleteCron.database.passwordSecretRef.name }}
+                      key: {{ .Values.gdpr.hardDeleteCron.database.passwordSecretRef.key }}
+                - name: PGDATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.gdpr.hardDeleteCron.database.databaseSecretRef.name }}
+                      key: {{ .Values.gdpr.hardDeleteCron.database.databaseSecretRef.key }}
+              volumeMounts:
+                - mountPath: /work
+                  name: work
+          containers:
+            - name: purge-redis
+              image: redis:7-alpine
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  if [ ! -s /work/deleted-users.txt ]; then
+                    echo "No expired users found."
+                    exit 0
+                  fi
+
+                  while IFS= read -r user_id; do
+                    [ -n "${user_id}" ] || continue
+
+                    redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" --scan --pattern "session:${user_id}:*" | while read -r key; do
+                      [ -n "${key}" ] || continue
+                      redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" DEL "${key}" >/dev/null
+                    done
+
+                    cursor="0"
+                    while :; do
+                      scan_output="$(redis-cli --raw -h "${REDIS_HOST}" -p "${REDIS_PORT}" SCAN "${cursor}" MATCH 'conv:*' COUNT 100)"
+                      cursor="$(printf '%s\n' "${scan_output}" | sed -n '1p')"
+                      printf '%s\n' "${scan_output}" | tail -n +2 | while read -r key; do
+                        [ -n "${key}" ] || continue
+                        owner="$(redis-cli --raw -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGET "${key}" user_id || true)"
+                        if [ "${owner}" = "${user_id}" ]; then
+                          redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" DEL "${key}" "${key}:messages" >/dev/null
+                        fi
+                      done
+                      [ "${cursor}" = "0" ] && break
+                    done
+                  done < /work/deleted-users.txt
+              env:
+                - name: REDIS_HOST
+                  value: {{ .Values.gdpr.hardDeleteCron.redis.host | quote }}
+                - name: REDIS_PORT
+                  value: {{ .Values.gdpr.hardDeleteCron.redis.port | quote }}
+                - name: REDISCLI_AUTH
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.gdpr.hardDeleteCron.redis.passwordSecretRef.name }}
+                      key: {{ .Values.gdpr.hardDeleteCron.redis.passwordSecretRef.key }}
+              volumeMounts:
+                - mountPath: /work
+                  name: work
+{{- end }}

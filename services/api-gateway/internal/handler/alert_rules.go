@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/estategap/libs/models"
+	cachepkg "github.com/estategap/services/api-gateway/internal/cache"
 	"github.com/estategap/services/api-gateway/internal/ctxkey"
 	"github.com/estategap/services/api-gateway/internal/repository"
 	"github.com/estategap/services/api-gateway/internal/respond"
@@ -31,7 +32,8 @@ type AlertRulesRepository interface {
 }
 
 type AlertRulesHandler struct {
-	repo AlertRulesRepository
+	repo            AlertRulesRepository
+	alertRulesCache cachepkg.AlertRulesCache
 }
 
 var tierAlertRuleLimits = map[string]int{
@@ -80,8 +82,12 @@ type notificationChannel struct {
 	WebhookURL *string `json:"webhook_url,omitempty"`
 }
 
-func NewAlertRulesHandler(repo AlertRulesRepository) *AlertRulesHandler {
-	return &AlertRulesHandler{repo: repo}
+func NewAlertRulesHandler(repo AlertRulesRepository, cacheClient ...*cachepkg.Client) *AlertRulesHandler {
+	handler := &AlertRulesHandler{repo: repo}
+	if len(cacheClient) > 0 {
+		handler.alertRulesCache = cachepkg.NewAlertRulesCache(cacheClient[0])
+	}
+	return handler
 }
 
 func (h *AlertRulesHandler) ListAlertRules(w http.ResponseWriter, r *http.Request) {
@@ -105,20 +111,46 @@ func (h *AlertRulesHandler) ListAlertRules(w http.ResponseWriter, r *http.Reques
 		isActive = &value
 	}
 
-	items, total, err := h.repo.ListRules(r.Context(), userID, page, pageSize, isActive)
+	type alertRuleListCacheEntry struct {
+		Data       []alertRuleResponse `json:"data"`
+		Pagination map[string]int      `json:"pagination"`
+	}
+
+	payload, hit, err := cachepkg.GetOrSetRequest(
+		r.Context(),
+		h.alertRulesCache.RequestCache,
+		r,
+		func() (alertRuleListCacheEntry, error) {
+			items, total, err := h.repo.ListRules(r.Context(), userID, page, pageSize, isActive)
+			if err != nil {
+				return alertRuleListCacheEntry{}, err
+			}
+
+			rules := make([]alertRuleResponse, 0, len(items))
+			for _, item := range items {
+				rules = append(rules, alertRuleFromRepository(item))
+			}
+
+			return alertRuleListCacheEntry{
+				Data:       rules,
+				Pagination: paginationMeta(page, pageSize, total),
+			}, nil
+		},
+	)
 	if err != nil {
 		writeFeatureError(w, http.StatusServiceUnavailable, "failed to load alert rules", "ALERT_RULES_UNAVAILABLE", nil)
 		return
 	}
 
-	payload := make([]alertRuleResponse, 0, len(items))
-	for _, item := range items {
-		payload = append(payload, alertRuleFromRepository(item))
+	if hit {
+		w.Header().Set("X-Cache", "HIT")
+	} else {
+		w.Header().Set("X-Cache", "MISS")
 	}
 
 	respond.JSON(w, http.StatusOK, map[string]any{
-		"data":       payload,
-		"pagination": paginationMeta(page, pageSize, total),
+		"data":       payload.Data,
+		"pagination": payload.Pagination,
 	})
 }
 

@@ -1,9 +1,43 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DealScoreHistogram } from "@/components/dashboard/DealScoreHistogram";
-import { PriceZoneChart } from "@/components/dashboard/PriceZoneChart";
-import { VolumeChart } from "@/components/dashboard/VolumeChart";
+
+const PriceZoneChart = dynamic(
+  () => import("@/components/dashboard/PriceZoneChart").then((module) => module.PriceZoneChart),
+  {
+    loading: () => <ChartPlaceholder />,
+    ssr: false,
+  },
+);
+
+const VolumeChart = dynamic(
+  () => import("@/components/dashboard/VolumeChart").then((module) => module.VolumeChart),
+  {
+    loading: () => <ChartPlaceholder />,
+    ssr: false,
+  },
+);
+
+const DealScoreHistogram = dynamic(
+  () =>
+    import("@/components/dashboard/DealScoreHistogram").then(
+      (module) => module.DealScoreHistogram,
+    ),
+  {
+    loading: () => <ChartPlaceholder />,
+    ssr: false,
+  },
+);
+
+function ChartPlaceholder() {
+  return (
+    <div className="grid h-[280px] place-items-center rounded-3xl bg-slate-50 text-sm text-slate-500">
+      Loading chart…
+    </div>
+  );
+}
 
 export function TrendCharts({ country }: { country: string }) {
   return (

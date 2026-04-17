@@ -1,0 +1,191 @@
+openapi: "3.1.0"
+info:
+  title: EstateGap GDPR Data Export
+  version: "1.0"
+
+paths:
+  /api/v1/me/export:
+    get:
+      summary: Export all personal data for the authenticated user
+      description: >
+        Returns a complete JSON export of all data associated with the authenticated
+        user, including profile, alert rules, portfolio, alert history, and conversation
+        history. Intended to fulfil GDPR Article 20 (data portability) requests.
+      operationId: exportUserData
+      tags:
+        - GDPR
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Complete user data export as a downloadable JSON file
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              example: 'attachment; filename="estategap-export-2026-04-17.json"'
+            Content-Type:
+              schema:
+                type: string
+              example: "application/json"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDataExport"
+        "401":
+          description: Missing or invalid Bearer token
+        "404":
+          description: User account has already been deleted
+        "500":
+          description: Internal server error during data aggregation
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserDataExport:
+      type: object
+      required:
+        - exported_at
+        - schema_version
+        - profile
+        - alert_rules
+        - portfolio_properties
+        - alert_history
+        - conversations
+      properties:
+        exported_at:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp when the export was generated
+        schema_version:
+          type: string
+          enum: ["1"]
+          description: Export schema version for forward compatibility
+        profile:
+          $ref: "#/components/schemas/UserProfile"
+        alert_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertRuleExport"
+        portfolio_properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortfolioPropertyExport"
+        alert_history:
+          type: array
+          maxItems: 1000
+          description: Most recent 1000 alert history entries
+          items:
+            $ref: "#/components/schemas/AlertHistoryExport"
+        conversations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationExport"
+
+    UserProfile:
+      type: object
+      required: [id, email, name, created_at, subscription_tier]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        subscription_tier:
+          type: string
+          enum: [free, basic, pro]
+
+    AlertRuleExport:
+      type: object
+      required: [id, name, created_at, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        filters:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+
+    PortfolioPropertyExport:
+      type: object
+      required: [id, listing_id, added_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        listing_id:
+          type: string
+          format: uuid
+        notes:
+          type: string
+          nullable: true
+        added_at:
+          type: string
+          format: date-time
+
+    AlertHistoryExport:
+      type: object
+      required: [id, rule_id, listing_id, triggered_at, channel]
+      properties:
+        id:
+          type: string
+          format: uuid
+        rule_id:
+          type: string
+          format: uuid
+        listing_id:
+          type: string
+          format: uuid
+        triggered_at:
+          type: string
+          format: date-time
+        channel:
+          type: string
+          enum: [email, sms, push, webhook]
+
+    ConversationExport:
+      type: object
+      required: [session_id, messages]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageExport"
+
+    MessageExport:
+      type: object
+      required: [role, content, timestamp]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

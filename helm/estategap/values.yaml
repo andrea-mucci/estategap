@@ -369,6 +369,15 @@ sealedSecrets:
     googleRedirectUrl: AgReplaceWithKubesealOutput
     stripeSecretKey: AgReplaceWithKubesealOutput
     stripeWebhookSecret: AgReplaceWithKubesealOutput
+  productionHardeningSecrets:
+    dbPassword: AgReplaceWithKubesealOutput
+    redisPassword: AgReplaceWithKubesealOutput
+    jwtSecret: AgReplaceWithKubesealOutput
+    stripeSecretKey: AgReplaceWithKubesealOutput
+    stripeWebhookSecret: AgReplaceWithKubesealOutput
+    llmApiKey: AgReplaceWithKubesealOutput
+    proxyCredentials: AgReplaceWithKubesealOutput
+    sesCredentials: AgReplaceWithKubesealOutput
   postgresqlBackupCredentials:
     accessKeyId: AgReplaceWithKubesealOutput
     secretAccessKey: AgReplaceWithKubesealOutput
@@ -452,6 +461,43 @@ mlScorer:
   comparablesRefreshIntervalSeconds: 3600
   shapTimeoutSeconds: 2.0
 
+gdpr:
+  hardDeleteCron:
+    enabled: true
+    schedule: "0 2 * * *"
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 3
+    database:
+      host: estategap-postgres-rw.estategap-system.svc.cluster.local
+      port: "5432"
+      userSecretRef:
+        name: estategap-app-secrets
+        key: username
+      passwordSecretRef:
+        name: estategap-app-secrets
+        key: POSTGRES_PASSWORD
+      databaseSecretRef:
+        name: estategap-app-secrets
+        key: dbname
+    redis:
+      host: redis.estategap-system.svc.cluster.local
+      port: "6379"
+      passwordSecretRef:
+        name: redis-credentials
+        key: redis-password
+
+loadTests:
+  enabled: false
+  namespace: estategap-system
+  image:
+    repository: grafana/k6
+    tag: latest
+  apiBaseUrl: https://staging.estategap.com
+  wsUrl: wss://staging.estategap.com/chat
+  alertsTriggerUrl: https://staging.estategap.com/api/v1/internal/alerts/trigger
+  natsHttpPublishUrl: ""
+  prometheusRemoteWriteUrl: ""
+
 services:
   api-gateway:
     enabled: true
@@ -475,6 +521,10 @@ services:
         value: INFO
       ALLOWED_ORIGINS:
         value: https://app.estategap.com
+      CSP_REPORT_ONLY:
+        value: "true"
+      CSP_REPORT_URI:
+        value: ""
       DB_PRIMARY_URL:
         valueFrom:
           secretKeyRef:
