@@ -16,11 +16,15 @@ __pycache__/
 node_modules/
 **/node_modules/
 .next/
+build/
+dist/
 coverage/
 *.log
 *.log.*
 .env
 .env.*
+.vscode/
+.idea/
 docs/
 specs/
 secrets/

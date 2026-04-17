@@ -1,0 +1,12 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - exhaustive
+    - goimports
+    - govet
+    - staticcheck
+    - godot
+    - noctx

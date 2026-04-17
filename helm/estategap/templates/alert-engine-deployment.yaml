@@ -1,0 +1,84 @@
+{{- $name := "alert-engine" -}}
+{{- $service := index .Values.services $name -}}
+{{- if $service.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "estategap.namespace" (dict "root" . "name" $name) }}
+  labels:
+    {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 4 }}
+spec:
+  replicas: {{ default 1 $service.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "estategap.serviceSelectorLabels" (dict "root" . "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "estategap.serviceSelectorLabels" (dict "root" . "name" $name) | nindent 8 }}
+        app.kubernetes.io/scrape: "true"
+    spec:
+      {{- include "estategap.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "estategap.serviceImage" (dict "root" . "image" $service.image) }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{ $service.port }}
+              protocol: TCP
+          env:
+            {{- include "estategap.commonEnv" . | nindent 12 }}
+            {{- range $envName, $envSpec := $service.env }}
+            - name: {{ $envName }}
+              {{- if hasKey $envSpec "value" }}
+              value: {{ $envSpec.value | quote }}
+              {{- end }}
+              {{- if hasKey $envSpec "valueFrom" }}
+              valueFrom:
+                {{- toYaml $envSpec.valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml $service.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $service.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $service.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "estategap.namespace" (dict "root" . "name" $name) }}
+  labels:
+    {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "estategap.serviceSelectorLabels" (dict "root" . "name" $name) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $service.port }}
+      targetPort: http
+      protocol: TCP
+{{- if $service.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "estategap.namespace" (dict "root" . "name" $name) }}
+  labels:
+    {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ $service.serviceMonitor.path | quote }}
+      interval: {{ $service.serviceMonitor.interval | quote }}
+{{- end }}
+{{- end }}
