@@ -556,10 +556,94 @@ services:
   scrape-orchestrator:
     enabled: true
     namespace: estategap-scraping
-    port: 8080
+    port: 8082
     image:
       repository: ghcr.io/andrea-mucci/estategap/scrape-orchestrator
       tag: latest
+    env:
+      LOG_LEVEL:
+        value: INFO
+      DATABASE_URL:
+        value: postgres://estategap:replace-me@estategap-postgres-rw.estategap-system.svc.cluster.local:5432/estategap?sslmode=disable
+      REDIS_URL:
+        value: redis://redis.estategap-system.svc.cluster.local:6379
+      NATS_URL:
+        value: nats://nats.estategap-system.svc.cluster.local:4222
+      HTTP_PORT:
+        value: "8082"
+      PORTAL_RELOAD_INTERVAL:
+        value: 5m
+      JOB_TTL:
+        value: "86400"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 20
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    serviceMonitor:
+      enabled: true
+      path: /health
+      interval: 30s
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  proxy-manager:
+    enabled: true
+    namespace: estategap-scraping
+    port: 50052
+    metricsPort: 9090
+    image:
+      repository: ghcr.io/andrea-mucci/estategap/proxy-manager
+      tag: latest
+    env:
+      LOG_LEVEL:
+        value: INFO
+      REDIS_URL:
+        value: redis://redis.estategap-system.svc.cluster.local:6379
+      GRPC_PORT:
+        value: "50052"
+      METRICS_PORT:
+        value: "9090"
+      BLACKLIST_TTL:
+        value: "1800"
+      STICKY_TTL:
+        value: "600"
+      HEALTH_THRESHOLD:
+        value: "0.5"
+      PROXY_COUNTRIES:
+        value: IT,ES
+      PROXY_IT_PROVIDER:
+        value: brightdata
+      PROXY_IT_ENDPOINT:
+        value: zproxy.lum-superproxy.io:22225
+      PROXY_IT_USERNAME:
+        value: replace-me
+      PROXY_IT_PASSWORD:
+        value: replace-me
+      PROXY_ES_PROVIDER:
+        value: smartproxy
+      PROXY_ES_ENDPOINT:
+        value: gate.smartproxy.com:7000
+      PROXY_ES_USERNAME:
+        value: replace-me
+      PROXY_ES_PASSWORD:
+        value: replace-me
+    serviceMonitor:
+      enabled: true
+      path: /metrics
+      interval: 30s
     resources:
       requests:
         cpu: 100m

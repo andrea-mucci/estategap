@@ -1,4 +1,4 @@
-{{- $name := "scrape-orchestrator" -}}
+{{- $name := "proxy-manager" -}}
 {{- $service := index .Values.services $name -}}
 {{- if $service.enabled }}
 apiVersion: apps/v1
@@ -25,8 +25,11 @@ spec:
           image: {{ include "estategap.serviceImage" (dict "root" . "image" $service.image) }}
           imagePullPolicy: IfNotPresent
           ports:
-            - name: http
+            - name: grpc
               containerPort: {{ $service.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ $service.metricsPort }}
               protocol: TCP
           env:
             {{- include "estategap.commonEnv" . | nindent 12 }}
@@ -40,10 +43,6 @@ spec:
                 {{- toYaml $envSpec.valueFrom | nindent 16 }}
               {{- end }}
             {{- end }}
-          livenessProbe:
-            {{- toYaml $service.livenessProbe | nindent 12 }}
-          readinessProbe:
-            {{- toYaml $service.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml $service.resources | nindent 12 }}
 ---
@@ -59,9 +58,13 @@ spec:
   selector:
     {{- include "estategap.serviceSelectorLabels" (dict "root" . "name" $name) | nindent 4 }}
   ports:
-    - name: http
+    - name: grpc
       port: {{ $service.port }}
-      targetPort: http
+      targetPort: grpc
+      protocol: TCP
+    - name: metrics
+      port: {{ $service.metricsPort }}
+      targetPort: metrics
       protocol: TCP
 {{- if $service.serviceMonitor.enabled }}
 ---
@@ -77,7 +80,7 @@ spec:
     matchLabels:
       {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 6 }}
   endpoints:
-    - port: http
+    - port: metrics
       path: {{ $service.serviceMonitor.path | quote }}
       interval: {{ $service.serviceMonitor.interval | quote }}
 {{- end }}

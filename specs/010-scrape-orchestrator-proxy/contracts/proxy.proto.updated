@@ -1,3 +1,6 @@
+// proto/estategap/v1/proxy.proto — updated for feature 010
+// Changes: added session_id field to GetProxyRequest (field number 3)
+
 syntax = "proto3";
 
 package estategap.v1;
@@ -11,20 +14,20 @@ service ProxyService {
 
 message GetProxyRequest {
   string country_code = 1;
-  string portal_id = 2;
-  string session_id = 3;
+  string portal_id    = 2;
+  string session_id   = 3;  // NEW: empty = no sticky session, non-empty = sticky
 }
 
 message GetProxyResponse {
   string proxy_url = 1;
-  string proxy_id = 2;
+  string proxy_id  = 2;
 }
 
 message ReportResultRequest {
-  string proxy_id = 1;
-  bool success = 2;
-  int32 status_code = 3;
-  int64 latency_ms = 4;
+  string proxy_id   = 1;
+  bool   success    = 2;
+  int32  status_code = 3;
+  int64  latency_ms  = 4;
 }
 
 message ReportResultResponse {
