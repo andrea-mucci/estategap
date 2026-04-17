@@ -3,18 +3,28 @@ name = "estategap-ai-chat"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "litellm>=1.35",
-    "fastapi>=0.111",
-    "uvicorn>=0.30",
+    "anthropic>=0.25",
+    "asyncpg>=0.29",
     "estategap-common",
+    "grpcio>=1.63",
+    "grpcio-tools>=1.63",
+    "jinja2>=3.1",
+    "litellm>=1.35",
+    "openai>=1.30",
+    "prometheus-client>=0.20",
+    "pydantic-settings>=2.2",
+    "redis[asyncio]>=5.0",
+    "structlog>=24.1",
 ]
 
 [dependency-groups]
 dev = [
+    "fakeredis>=2.23",
+    "mypy",
     "pytest",
     "pytest-asyncio",
-    "mypy",
     "ruff",
+    "testcontainers>=4.4",
 ]
 
 [build-system]
@@ -26,3 +36,16 @@ packages = ["estategap_ai_chat"]
 
 [tool.uv.sources]
 estategap-common = { path = "../../libs/common", editable = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

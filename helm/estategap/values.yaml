@@ -393,6 +393,11 @@ sealedSecrets:
     minioEndpoint: AgReplaceWithKubesealOutput
     minioAccessKey: AgReplaceWithKubesealOutput
     minioSecretKey: AgReplaceWithKubesealOutput
+  aiChatSecrets:
+    databaseUrl: AgReplaceWithKubesealOutput
+    redisUrl: AgReplaceWithKubesealOutput
+    anthropicApiKey: AgReplaceWithKubesealOutput
+    openaiApiKey: AgReplaceWithKubesealOutput
   alertEngineSecrets:
     databaseUrl: AgReplaceWithKubesealOutput
     databaseReplicaUrl: AgReplaceWithKubesealOutput
@@ -946,10 +951,46 @@ services:
   ai-chat:
     enabled: true
     namespace: estategap-intelligence
-    port: 8080
+    port: 50053
+    metricsPort: 9090
     image:
       repository: ghcr.io/andrea-mucci/estategap/ai-chat
       tag: latest
+    env:
+      GRPC_PORT:
+        value: "50053"
+      METRICS_PORT:
+        value: "9090"
+      LLM_PROVIDER:
+        value: claude
+      FALLBACK_LLM_PROVIDER:
+        value: openai
+      LITELLM_MODEL:
+        value: gpt-4o-mini
+      API_GATEWAY_GRPC_ADDR:
+        value: api-gateway.estategap-gateway.svc.cluster.local:8080
+      LOG_LEVEL:
+        value: INFO
+      DATABASE_URL:
+        valueFrom:
+          secretKeyRef:
+            name: ai-chat-secrets
+            key: DATABASE_URL
+      REDIS_URL:
+        valueFrom:
+          secretKeyRef:
+            name: ai-chat-secrets
+            key: REDIS_URL
+      ANTHROPIC_API_KEY:
+        valueFrom:
+          secretKeyRef:
+            name: ai-chat-secrets
+            key: ANTHROPIC_API_KEY
+      OPENAI_API_KEY:
+        valueFrom:
+          secretKeyRef:
+            name: ai-chat-secrets
+            key: OPENAI_API_KEY
     resources:
       requests:
         cpu: 500m
@@ -957,6 +998,23 @@ services:
       limits:
         cpu: "2"
         memory: 4Gi
+    livenessProbe:
+      httpGet:
+        path: /metrics
+        port: metrics
+      initialDelaySeconds: 15
+      periodSeconds: 20
+      timeoutSeconds: 5
+    readinessProbe:
+      tcpSocket:
+        port: grpc
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+    serviceMonitor:
+      enabled: true
+      path: /metrics
+      interval: 30s
     hpa:
       enabled: true
       minReplicas: 1

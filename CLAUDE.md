@@ -34,6 +34,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4 (read: alert_rules, zones, listings; write: alert_history); Redis 7 (dedup SETs + digest ZSETs) (016-alert-engine)
 - Go 1.23 + nats.go v1.37, go-chi/chi v5, pgx/v5, go-redis/v9, aws-sdk-go-v2/ses, go-telegram-bot-api v5, twilio-go, firebase-admin-go v4, prometheus/client_golang (017-notification-dispatcher)
 - PostgreSQL 16 (`users`, `alert_history`, `alert_rules`); Redis 7 (webhook retry counters) (017-notification-dispatcher)
+- Python 3.12 + grpcio 1.63+, grpcio-tools 1.63+, anthropic (AsyncAnthropic), openai (AsyncOpenAI), litellm 1.35+, redis[asyncio] 5.x, asyncpg 0.29+, pydantic-settings 2.2+, pydantic v2, jinja2 3.x, structlog 24.x, prometheus-client 0.20+, estategap-common (path dep) (018-ai-chat-service)
+- Redis 7 (conversation state + message history — primary); PostgreSQL 16 + PostGIS 3.4 (visual_references table — read-only at runtime) (018-ai-chat-service)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -53,9 +55,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 018-ai-chat-service: Added Python 3.12 + grpcio 1.63+, grpcio-tools 1.63+, anthropic (AsyncAnthropic), openai (AsyncOpenAI), litellm 1.35+, redis[asyncio] 5.x, asyncpg 0.29+, pydantic-settings 2.2+, pydantic v2, jinja2 3.x, structlog 24.x, prometheus-client 0.20+, estategap-common (path dep)
 - 017-notification-dispatcher: Added Go 1.23 + nats.go v1.37, go-chi/chi v5, pgx/v5, go-redis/v9, aws-sdk-go-v2/ses, go-telegram-bot-api v5, twilio-go, firebase-admin-go v4, prometheus/client_golang
 - 016-alert-engine: Added Go 1.23 + chi v5 (health HTTP), pgx/v5, go-redis v9, nats.go v1.37 (JetStream pull consumers), google/uuid, shopspring/decimal, prometheus/client_golang, spf13/viper, golang.org/x/sync (errgroup); in-memory rule cache, Redis dedup SETs, Redis digest ZSETs, PostGIS zone intersection
-- 015-ml-inference-scoring: Added Python 3.12 + onnxruntime 1.18+, shap 0.45+, scikit-learn 1.5+, lightgbm 4.3+, grpcio 1.63+, grpcio-tools 1.63+, nats-py 2.6+, asyncpg 0.29+, boto3 1.34+, pydantic-settings 2.2+, structlog 24.x, prometheus-client 0.20+, estategap-common
 
 
 <!-- MANUAL ADDITIONS START -->
