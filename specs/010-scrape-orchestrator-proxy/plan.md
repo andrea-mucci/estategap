@@ -1,226 +1,104 @@
-# Implementation Plan: Scrape Orchestrator & Proxy Manager
+# Implementation Plan: [FEATURE]
 
-**Branch**: `010-scrape-orchestrator-proxy` | **Date**: 2026-04-17 | **Spec**: [spec.md](spec.md)
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Two Go microservices: (1) **Scrape Orchestrator** reads portal configurations from PostgreSQL,
-runs one `time.Ticker` per enabled portal, publishes NATS JetStream job messages to
-`scraper.commands.{country}.{portal}`, tracks job state in Redis, and exposes an internal
-HTTP API on port 8082 for manual triggers and status queries. (2) **Proxy Manager** exposes a
-gRPC `ProxyService` on port 50052, maintains an in-memory country-keyed proxy pool loaded from
-environment variables, applies health scoring (sliding window of 100 results), uses Redis for
-blacklisting (30min TTL) and sticky sessions (10min TTL), and exposes Prometheus metrics.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Go 1.23  
-**Primary Dependencies**:
-- `github.com/go-chi/chi/v5 v5.2.1` (HTTP router — orchestrator)
-- `github.com/jackc/pgx/v5 v5.7.2` (PostgreSQL — orchestrator)
-- `github.com/redis/go-redis/v9 v9.7.0` (Redis — both services)
-- `github.com/nats-io/nats.go v1.37.0` (NATS JetStream — orchestrator)
-- `google.golang.org/grpc v1.67.1` (gRPC server — proxy manager)
-- `github.com/prometheus/client_golang v1.20.5` (metrics — proxy manager)
-- `github.com/google/uuid v1.6.0` (job IDs — orchestrator)
-- `github.com/spf13/viper v1.19.0` (config — both services)
-- `github.com/estategap/libs` (shared proto generated types)
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
 
-**Storage**:
-- PostgreSQL 16 + PostGIS 3.4 — `portals` table (read-only for orchestrator)
-- Redis 7 — job hashes (orchestrator), proxy blacklist + sticky sessions (proxy manager)
-
-**Testing**: Go table-driven tests + `testcontainers-go` for integration (Redis, NATS)  
-**Target Platform**: Linux / Kubernetes (amd64)  
-**Project Type**: Two standalone microservices in `services/`  
-**Performance Goals**: `GetProxy` p95 < 10ms; job publish < 100ms  
-**Constraints**: Redis key TTLs must be enforced; no external HTTP between services  
-**Scale/Scope**: 30+ portals, 5 countries, pool of ~50 proxies per country
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Polyglot Architecture | ✅ PASS | Both services are Go — correct for high-throughput/orchestration workload |
-| II. Event-Driven Communication | ✅ PASS | NATS JetStream for job publishing; gRPC for ProxyService inter-service calls |
-| III. Country-First Data Sovereignty | ✅ PASS | NATS subjects include country; proxy pool keyed by country |
-| V. Code Quality Discipline | ✅ PASS | chi, pgx, slog, golangci-lint, table-driven tests, no ORM |
-| VI. Security & Ethical Scraping | ✅ PASS | Sealed Secrets for proxy creds; per-portal throttling via ticker interval |
-| VII. Kubernetes-Native Deployment | ✅ PASS | Dockerfiles already scaffolded; services in `services/` |
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-**No violations.** Complexity tracking not required.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/010-scrape-orchestrator-proxy/
-├── plan.md              ← this file
-├── research.md          ← Phase 0: all decisions documented
-├── data-model.md        ← Phase 1: entities and Redis key schemas
-├── quickstart.md        ← Phase 1: local dev and testing guide
-├── contracts/
-│   ├── scrape-job-nats.md       ← NATS subject + JSON schema + HTTP API contracts
-│   └── proxy.proto.updated      ← Updated proxy.proto with session_id field
-└── tasks.md             ← Phase 2: generated by /speckit.tasks
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code Layout
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-# Proto (shared — update before service code)
-proto/estategap/v1/
-└── proxy.proto           ← add session_id to GetProxyRequest
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-# Scrape Orchestrator
-services/scrape-orchestrator/
-├── Dockerfile
-├── go.mod
-├── .env.example
-├── cmd/
-│   └── main.go                     ← wire everything, start HTTP + scheduler
-└── internal/
-    ├── config/
-    │   └── config.go               ← viper config (DB, Redis, NATS, port, intervals)
-    ├── db/
-    │   └── db.go                   ← pgxpool setup + portal queries
-    ├── natsutil/
-    │   └── client.go               ← JetStream publish wrapper
-    ├── redisclient/
-    │   └── client.go               ← go-redis setup
-    ├── scheduler/
-    │   ├── scheduler.go            ← ticker map, reload logic, SIGHUP handler
-    │   └── scheduler_test.go
-    ├── job/
-    │   ├── job.go                  ← ScrapeJob struct, Redis read/write, stats
-    │   └── job_test.go
-    ├── handler/
-    │   ├── trigger.go              ← POST /jobs/trigger
-    │   ├── status.go               ← GET /jobs/{id}/status
-    │   ├── stats.go                ← GET /jobs/stats
-    │   └── health.go               ← GET /health
-    └── middleware/
-        └── logging.go              ← slog request logging
+tests/
+├── contract/
+├── integration/
+└── unit/
 
-# Proxy Manager
-services/proxy-manager/
-├── Dockerfile
-├── go.mod
-├── .env.example
-├── cmd/
-│   └── main.go                     ← wire everything, start gRPC + metrics HTTP
-└── internal/
-    ├── config/
-    │   └── config.go               ← viper config (Redis, ports, thresholds)
-    ├── redisclient/
-    │   └── client.go               ← go-redis setup
-    ├── provider/
-    │   ├── provider.go             ← ProxyProvider interface
-    │   ├── brightdata.go           ← BrightDataAdapter
-    │   ├── smartproxy.go           ← SmartProxyAdapter
-    │   ├── oxylabs.go              ← OxylabsAdapter
-    │   ├── registry.go             ← name → adapter lookup
-    │   └── provider_test.go
-    ├── pool/
-    │   ├── pool.go                 ← ProxyPool: map[country][]*Proxy + RWMutex + RR
-    │   ├── health.go               ← HealthWindow: circular buffer + score
-    │   ├── pool_test.go
-    │   └── health_test.go
-    ├── blacklist/
-    │   ├── blacklist.go            ← Redis SET check/set with TTL
-    │   └── blacklist_test.go
-    ├── sticky/
-    │   ├── sticky.go               ← Redis GETEX/SET for session → proxy_id
-    │   └── sticky_test.go
-    ├── metrics/
-    │   └── metrics.go              ← prometheus gauge definitions + update helper
-    └── grpc/
-        ├── server.go               ← ProxyServiceServer implementation
-        └── server_test.go
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-## Implementation Phases
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
-### Phase 1 — Proto Update + Scaffolding
+## Complexity Tracking
 
-1. Update `proto/estategap/v1/proxy.proto` — add `session_id` field to `GetProxyRequest`
-2. Run `buf generate` to regenerate Go bindings in `libs/pkg`
-3. Update `go.mod` for both services (add all required dependencies)
-4. Implement `internal/config/` for both services
-5. Implement `internal/redisclient/` (copy pattern from api-gateway)
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
-### Phase 2 — Proxy Manager Core
-
-6. Implement `internal/provider/` — interface + 3 adapters + registry + tests
-7. Implement `internal/pool/health.go` — HealthWindow circular buffer + tests
-8. Implement `internal/pool/pool.go` — ProxyPool with RR selection + health filter + tests
-9. Implement `internal/blacklist/` — Redis check + set with TTL + tests
-10. Implement `internal/sticky/` — Redis GETEX/SET + tests
-11. Implement `internal/metrics/` — Prometheus gauges
-12. Implement `internal/grpc/server.go` — GetProxy + ReportResult logic + tests
-13. Wire `cmd/main.go` — gRPC server + metrics HTTP endpoint
-
-### Phase 3 — Scrape Orchestrator Core
-
-14. Implement `internal/db/` — pgxpool + `SELECT name, country, scrape_frequency, search_urls FROM portals WHERE enabled=true`
-15. Implement `internal/natsutil/` — JetStream publish wrapper
-16. Implement `internal/job/job.go` — ScrapeJob struct, Redis HSET/HGETALL, SCAN stats
-17. Implement `internal/scheduler/scheduler.go` — ticker map, reload, SIGHUP handler + tests
-18. Implement `internal/handler/` — 4 HTTP handlers
-19. Wire `cmd/main.go` — HTTP server + scheduler + graceful shutdown
-
-### Phase 4 — Integration Tests + Kubernetes
-
-20. Integration test for orchestrator: testcontainers (PostgreSQL + Redis + NATS), verify job published
-21. Integration test for proxy manager: testcontainers (Redis), verify blacklist TTL + sticky session
-22. Update `.env.example` for both services with all required vars
-23. Update Helm values if needed (new service ports: 8082, 50052, 9090)
-
-## Key Implementation Notes
-
-### Scheduler Reload Logic
-
-```
-On reload trigger (SIGHUP or 5min ticker):
-1. Query DB for all enabled portals
-2. For each portal in new set:
-   - If not in current ticker map: create ticker + goroutine
-   - If in current ticker map with same frequency: no-op
-   - If in current ticker map with different frequency: stop old, create new
-3. For each portal in current ticker map not in new set: stop ticker
-```
-
-### GetProxy Hot Path (must be < 10ms)
-
-```
-1. Check sticky session (Redis GET) → if found, validate proxy exists + not blacklisted → return
-2. Collect healthy candidates: pool[country] filtered by health.Score() >= 0.5
-3. Check each candidate against Redis blacklist (pipeline for batch check)
-4. Round-robin select from non-blacklisted healthy proxies
-5. If session_id non-empty: SET proxy:sticky:{session_id} with TTL 10min
-6. Build proxy URL via provider adapter
-7. Return proxy_url + proxy_id
-```
-
-Redis pipeline for batch blacklist check keeps the round-trip count to 1 regardless of
-pool size, ensuring the <10ms SLA even with a full pool.
-
-### Job Stats SCAN Pattern
-
-```go
-// Use SCAN with COUNT hint to avoid blocking Redis
-var cursor uint64
-for {
-    keys, next, err := redis.Scan(ctx, cursor, "jobs:*", 100)
-    // HGET status for each key, pipeline
-    cursor = next
-    if cursor == 0 { break }
-}
-```
-
-### Graceful Shutdown
-
-Both services handle `SIGTERM` + `SIGINT`:
-- Orchestrator: stop all tickers, drain in-flight publish goroutines, close DB pool
-- Proxy Manager: graceful gRPC stop (`grpcServer.GracefulStop()`), close Redis
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
