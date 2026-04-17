@@ -45,7 +45,7 @@ export function SearchResultsGrid({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-testid="search-results-grid">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {listings.map((listing) => (
           <SearchListingCard key={listing.id} listing={listing} />

@@ -95,6 +95,7 @@ export function ChatInput({
           hero ? "mx-auto max-w-4xl p-5" : "bg-white/90",
           className,
         )}
+        data-testid={hero ? "chat-input-hero" : "chat-input-form"}
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -108,6 +109,7 @@ export function ChatInput({
               "max-h-56 min-h-[52px] w-full resize-none border-0 bg-transparent px-1 py-2 text-slate-950 outline-none placeholder:text-slate-400",
               hero ? "text-lg leading-8" : "text-base leading-7",
             )}
+            data-testid="chat-input"
             onChange={(event) => setValue(event.target.value)}
             onInput={() => resizeTextarea()}
             onKeyDown={(event) => {
@@ -127,6 +129,7 @@ export function ChatInput({
           <Button
             aria-label={t("mic")}
             className="shrink-0"
+            data-testid="chat-voice-button"
             onClick={() => setVoiceOpen(true)}
             size="icon"
             type="button"
@@ -139,6 +142,7 @@ export function ChatInput({
         <Button
           aria-label={t("send")}
           className="shrink-0 gap-2"
+          data-testid="chat-send-button"
           disabled={!value.trim() || submitting}
           type="submit"
         >

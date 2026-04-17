@@ -21,7 +21,7 @@ export function SavedSearchDropdown() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">
+        <Button data-testid="saved-searches-button" variant="outline">
           <BookmarkCheck className="mr-2 h-4 w-4" />
           {t("saved")}
           {savedSearches.length > 0 ? (
@@ -42,6 +42,7 @@ export function SavedSearchDropdown() {
             >
               <button
                 className="min-w-0 flex-1 text-left"
+                data-testid="saved-search-item"
                 onClick={() => void setParams(savedSearch.filters)}
                 type="button"
               >
@@ -53,6 +54,7 @@ export function SavedSearchDropdown() {
                 </p>
               </button>
               <Button
+                data-testid="saved-search-delete"
                 onClick={() => void deleteSavedSearch(savedSearch.id)}
                 size="icon"
                 variant="ghost"

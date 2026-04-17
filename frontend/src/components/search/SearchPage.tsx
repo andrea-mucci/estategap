@@ -80,7 +80,7 @@ export function SearchPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.45)]">
             <div>
               <p className="text-sm text-slate-500">{t("showing")}</p>
-              <p className="text-xl font-semibold text-slate-950">
+              <p className="text-xl font-semibold text-slate-950" data-testid="search-results-count">
                 {t("resultsCount", {
                   count: query.totalCount,
                 })}

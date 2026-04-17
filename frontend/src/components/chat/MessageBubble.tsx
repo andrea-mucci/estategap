@@ -70,6 +70,7 @@ export function MessageBubble(props: MessageBubbleProps) {
             ? "border-teal-800 bg-teal-700 text-white"
             : "border-white/70 bg-white/95 text-slate-950",
         )}
+        data-testid={isUser ? "chat-message-user" : "chat-message-assistant"}
       >
         {message.content ? (
           isUser ? (

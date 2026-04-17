@@ -21,7 +21,7 @@ export function DescriptionSection({
 
   if (!description) {
     return (
-      <section className="space-y-2">
+      <section className="space-y-2" data-testid="listing-description">
         <h2 className="text-xl font-semibold text-slate-950">{t("description")}</h2>
         <p className="text-sm text-slate-500">{t("descriptionUnavailable")}</p>
       </section>
@@ -31,7 +31,7 @@ export function DescriptionSection({
   const showingTranslation = Boolean(translatedText);
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" data-testid="listing-description">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-slate-950">{t("description")}</h2>
@@ -39,6 +39,7 @@ export function DescriptionSection({
         </div>
         {!isSameLanguage ? (
           <Button
+            data-testid="translate-button"
             onClick={async () => {
               if (showingTranslation) {
                 reset();

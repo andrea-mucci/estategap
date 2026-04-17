@@ -45,7 +45,7 @@ export function SearchResultsList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="search-results-list">
       {listings.map((listing) => (
         <SearchListingRow key={listing.id} listing={listing} />
       ))}

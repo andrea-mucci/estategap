@@ -59,6 +59,9 @@ kubeconfig*
 .buildx-cache/
 .kind-pids
 tests/fixtures/ml-models/*.onnx
+reports/e2e/
+frontend/tests/e2e/auth/*.json
+!frontend/tests/e2e/visual/baselines/**/*.png
 
 # IDE
 .vscode/

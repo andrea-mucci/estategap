@@ -31,11 +31,11 @@ func NewUsersRepo(primary, replica *pgxpool.Pool) *UsersRepo {
 	return &UsersRepo{primary: primary, replica: replica}
 }
 
-func (r *UsersRepo) CreateUser(ctx context.Context, email, passwordHash string) (*models.User, error) {
+func (r *UsersRepo) CreateUser(ctx context.Context, email, passwordHash string, displayName *string) (*models.User, error) {
 	rows, err := r.primary.Query(ctx, `
-		INSERT INTO users (email, password_hash)
-		VALUES ($1, $2)
-		RETURNING `+userColumns, email, passwordHash)
+		INSERT INTO users (email, password_hash, display_name)
+		VALUES ($1, $2, NULLIF($3, ''))
+		RETURNING `+userColumns, email, passwordHash, normalizeOptionalString(displayName))
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -48,6 +48,13 @@ func (r *UsersRepo) CreateUser(ctx context.Context, email, passwordHash string) 
 		return nil, ErrNotFound
 	}
 	return user, err
+}
+
+func normalizeOptionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func (r *UsersRepo) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {

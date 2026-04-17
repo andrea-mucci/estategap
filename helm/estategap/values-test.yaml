@@ -139,6 +139,13 @@ services:
     image:
       repository: ws-server
       tag: dev
+    env:
+      PING_INTERVAL:
+        value: "10s"
+      PONG_TIMEOUT:
+        value: "10s"
+      IDLE_TIMEOUT:
+        value: "30s"
     hpa:
       enabled: false
     serviceMonitor:

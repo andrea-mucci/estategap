@@ -64,7 +64,7 @@ export function SearchListingRow({
   const resolvedCrmStatus = storeStatus ?? crmStatus ?? null;
 
   return (
-    <Link className="block" href={`/listing/${listing.id}`}>
+    <Link className="block" data-testid="listing-row" href={`/listing/${listing.id}`}>
       <Card className="grid gap-4 overflow-hidden p-4 transition hover:-translate-y-0.5 hover:shadow-2xl md:grid-cols-[220px_1fr]">
         <div className="relative h-44 overflow-hidden rounded-[24px] bg-slate-100">
           {getListingImage(listing) ? (
