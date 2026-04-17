@@ -14,6 +14,7 @@ func mountZoneRoutes(r chi.Router, zonesHandler *handler.ZonesHandler) {
 	r.Post("/zones", zonesHandler.Create)
 	r.Get("/zones/{id}", zonesHandler.Get)
 	r.Get("/zones/{id}/analytics", zonesHandler.Analytics)
+	r.Get("/zones/{id}/price-distribution", zonesHandler.PriceDistribution)
 	r.Get("/zones/{id}/geometry", zonesHandler.Geometry)
 }
 
@@ -26,6 +27,8 @@ func mountAuthenticatedV1Routes(
 	mlHandler *handler.MLHandler,
 	alertRulesHandler *handler.AlertRulesHandler,
 	subscriptionsHandler *handler.SubscriptionsHandler,
+	portfolioHandler *handler.PortfolioHandler,
+	adminHandler *handler.AdminHandler,
 ) {
 	r.Get("/dashboard/summary", dashboardHandler.Summary)
 	r.Get("/listings", listingsHandler.List)
@@ -34,6 +37,12 @@ func mountAuthenticatedV1Routes(
 	r.Get("/countries", referenceHandler.Countries)
 	r.Get("/portals", referenceHandler.Portals)
 	r.Get("/model/estimate", mlHandler.Estimate)
+	r.Route("/portfolio", func(r chi.Router) {
+		r.Get("/properties", portfolioHandler.List)
+		r.Post("/properties", portfolioHandler.Create)
+		r.Put("/properties/{id}", portfolioHandler.Update)
+		r.Delete("/properties/{id}", portfolioHandler.Delete)
+	})
 	r.Route("/alerts", func(r chi.Router) {
 		r.Get("/rules", alertRulesHandler.ListAlertRules)
 		r.Post("/rules", alertRulesHandler.CreateAlertRule)
@@ -44,6 +53,16 @@ func mountAuthenticatedV1Routes(
 	r.Post("/subscriptions/checkout", subscriptionsHandler.Checkout)
 	r.Post("/subscriptions/portal", subscriptionsHandler.Portal)
 	r.Get("/subscriptions/me", subscriptionsHandler.Me)
+	r.Group(func(r chi.Router) {
+		r.Use(gatewaymw.RequireAdmin)
+		r.Get("/admin/scraping/stats", adminHandler.ScrapingStats)
+		r.Get("/admin/ml/models", adminHandler.MLModels)
+		r.Post("/admin/ml/retrain", adminHandler.TriggerRetrain)
+		r.Get("/admin/users", adminHandler.ListUsers)
+		r.Get("/admin/countries", adminHandler.ListCountries)
+		r.Put("/admin/countries/{code}", adminHandler.UpdateCountry)
+		r.Get("/admin/system/health", adminHandler.SystemHealth)
+	})
 }
 
 func mountAuthRoutes(
@@ -65,5 +84,6 @@ func mountAuthRoutes(
 		r.Use(rateLimiter)
 		r.Post("/logout", authHandler.Logout)
 		r.Get("/me", authHandler.Me)
+		r.Patch("/me", authHandler.PatchMe)
 	})
 }

@@ -217,6 +217,11 @@ class User(Base):
         nullable=False,
         server_default=sa.text("'free'"),
     )
+    preferred_currency: Mapped[str] = mapped_column(
+        sa.String(3),
+        nullable=False,
+        server_default=sa.text("'EUR'"),
+    )
     allowed_countries: Mapped[StringList] = mapped_column(
         postgresql.ARRAY(sa.CHAR(2)),
         nullable=False,
@@ -290,6 +295,64 @@ class AlertRule(Base):
         server_default=sa.text("'instant'"),
     )
     is_active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("NOW()"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("NOW()"),
+    )
+
+
+class PortfolioProperty(Base):
+    __tablename__ = "portfolio_properties"
+    __table_args__ = (
+        sa.Index("idx_portfolio_properties_user_id", "user_id"),
+        sa.Index("idx_portfolio_properties_country", "country"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    address: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    lat: Mapped[float | None] = mapped_column(sa.Float)
+    lng: Mapped[float | None] = mapped_column(sa.Float)
+    zone_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        sa.ForeignKey("zones.id"),
+    )
+    country: Mapped[str] = mapped_column(sa.String(2), nullable=False)
+    purchase_price: Mapped[Decimal] = mapped_column(sa.Numeric(18, 4), nullable=False)
+    purchase_currency: Mapped[str] = mapped_column(sa.String(3), nullable=False)
+    purchase_price_eur: Mapped[Decimal] = mapped_column(sa.Numeric(18, 4), nullable=False)
+    purchase_date: Mapped[date] = mapped_column(sa.Date, nullable=False)
+    monthly_rental_income: Mapped[Decimal] = mapped_column(
+        sa.Numeric(18, 4),
+        nullable=False,
+        server_default=sa.text("0"),
+    )
+    monthly_rental_income_eur: Mapped[Decimal] = mapped_column(
+        sa.Numeric(18, 4),
+        nullable=False,
+        server_default=sa.text("0"),
+    )
+    area_m2: Mapped[Decimal | None] = mapped_column(sa.Numeric(10, 2))
+    property_type: Mapped[str] = mapped_column(
+        sa.String(20),
+        nullable=False,
+        server_default=sa.text("'residential'"),
+    )
+    notes: Mapped[str | None] = mapped_column(sa.Text)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
         nullable=False,

@@ -257,6 +257,26 @@
       "dealScore": "Deal score"
     }
   },
+  "zoneAnalytics": {
+    "title": "Zone analytics",
+    "subtitle": "Deep dive into zone momentum, inventory, and cross-country comparisons."
+  },
+  "portfolio": {
+    "title": "Portfolio",
+    "subtitle": "Track owned properties, cost basis, yield, and estimated value.",
+    "addProperty": "Add property"
+  },
+  "admin": {
+    "title": "Admin",
+    "subtitle": "Operational monitoring, country controls, and system health.",
+    "tabs": {
+      "scraping": "Scraping health",
+      "ml": "ML models",
+      "users": "Users",
+      "countries": "Countries",
+      "system": "System"
+    }
+  },
   "meta": {
     "appName": "EstateGap",
     "tagline": "Vind meertalige vastgoedkansen met een live AI-assistent, geauthenticeerde data en realtime dealmeldingen.",

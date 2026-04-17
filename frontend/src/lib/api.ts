@@ -19,6 +19,116 @@ export type ZoneDetail = components["schemas"]["ZoneDetail"];
 export type ZoneAnalytics = components["schemas"]["ZoneAnalytics"];
 export type ZoneGeometry = components["schemas"]["ZoneGeometry"];
 export type CreateCustomZoneRequest = components["schemas"]["CreateCustomZoneRequest"];
+export type ZonePriceDistribution = {
+  zone_id: string;
+  prices_eur: number[];
+  listing_count: number;
+};
+export type ZoneComparisonItem = ZoneDetail & {
+  local_currency: string;
+  median_price_m2_local?: number | null;
+};
+export type ZoneComparisonResponse = {
+  zones: ZoneComparisonItem[];
+};
+export type PortfolioProperty = {
+  id: string;
+  user_id: string;
+  address: string;
+  lat?: number | null;
+  lng?: number | null;
+  zone_id?: string | null;
+  country: string;
+  purchase_price: number;
+  purchase_currency: string;
+  purchase_price_eur: number;
+  purchase_date: string;
+  monthly_rental_income: number;
+  monthly_rental_income_eur: number;
+  area_m2?: number | null;
+  property_type: "residential" | "commercial" | "industrial" | "land";
+  notes?: string | null;
+  estimated_value_eur?: number | null;
+  estimated_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type PortfolioSummary = {
+  total_properties: number;
+  total_invested_eur: number;
+  total_current_value_eur: number;
+  unrealized_gain_loss_eur: number;
+  unrealized_gain_loss_pct: number;
+  average_rental_yield_pct: number;
+  properties_with_estimate: number;
+};
+export type PortfolioListResponse = {
+  properties: PortfolioProperty[];
+  summary: PortfolioSummary;
+};
+export type ScrapingPortalStat = {
+  portal_id: string;
+  portal_name: string;
+  country: string;
+  status: string;
+  last_scrape_at?: string | null;
+  listings_24h: number;
+  success_rate: number;
+  blocks_24h: number;
+};
+export type MLModelVersion = {
+  id: string;
+  country: string;
+  version: string;
+  mape: number;
+  mae: number;
+  r2: number;
+  trained_at: string;
+  is_active: boolean;
+  train_status: "idle" | "training" | "failed";
+};
+export type AdminUser = {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: "user" | "admin";
+  subscription_tier: string;
+  last_active_at?: string | null;
+  created_at: string;
+};
+export type PortalConfig = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+};
+export type CountryConfig = {
+  code: string;
+  name: string;
+  enabled: boolean;
+  portals: PortalConfig[];
+};
+export type SystemHealth = {
+  nats: {
+    subjects: Array<{
+      subject: string;
+      consumer_lag: number;
+      message_count: number;
+    }>;
+  };
+  database: {
+    size_bytes: number;
+    active_connections: number;
+    max_connections: number;
+    waiting_connections: number;
+  };
+  redis: {
+    used_memory_bytes: number;
+    max_memory_bytes: number;
+    hit_rate: number;
+    connected_clients: number;
+  };
+};
 export type CrmStatus = "favorite" | "contacted" | "visited" | "offer" | "discard" | null;
 export type SavedSearch = {
   created_at: string;
@@ -189,7 +299,7 @@ async function requestJson<T>(
     accessToken?: string;
     body?: unknown;
     fallbackMessage: string;
-    method?: "GET" | "POST" | "PATCH" | "DELETE";
+    method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   },
 ) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -373,6 +483,45 @@ export async function fetchZoneAnalytics(accessToken: string | undefined, id: st
   return data;
 }
 
+export async function fetchZoneDetail(accessToken: string | undefined, id: string) {
+  const client = createApiClient(accessToken);
+  const { data, error } = await client.GET("/api/v1/zones/{id}", {
+    params: {
+      path: { id },
+    },
+  });
+
+  if (error || !data) {
+    throw new Error(unwrapError(error, "Failed to load zone"));
+  }
+
+  return data as ZoneDetail;
+}
+
+export async function fetchZonePriceDistribution(
+  accessToken: string | undefined,
+  id: string,
+) {
+  return requestJson<ZonePriceDistribution>(`/api/v1/zones/${id}/price-distribution`, {
+    accessToken,
+    fallbackMessage: "Failed to load zone price distribution",
+  });
+}
+
+export async function fetchZoneComparison(
+  accessToken: string | undefined,
+  ids: string[],
+) {
+  const query = new URLSearchParams({
+    ids: ids.join(","),
+  });
+
+  return requestJson<ZoneComparisonResponse>(`/api/v1/zones/compare?${query.toString()}`, {
+    accessToken,
+    fallbackMessage: "Failed to load zone comparison",
+  });
+}
+
 export async function fetchZoneGeometry(accessToken: string | undefined, id: string) {
   const client = createApiClient(accessToken);
   const { data, error } = await client.GET("/api/v1/zones/{id}/geometry", {
@@ -425,6 +574,134 @@ export async function createCustomZone(
   }
 
   return data;
+}
+
+export async function fetchPortfolioProperties(accessToken: string | undefined) {
+  return requestJson<PortfolioListResponse>("/api/v1/portfolio/properties", {
+    accessToken,
+    fallbackMessage: "Failed to load portfolio properties",
+  });
+}
+
+export async function createPortfolioProperty(
+  accessToken: string | undefined,
+  body: Record<string, unknown>,
+) {
+  return requestJson<PortfolioProperty>("/api/v1/portfolio/properties", {
+    accessToken,
+    body,
+    fallbackMessage: "Failed to create portfolio property",
+    method: "POST",
+  });
+}
+
+export async function updatePortfolioProperty(
+  accessToken: string | undefined,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  return requestJson<PortfolioProperty>(`/api/v1/portfolio/properties/${id}`, {
+    accessToken,
+    body,
+    fallbackMessage: "Failed to update portfolio property",
+    method: "PUT",
+  });
+}
+
+export async function deletePortfolioProperty(
+  accessToken: string | undefined,
+  id: string,
+) {
+  await requestJson<void>(`/api/v1/portfolio/properties/${id}`, {
+    accessToken,
+    fallbackMessage: "Failed to delete portfolio property",
+    method: "DELETE",
+  });
+}
+
+export async function fetchAdminScrapingStats(accessToken: string | undefined) {
+  return requestJson<{ portals: ScrapingPortalStat[] }>("/api/v1/admin/scraping/stats", {
+    accessToken,
+    fallbackMessage: "Failed to load scraping stats",
+  });
+}
+
+export async function fetchAdminMLModels(accessToken: string | undefined) {
+  return requestJson<{ models: MLModelVersion[] }>("/api/v1/admin/ml/models", {
+    accessToken,
+    fallbackMessage: "Failed to load ML models",
+  });
+}
+
+export async function triggerMLRetrain(
+  accessToken: string | undefined,
+  country: string,
+) {
+  return requestJson<{ job_id: string; status: "queued" }>("/api/v1/admin/ml/retrain", {
+    accessToken,
+    body: { country },
+    fallbackMessage: "Failed to trigger retraining",
+    method: "POST",
+  });
+}
+
+export async function fetchAdminUsers(
+  accessToken: string | undefined,
+  params: { page?: number; limit?: number; q?: string; tier?: string } = {},
+) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    serializeQueryValue(key, value, query);
+  }
+
+  return requestJson<{
+    users: AdminUser[];
+    total: number;
+    page: number;
+    limit: number;
+  }>(`/api/v1/admin/users${query.toString() ? `?${query.toString()}` : ""}`, {
+    accessToken,
+    fallbackMessage: "Failed to load users",
+  });
+}
+
+export async function fetchAdminCountries(accessToken: string | undefined) {
+  return requestJson<{ countries: CountryConfig[] }>("/api/v1/admin/countries", {
+    accessToken,
+    fallbackMessage: "Failed to load countries",
+  });
+}
+
+export async function updateAdminCountry(
+  accessToken: string | undefined,
+  code: string,
+  body: Record<string, unknown>,
+) {
+  return requestJson<CountryConfig>(`/api/v1/admin/countries/${code}`, {
+    accessToken,
+    body,
+    fallbackMessage: "Failed to update country",
+    method: "PUT",
+  });
+}
+
+export async function fetchSystemHealth(accessToken: string | undefined) {
+  return requestJson<SystemHealth>("/api/v1/admin/system/health", {
+    accessToken,
+    fallbackMessage: "Failed to load system health",
+  });
+}
+
+export async function updateCurrentUser(
+  accessToken: string | undefined,
+  body: Record<string, unknown>,
+) {
+  return requestJson<components["schemas"]["UserProfile"]>("/api/v1/auth/me", {
+    accessToken,
+    body,
+    fallbackMessage: "Failed to update user profile",
+    method: "PATCH",
+  });
 }
 
 export async function searchZoneList(

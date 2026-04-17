@@ -1,0 +1,383 @@
+openapi: "3.1.0"
+info:
+  title: EstateGap Portfolio API
+  version: "1.0.0"
+  description: >
+    Portfolio property CRUD endpoints. All monetary fields are stored in the
+    user's chosen currency; EUR-normalised equivalents are computed server-side.
+    All routes require a valid Bearer JWT.
+
+paths:
+  /api/v1/portfolio/properties:
+    get:
+      summary: List portfolio properties
+      operationId: listPortfolioProperties
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Paginated list of portfolio properties with summary
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [properties, summary]
+                properties:
+                  properties:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PortfolioProperty"
+                  summary:
+                    $ref: "#/components/schemas/PortfolioSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      summary: Add a portfolio property
+      operationId: createPortfolioProperty
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePortfolioPropertyRequest"
+      responses:
+        "201":
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioProperty"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/portfolio/properties/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    put:
+      summary: Update a portfolio property
+      operationId: updatePortfolioProperty
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePortfolioPropertyRequest"
+      responses:
+        "200":
+          description: Property updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioProperty"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete a portfolio property
+      operationId: deletePortfolioProperty
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Property deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/zones/{id}/price-distribution:
+    get:
+      summary: Get price distribution for histogram
+      operationId: getZonePriceDistribution
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Price distribution data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZonePriceDistribution"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PortfolioProperty:
+      type: object
+      required:
+        - id
+        - user_id
+        - address
+        - country
+        - purchase_price
+        - purchase_currency
+        - purchase_price_eur
+        - purchase_date
+        - monthly_rental_income
+        - monthly_rental_income_eur
+        - property_type
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        address:
+          type: string
+        lat:
+          type: number
+          format: double
+          nullable: true
+        lng:
+          type: number
+          format: double
+          nullable: true
+        zone_id:
+          type: string
+          format: uuid
+          nullable: true
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        purchase_price:
+          type: number
+          format: double
+        purchase_currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        purchase_price_eur:
+          type: number
+          format: double
+        purchase_date:
+          type: string
+          format: date
+        monthly_rental_income:
+          type: number
+          format: double
+        monthly_rental_income_eur:
+          type: number
+          format: double
+        area_m2:
+          type: number
+          format: double
+          nullable: true
+        property_type:
+          type: string
+          enum: [residential, commercial, industrial, land]
+        notes:
+          type: string
+          nullable: true
+        estimated_value_eur:
+          type: number
+          format: double
+          nullable: true
+          description: ML-derived estimate; null if zone or coordinates unavailable
+        estimated_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PortfolioSummary:
+      type: object
+      required:
+        - total_properties
+        - total_invested_eur
+        - total_current_value_eur
+        - unrealized_gain_loss_eur
+        - unrealized_gain_loss_pct
+        - average_rental_yield_pct
+        - properties_with_estimate
+      properties:
+        total_properties:
+          type: integer
+        total_invested_eur:
+          type: number
+          format: double
+        total_current_value_eur:
+          type: number
+          format: double
+        unrealized_gain_loss_eur:
+          type: number
+          format: double
+        unrealized_gain_loss_pct:
+          type: number
+          format: double
+        average_rental_yield_pct:
+          type: number
+          format: double
+        properties_with_estimate:
+          type: integer
+
+    CreatePortfolioPropertyRequest:
+      type: object
+      required:
+        - address
+        - country
+        - purchase_price
+        - purchase_currency
+        - purchase_date
+        - property_type
+      properties:
+        address:
+          type: string
+          minLength: 1
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        purchase_price:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        purchase_currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        purchase_date:
+          type: string
+          format: date
+        monthly_rental_income:
+          type: number
+          format: double
+          minimum: 0
+          default: 0
+        area_m2:
+          type: number
+          format: double
+          nullable: true
+        property_type:
+          type: string
+          enum: [residential, commercial, industrial, land]
+          default: residential
+        notes:
+          type: string
+          nullable: true
+
+    UpdatePortfolioPropertyRequest:
+      type: object
+      properties:
+        address:
+          type: string
+          minLength: 1
+        purchase_price:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        purchase_currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        purchase_date:
+          type: string
+          format: date
+        monthly_rental_income:
+          type: number
+          format: double
+          minimum: 0
+        area_m2:
+          type: number
+          format: double
+          nullable: true
+        property_type:
+          type: string
+          enum: [residential, commercial, industrial, land]
+        notes:
+          type: string
+          nullable: true
+
+    ZonePriceDistribution:
+      type: object
+      required: [zone_id, prices_eur, listing_count]
+      properties:
+        zone_id:
+          type: string
+          format: uuid
+        prices_eur:
+          type: array
+          items:
+            type: number
+            format: double
+          maxItems: 500
+          description: price_per_m2_eur values for active listings (capped at 500)
+        listing_count:
+          type: integer
+          description: Total active listings in zone (may exceed 500)
+
+  responses:
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated user does not own this resource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

@@ -14,7 +14,7 @@ import (
 
 const userColumns = `
 id, email, password_hash, oauth_provider, oauth_subject, display_name, avatar_url,
-subscription_tier, allowed_countries, stripe_customer_id, stripe_sub_id, subscription_ends_at, alert_limit,
+subscription_tier, preferred_currency, allowed_countries, stripe_customer_id, stripe_sub_id, subscription_ends_at, alert_limit,
 email_verified, email_verified_at, last_login_at, deleted_at, created_at, updated_at
 `
 
@@ -215,6 +215,22 @@ func (r *UsersRepo) downgradeToFree(ctx context.Context, exec userExecQuerier, u
 			subscription_ends_at = NULL,
 			updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL`, pgUUID(userID))
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *UsersRepo) UpdatePreferredCurrency(ctx context.Context, userID uuid.UUID, currency string) error {
+	tag, err := r.primary.Exec(ctx, `
+		UPDATE users
+		SET preferred_currency = $2,
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL`,
+		pgUUID(userID), currency)
 	if err != nil {
 		return err
 	}

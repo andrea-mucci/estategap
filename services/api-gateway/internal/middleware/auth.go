@@ -47,6 +47,7 @@ func Authenticator(jwtSecret string, redisClient *redis.Client) func(http.Handle
 			ctx := context.WithValue(r.Context(), ctxkey.UserID, claims.Subject)
 			ctx = context.WithValue(ctx, ctxkey.UserEmail, claims.Email)
 			ctx = context.WithValue(ctx, ctxkey.UserTier, claims.Tier)
+			ctx = context.WithValue(ctx, ctxkey.UserRole, claims.Role)
 			ctx = context.WithValue(ctx, ctxkey.JTI, claims.ID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

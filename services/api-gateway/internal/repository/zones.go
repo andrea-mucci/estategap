@@ -38,6 +38,7 @@ type ZoneMonthStat struct {
 	MedianPriceM2EUR float64
 	ListingVolume    int64
 	DealCount        int64
+	AvgDaysOnMarket  float64
 }
 
 type ZoneCompareItem struct {
@@ -70,6 +71,12 @@ type ZoneGeometry struct {
 	BBox     [4]float64      `json:"bbox"`
 }
 
+type ZonePriceDistribution struct {
+	ZoneID       uuid.UUID `json:"zone_id"`
+	PricesEUR    []float64 `json:"prices_eur"`
+	ListingCount int64     `json:"listing_count"`
+}
+
 type CreateCustomZoneRequest struct {
 	Name     string
 	Type     string
@@ -85,7 +92,7 @@ func NewZonesRepo(primary, replica *pgxpool.Pool, cacheClient *cache.Client) *Zo
 	}
 }
 
-func (r *ZonesRepo) ListZones(ctx context.Context, country string, level *int, parentID *uuid.UUID, cursor string, limit int) ([]ZoneWithStats, string, int64, error) {
+func (r *ZonesRepo) ListZones(ctx context.Context, country string, level *int, parentID *uuid.UUID, cursor string, limit int, search string) ([]ZoneWithStats, string, int64, error) {
 	limit = clampLimit(limit, 20)
 
 	baseArgs := make([]any, 0, 3)
@@ -101,6 +108,13 @@ func (r *ZonesRepo) ListZones(ctx context.Context, country string, level *int, p
 	if parentID != nil {
 		baseArgs = append(baseArgs, pgUUID(*parentID))
 		baseConditions = append(baseConditions, fmt.Sprintf("z.parent_id = $%d", len(baseArgs)))
+	}
+	if trimmed := strings.TrimSpace(search); trimmed != "" {
+		baseArgs = append(baseArgs, "%"+trimmed+"%")
+		baseConditions = append(
+			baseConditions,
+			fmt.Sprintf("(z.name ILIKE $%d OR COALESCE(z.name_local, '') ILIKE $%d)", len(baseArgs), len(baseArgs)),
+		)
 	}
 
 	args := append([]any(nil), baseArgs...)
@@ -226,7 +240,13 @@ func (r *ZonesRepo) GetZoneAnalytics(ctx context.Context, zoneID uuid.UUID) ([]Z
 						0
 					)::double precision AS median_price_m2_eur,
 					COUNT(DISTINCT ph.listing_id)::bigint AS listing_volume,
-					COUNT(DISTINCT ph.listing_id) FILTER (WHERE l.deal_tier IN (1, 2))::bigint AS deal_count
+					COUNT(DISTINCT ph.listing_id) FILTER (WHERE l.deal_tier IN (1, 2))::bigint AS deal_count,
+					COALESCE(
+						AVG(
+							DISTINCT EXTRACT(EPOCH FROM (NOW() - l.first_seen_at)) / 86400
+						) FILTER (WHERE l.status = 'active' AND l.first_seen_at IS NOT NULL),
+						0
+					)::double precision AS avg_days_on_market
 				FROM price_history ph
 				JOIN listings l ON l.id = ph.listing_id AND l.country = ph.country
 				WHERE l.zone_id = $1
@@ -237,7 +257,8 @@ func (r *ZonesRepo) GetZoneAnalytics(ctx context.Context, zoneID uuid.UUID) ([]Z
 				m.month,
 				COALESCE(s.median_price_m2_eur, 0)::double precision AS median_price_m2_eur,
 				COALESCE(s.listing_volume, 0)::bigint AS listing_volume,
-				COALESCE(s.deal_count, 0)::bigint AS deal_count
+				COALESCE(s.deal_count, 0)::bigint AS deal_count,
+				COALESCE(s.avg_days_on_market, 0)::double precision AS avg_days_on_market
 			FROM months m
 			LEFT JOIN stats s ON s.month = m.month
 			ORDER BY m.month ASC`, pgUUID(zoneID))
@@ -247,9 +268,67 @@ func (r *ZonesRepo) GetZoneAnalytics(ctx context.Context, zoneID uuid.UUID) ([]Z
 
 		return pgx.CollectRows(rows, func(row pgx.CollectableRow) (ZoneMonthStat, error) {
 			var item ZoneMonthStat
-			err := row.Scan(&item.Month, &item.MedianPriceM2EUR, &item.ListingVolume, &item.DealCount)
+			err := row.Scan(
+				&item.Month,
+				&item.MedianPriceM2EUR,
+				&item.ListingVolume,
+				&item.DealCount,
+				&item.AvgDaysOnMarket,
+			)
 			return item, err
 		})
+	})
+}
+
+func (r *ZonesRepo) GetZonePriceDistribution(ctx context.Context, zoneID uuid.UUID) (*ZonePriceDistribution, error) {
+	return cache.GetOrSet(ctx, r.cache, "cache:zone_price_distribution:"+zoneID.String(), 5*time.Minute, func() (*ZonePriceDistribution, error) {
+		var exists bool
+		if err := r.replica.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zones WHERE id = $1)`, pgUUID(zoneID)).Scan(&exists); err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, ErrNotFound
+		}
+
+		rows, err := r.replica.Query(ctx, `
+			SELECT price_per_m2_eur::double precision
+			FROM listings
+			WHERE zone_id = $1
+				AND status = 'active'
+				AND price_per_m2_eur IS NOT NULL
+			ORDER BY RANDOM()
+			LIMIT 500`,
+			pgUUID(zoneID),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		prices, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (float64, error) {
+			var price float64
+			err := row.Scan(&price)
+			return price, err
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var listingCount int64
+		if err := r.replica.QueryRow(ctx, `
+			SELECT COUNT(*)
+			FROM listings
+			WHERE zone_id = $1
+				AND status = 'active'`,
+			pgUUID(zoneID),
+		).Scan(&listingCount); err != nil {
+			return nil, err
+		}
+
+		return &ZonePriceDistribution{
+			ZoneID:       zoneID,
+			PricesEUR:    prices,
+			ListingCount: listingCount,
+		}, nil
 	})
 }
 
