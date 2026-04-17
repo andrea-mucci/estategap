@@ -7,16 +7,15 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-import boto3
-
 from estategap_common.models.listing import RawListing
+from estategap_common.s3client import SyncS3Client
 
 from ..config import Config
 from .base import BaseSpider
 
 
 class FixtureSpider(BaseSpider):
-    """Load static listing fixtures from MinIO and emit them as raw listings."""
+    """Load static listing fixtures from S3 and emit them as raw listings."""
 
     COUNTRY = "fixture"
     PORTAL = "fixture"
@@ -25,7 +24,7 @@ class FixtureSpider(BaseSpider):
         self.COUNTRY = country.strip().upper()
         self.PORTAL = portal.strip().lower()
         self._fixture_cache: list[dict[str, Any]] | None = None
-        self._s3_client: Any | None = None
+        self._s3_client: SyncS3Client | None = None
         super().__init__(config)
 
     async def scrape_search_page(self, zone: str, page: int) -> list[RawListing]:
@@ -69,24 +68,15 @@ class FixtureSpider(BaseSpider):
         return self._fixture_cache
 
     def _read_fixture_payload(self) -> str:
-        response = self._client().get_object(
-            Bucket=self.config.fixture_minio_bucket,
-            Key=f"listings/{self.COUNTRY.lower()}.json",
+        payload = self._client().get_object(
+            self._client().bucket_name(self.config.fixture_s3_bucket),
+            f"listings/{self.COUNTRY.lower()}.json",
         )
-        body = response["Body"]
-        try:
-            return body.read().decode("utf-8")
-        finally:
-            body.close()
+        return payload.decode("utf-8")
 
-    def _client(self) -> Any:
+    def _client(self) -> SyncS3Client:
         if self._s3_client is None:
-            self._s3_client = boto3.client(
-                "s3",
-                endpoint_url=self.config.minio_endpoint,
-                aws_access_key_id=self.config.minio_access_key,
-                aws_secret_access_key=self.config.minio_secret_key,
-            )
+            self._s3_client = SyncS3Client(self.config.to_s3_config())
         return self._s3_client
 
     def _matches_zone(self, listing: dict[str, Any], zone: str) -> bool:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from estategap_common.s3client import S3Client
 from estategap_ml import logger
 
 from .metrics import SCORER_ACTIVE_MODEL_VERSION, SCORER_MODEL_RELOAD_TOTAL
@@ -45,13 +46,13 @@ def _derive_paths(base: Path) -> tuple[Path, Path, Path, Path, Path]:
     )
 
 
-def _download_s3_object(s3_client: Any, bucket: str, key: str, target: Path) -> Path:
+async def _download_s3_object(s3_client: S3Client, bucket: str, key: str, target: Path) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
-    s3_client.download_file(bucket, key, str(target))
+    target.write_bytes(await s3_client.get_object(bucket, key))
     return target
 
 
-def _materialize_artifacts(version_tag: str, artifact_path: str, bucket: str, s3_client: Any) -> tuple[Path, ...]:
+async def _materialize_artifacts(version_tag: str, artifact_path: str, bucket: str, s3_client: S3Client) -> tuple[Path, ...]:
     parsed = urlparse(artifact_path)
     if parsed.scheme == "s3":
         bucket_name = parsed.netloc or bucket
@@ -62,12 +63,14 @@ def _materialize_artifacts(version_tag: str, artifact_path: str, bucket: str, s3
         q95_key = base_key.replace(".onnx", "_q95.onnx")
         lgb_key = base_key.replace(".onnx", ".lgb")
         fe_key = base_key.replace(".onnx", "_feature_engineer.joblib")
-        return (
-            _download_s3_object(s3_client, bucket_name, point_key, local_dir / Path(point_key).name),
-            _download_s3_object(s3_client, bucket_name, q05_key, local_dir / Path(q05_key).name),
-            _download_s3_object(s3_client, bucket_name, q95_key, local_dir / Path(q95_key).name),
-            _download_s3_object(s3_client, bucket_name, lgb_key, local_dir / Path(lgb_key).name),
-            _download_s3_object(s3_client, bucket_name, fe_key, local_dir / Path(fe_key).name),
+        return tuple(
+            await asyncio.gather(
+                _download_s3_object(s3_client, bucket_name, point_key, local_dir / Path(point_key).name),
+                _download_s3_object(s3_client, bucket_name, q05_key, local_dir / Path(q05_key).name),
+                _download_s3_object(s3_client, bucket_name, q95_key, local_dir / Path(q95_key).name),
+                _download_s3_object(s3_client, bucket_name, lgb_key, local_dir / Path(lgb_key).name),
+                _download_s3_object(s3_client, bucket_name, fe_key, local_dir / Path(fe_key).name),
+            )
         )
 
     base_path = Path(artifact_path)
@@ -76,30 +79,24 @@ def _materialize_artifacts(version_tag: str, artifact_path: str, bucket: str, s3
     return _derive_paths(base_path)
 
 
-def download_bundle(
-    version_tag: str,
-    artifact_path: str,
-    bucket: str,
+def _load_bundle_from_paths(
+    point_path: Path,
+    q05_path: Path,
+    q95_path: Path,
+    lgb_path: Path,
+    fe_path: Path,
     *,
     country_code: str,
-    feature_names: list[str] | None = None,
-    confidence: str = "full",
-    transfer_learned: bool = False,
-    base_country: str | None = None,
-    s3_client: Any,
+    version_tag: str,
+    feature_names: list[str] | None,
+    confidence: str,
+    transfer_learned: bool,
+    base_country: str | None,
 ) -> ModelBundle:
-    """Download and load all artefacts for one model version."""
-
     import joblib
     import lightgbm as lgb
     import onnxruntime as ort
 
-    point_path, q05_path, q95_path, lgb_path, fe_path = _materialize_artifacts(
-        version_tag=version_tag,
-        artifact_path=artifact_path,
-        bucket=bucket,
-        s3_client=s3_client,
-    )
     session_point = ort.InferenceSession(str(point_path))
     session_q05 = ort.InferenceSession(str(q05_path))
     session_q95 = ort.InferenceSession(str(q95_path))
@@ -122,6 +119,42 @@ def download_bundle(
         transfer_learned=transfer_learned,
         base_country=base_country,
         loaded_at=datetime.now(tz=UTC),
+    )
+
+
+async def download_bundle(
+    version_tag: str,
+    artifact_path: str,
+    bucket: str,
+    *,
+    country_code: str,
+    feature_names: list[str] | None = None,
+    confidence: str = "full",
+    transfer_learned: bool = False,
+    base_country: str | None = None,
+    s3_client: S3Client,
+) -> ModelBundle:
+    """Download and load all artefacts for one model version."""
+
+    point_path, q05_path, q95_path, lgb_path, fe_path = await _materialize_artifacts(
+        version_tag=version_tag,
+        artifact_path=artifact_path,
+        bucket=bucket,
+        s3_client=s3_client,
+    )
+    return await asyncio.to_thread(
+        _load_bundle_from_paths,
+        point_path,
+        q05_path,
+        q95_path,
+        lgb_path,
+        fe_path,
+        country_code=country_code,
+        version_tag=version_tag,
+        feature_names=feature_names,
+        confidence=confidence,
+        transfer_learned=transfer_learned,
+        base_country=base_country,
     )
 
 
@@ -197,11 +230,10 @@ class ModelRegistry:
 
         key = country_code.lower()
         old_bundle = self.bundles.get(key)
-        new_bundle = await asyncio.to_thread(
-            download_bundle,
-            version_tag,
-            artifact_path,
-            self._bucket,
+        new_bundle = await download_bundle(
+            version_tag=version_tag,
+            artifact_path=artifact_path,
+            bucket=self._bucket,
             country_code=key,
             feature_names=feature_names,
             confidence=confidence,

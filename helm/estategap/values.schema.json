@@ -156,7 +156,7 @@
           "type": "string",
           "minLength": 1
         },
-        "fixtureMinIOBucket": {
+        "fixtureS3Bucket": {
           "type": "string",
           "minLength": 1
         },
@@ -172,7 +172,7 @@
         "enabled",
         "nowOverride",
         "stripeWebhookSecret",
-        "fixtureMinIOBucket",
+        "fixtureS3Bucket",
         "fakeLLMProvider",
         "scheduleOverride"
       ],
@@ -316,30 +316,59 @@
       },
       "additionalProperties": true
     },
-    "minio": {
+    "s3": {
       "type": "object",
       "properties": {
-        "enabled": {
+        "endpoint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bucketPrefix": {
+          "type": "string",
+          "minLength": 1
+        },
+        "forcePathStyle": {
           "type": "boolean"
         },
-        "image": {
-          "$ref": "#/$defs/imageSpec"
-        },
-        "setupImage": {
-          "$ref": "#/$defs/imageSpec"
-        },
-        "storage": {
-          "$ref": "#/$defs/storageSpec"
-        },
-        "resources": {
+        "credentials": {
           "type": "object",
+          "properties": {
+            "secret": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "additionalProperties": true
         },
         "buckets": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "type": "object",
+          "properties": {
+            "mlModels": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trainingData": {
+              "type": "string",
+              "minLength": 1
+            },
+            "listingPhotos": {
+              "type": "string",
+              "minLength": 1
+            },
+            "exports": {
+              "type": "string",
+              "minLength": 1
+            },
+            "backups": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": true
         }
       },
       "additionalProperties": true
@@ -445,8 +474,8 @@
     "redis": {
       "$ref": "#/$defs/redis"
     },
-    "minio": {
-      "$ref": "#/$defs/minio"
+    "s3": {
+      "$ref": "#/$defs/s3"
     },
     "observability": {
       "type": "object",

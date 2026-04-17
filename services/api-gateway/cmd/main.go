@@ -11,6 +11,7 @@ import (
 	"time"
 
 	sharedlogger "github.com/estategap/libs/logger"
+	"github.com/estategap/libs/s3client"
 	cachepkg "github.com/estategap/services/api-gateway/internal/cache"
 	"github.com/estategap/services/api-gateway/internal/config"
 	"github.com/estategap/services/api-gateway/internal/db"
@@ -42,8 +43,28 @@ func run() error {
 
 	slog.SetDefault(sharedlogger.New(cfg.LogLevel))
 
+	objectStore, err := s3client.NewS3Client(s3client.Config{
+		Endpoint:       cfg.S3Endpoint,
+		Region:         cfg.S3Region,
+		AccessKeyID:    cfg.S3AccessKeyID,
+		SecretKey:      cfg.S3SecretAccessKey,
+		BucketPrefix:   cfg.S3BucketPrefix,
+		ForcePathStyle: true,
+	})
+	if err != nil {
+		return err
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	if err := objectStore.HealthCheck(ctx, []string{
+		objectStore.BucketName("listing-photos"),
+		objectStore.BucketName("exports"),
+	}); err != nil {
+		slog.Error("s3_health_check_failed", "error", err)
+		return err
+	}
 
 	primaryPool, err := db.NewPrimaryPool(ctx, cfg.DBPrimaryURL)
 	if err != nil {
@@ -124,6 +145,8 @@ func run() error {
 	subscriptionsHandler := handler.NewSubscriptionsHandler(stripeService, subsRepo, usersRepo, redisClient)
 	portfolioHandler := handler.NewPortfolioHandler(portfolioRepo)
 	adminHandler := handler.NewAdminHandler(adminRepo, redisClient)
+	photoPresignHandler := handler.NewPhotoPresignHandler(objectStore)
+	exportPresignHandler := handler.NewExportPresignHandler(objectStore)
 	meExportHandler := handler.NewMeExportHandler(usersRepo, alertRulesRepo, portfolioRepo, redisClient)
 	meDeleteHandler := handler.NewMeDeleteHandler(usersRepo, authService, redisClient)
 	dataRemovalRequestHandler := handler.NewDataRemovalRequestHandler()
@@ -171,7 +194,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler, meExportHandler, meDeleteHandler)
+			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler, photoPresignHandler, exportPresignHandler, meExportHandler, meDeleteHandler)
 		})
 	})
 
@@ -183,7 +206,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler, meExportHandler, meDeleteHandler)
+			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler, photoPresignHandler, exportPresignHandler, meExportHandler, meDeleteHandler)
 		})
 	})
 

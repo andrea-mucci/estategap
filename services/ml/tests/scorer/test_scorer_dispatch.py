@@ -32,17 +32,18 @@ class _FakeJetStream:
         assert subject == "scored.listings"
 
 
-def test_country_scoped_artifact_paths_expand_expected_sidecars(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.asyncio
+async def test_country_scoped_artifact_paths_expand_expected_sidecars(monkeypatch: pytest.MonkeyPatch) -> None:
     downloaded: list[tuple[str, str]] = []
 
-    def fake_download(s3_client, bucket: str, key: str, target: Path) -> Path:
+    async def fake_download(s3_client, bucket: str, key: str, target: Path) -> Path:
         downloaded.append((bucket, key))
         return target
 
     monkeypatch.setattr("estategap_ml.scorer.model_registry._download_s3_object", fake_download)
 
     for country in ["es", "it", "fr", "gb", "us", "nl"]:
-        _materialize_artifacts(
+        await _materialize_artifacts(
             version_tag=f"{country}_national_v1",
             artifact_path=f"s3://ml-models/{country}/champion/model.onnx",
             bucket="ml-models",

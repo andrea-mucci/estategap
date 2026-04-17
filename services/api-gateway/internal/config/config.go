@@ -12,6 +12,11 @@ type Config struct {
 	DBPrimaryURL             string
 	DBReplicaURL             string
 	RedisURL                 string
+	S3Endpoint               string
+	S3Region                 string
+	S3AccessKeyID            string
+	S3SecretAccessKey        string
+	S3BucketPrefix           string
 	JWTSecret                string
 	GoogleClientID           string
 	GoogleClientSecret       string
@@ -56,11 +61,17 @@ func Load() (*Config, error) {
 	v.SetDefault("GRPC_CB_THRESHOLD", 5)
 	v.SetDefault("GRPC_CB_WINDOW_SECONDS", 30)
 	v.SetDefault("GRPC_CB_COOLDOWN_SECONDS", 30)
+	v.SetDefault("S3_REGION", "fsn1")
 
 	cfg := &Config{
 		DBPrimaryURL:             strings.TrimSpace(v.GetString("DB_PRIMARY_URL")),
 		DBReplicaURL:             strings.TrimSpace(v.GetString("DB_REPLICA_URL")),
 		RedisURL:                 strings.TrimSpace(v.GetString("REDIS_URL")),
+		S3Endpoint:               strings.TrimSpace(v.GetString("S3_ENDPOINT")),
+		S3Region:                 strings.TrimSpace(v.GetString("S3_REGION")),
+		S3AccessKeyID:            strings.TrimSpace(v.GetString("S3_ACCESS_KEY_ID")),
+		S3SecretAccessKey:        strings.TrimSpace(v.GetString("S3_SECRET_ACCESS_KEY")),
+		S3BucketPrefix:           strings.TrimSpace(v.GetString("S3_BUCKET_PREFIX")),
 		JWTSecret:                v.GetString("JWT_SECRET"),
 		GoogleClientID:           strings.TrimSpace(v.GetString("GOOGLE_CLIENT_ID")),
 		GoogleClientSecret:       strings.TrimSpace(v.GetString("GOOGLE_CLIENT_SECRET")),
@@ -103,6 +114,10 @@ func Load() (*Config, error) {
 		{name: "DB_PRIMARY_URL", value: cfg.DBPrimaryURL},
 		{name: "DB_REPLICA_URL", value: cfg.DBReplicaURL},
 		{name: "REDIS_URL", value: cfg.RedisURL},
+		{name: "S3_ENDPOINT", value: cfg.S3Endpoint},
+		{name: "S3_ACCESS_KEY_ID", value: cfg.S3AccessKeyID},
+		{name: "S3_SECRET_ACCESS_KEY", value: cfg.S3SecretAccessKey},
+		{name: "S3_BUCKET_PREFIX", value: cfg.S3BucketPrefix},
 		{name: "JWT_SECRET", value: cfg.JWTSecret},
 		{name: "GOOGLE_CLIENT_ID", value: cfg.GoogleClientID},
 		{name: "GOOGLE_CLIENT_SECRET", value: cfg.GoogleClientSecret},

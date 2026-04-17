@@ -30,6 +30,8 @@ func mountAuthenticatedV1Routes(
 	subscriptionsHandler *handler.SubscriptionsHandler,
 	portfolioHandler *handler.PortfolioHandler,
 	adminHandler *handler.AdminHandler,
+	photoPresignHandler *handler.PhotoPresignHandler,
+	exportPresignHandler *handler.ExportPresignHandler,
 	meExportHandler *handler.MeExportHandler,
 	meDeleteHandler *handler.MeDeleteHandler,
 ) {
@@ -37,6 +39,7 @@ func mountAuthenticatedV1Routes(
 	r.Get("/listings/top-deals", listingsHandler.TopDeals)
 	r.Get("/listings", listingsHandler.List)
 	r.Get("/listings/{id}", listingsHandler.Get)
+	r.Get("/listings/photos/presign", photoPresignHandler.ServeHTTP)
 	mountZoneRoutes(r, zonesHandler)
 	r.Get("/countries", referenceHandler.Countries)
 	r.Get("/portals", referenceHandler.Portals)
@@ -57,6 +60,7 @@ func mountAuthenticatedV1Routes(
 	r.Post("/subscriptions/checkout", subscriptionsHandler.Checkout)
 	r.Post("/subscriptions/portal", subscriptionsHandler.Portal)
 	r.Get("/subscriptions/me", subscriptionsHandler.Me)
+	r.Get("/me/export/download", exportPresignHandler.ServeHTTP)
 	r.Get("/me/export", meExportHandler.ServeHTTP)
 	r.Delete("/me", meDeleteHandler.ServeHTTP)
 	r.Group(func(r chi.Router) {

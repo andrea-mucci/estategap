@@ -7,7 +7,9 @@ GATEWAY_NAMESPACE="${GATEWAY_NAMESPACE:-estategap-gateway}"
 DOMAIN="${DOMAIN:-estategap.com}"
 KAFKA_BROKERS="${KAFKA_BROKERS:-kafka-bootstrap.${SYSTEM_NAMESPACE}.svc.cluster.local:9092}"
 KAFKA_TOPIC_PREFIX="${KAFKA_TOPIC_PREFIX:-estategap.}"
-MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://minio.${SYSTEM_NAMESPACE}.svc.cluster.local:9000}"
+S3_ENDPOINT="${S3_ENDPOINT:-http://localstack.${SYSTEM_NAMESPACE}.svc.cluster.local:4566}"
+S3_REGION="${S3_REGION:-us-east-1}"
+S3_BUCKET_PREFIX="${S3_BUCKET_PREFIX:-estategap}"
 
 required_topics=(
   raw-listings
@@ -38,15 +40,15 @@ REDIS_PASSWORD="$(kubectl get secret redis-credentials -n "${SYSTEM_NAMESPACE}" 
 kubectl exec -n "${SYSTEM_NAMESPACE}" redis-master-0 -- \
   redis-cli -a "${REDIS_PASSWORD}" ping | grep -qx 'PONG'
 
-echo "Checking MinIO buckets..."
-MINIO_ROOT_USER="$(kubectl get secret minio-credentials -n "${SYSTEM_NAMESPACE}" -o jsonpath='{.data.root-user}' | base64 -d)"
-MINIO_ROOT_PASSWORD="$(kubectl get secret minio-credentials -n "${SYSTEM_NAMESPACE}" -o jsonpath='{.data.root-password}' | base64 -d)"
-bucket_count="$(
-  kubectl run minio-verify --rm -i --restart=Never \
-    --image=minio/mc:latest \
-    --command -- /bin/sh -ec "mc alias set local ${MINIO_ENDPOINT} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} >/dev/null && mc ls local | wc -l"
-)"
-test "${bucket_count}" -eq 5
+echo "Checking S3 buckets..."
+S3_ACCESS_KEY_ID="$(kubectl get secret estategap-s3-credentials -n "${SYSTEM_NAMESPACE}" -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)"
+S3_SECRET_ACCESS_KEY="$(kubectl get secret estategap-s3-credentials -n "${SYSTEM_NAMESPACE}" -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)"
+kubectl run s3-verify --rm -i --restart=Never -n "${SYSTEM_NAMESPACE}" \
+  --image=amazon/aws-cli:2.17.51 \
+  --env="AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}" \
+  --env="AWS_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}" \
+  --env="AWS_DEFAULT_REGION=${S3_REGION}" \
+  --command -- /bin/sh -ec "aws s3 ls --endpoint-url ${S3_ENDPOINT} s3://${S3_BUCKET_PREFIX}-ml-models >/dev/null"
 
 echo "Checking Grafana ingress..."
 curl -fsS "https://grafana.${DOMAIN}/login" >/dev/null

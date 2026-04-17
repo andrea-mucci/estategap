@@ -36,12 +36,12 @@ spec:
     retentionPolicy: {{ .Values.postgresql.backup.retentionPolicy | quote }}
     barmanObjectStore:
       destinationPath: {{ .Values.postgresql.backup.destinationPath | quote }}
-      endpointURL: {{ .Values.postgresql.backup.minioEndpoint | quote }}
+      endpointURL: {{ .Values.s3.endpoint | quote }}
       s3Credentials:
         accessKeyId:
-          name: postgresql-backup-credentials
+          name: estategap-s3-credentials
           key: ACCESS_KEY_ID
         secretAccessKey:
-          name: postgresql-backup-credentials
-          key: SECRET_ACCESS_KEY
+          name: estategap-s3-credentials
+          key: ACCESS_SECRET_KEY
 {{- end }}
