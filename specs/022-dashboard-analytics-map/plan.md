@@ -1,324 +1,104 @@
-# Implementation Plan: Dashboard Analytics & Interactive Map
+# Implementation Plan: [FEATURE]
 
-**Branch**: `022-dashboard-analytics-map` | **Date**: 2026-04-17 | **Spec**: [spec.md](./spec.md)  
-**Input**: Feature specification from `specs/022-dashboard-analytics-map/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
----
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Build the main dashboard page (`/dashboard`) with four summary metric cards, three Recharts trend charts, and an interactive MapLibre GL JS property map. The dashboard replaces the current listing-card grid with a country-tabbed analytics view. The map renders 50k+ listings as color-coded, clustered markers with a popup on click, a togglable zone polygon overlay, a custom polygon draw tool, and a heatmap layer option.
-
-**Backend work** (Go — `services/api-gateway`): Three new endpoints (`GET /dashboard/summary`, `GET /zones/{id}/geometry`, `POST /zones`), two param extensions to existing endpoints (`bounds` + `format=geojson` on `GET /listings`; listing response adds `latitude`/`longitude`), and new repository functions backed by PostGIS spatial queries with Redis caching.
-
-**Frontend work** (TypeScript — `frontend/`): Install `recharts` + `@mapbox/mapbox-gl-draw`, regenerate OpenAPI types, build dashboard RSC page + 5 dashboard client components, build 6 map components, 6 new TanStack Query hooks, and a new `dashboardStore` Zustand store.
-
----
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.5 (strict) / Node.js 22 (frontend); Go 1.23 (API gateway)  
-**Primary Dependencies**:
-- Frontend: Next.js 15 App Router, Tailwind CSS 4, shadcn/ui, TanStack Query v5, Zustand 5, MapLibre GL JS 4.7.x, Recharts 2.x (new), @mapbox/mapbox-gl-draw 1.x (new), openapi-fetch
-- Backend: chi v5, pgx/v5, go-redis v9, mapbox/mapbox-gl-draw-compatible PostGIS queries
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
 
-**Storage**: PostgreSQL 16 + PostGIS 3.4 (listings.location POINT, zones.geometry MULTIPOLYGON); Redis 7 (dashboard summary cache 60s, zone geometry cache 5min)  
-**Testing**: Frontend: Vitest + React Testing Library; Backend: Go table-driven tests with testcontainers  
-**Target Platform**: Web (desktop + mobile browser)  
-**Performance Goals**: Dashboard load < 3s; map interactive at 50k+ markers; tab switch < 1s  
-**Constraints**: MapLibre GL JS must not be server-rendered (dynamic import with ssr: false); bounds param limits map GeoJSON response to viewport; debounce 300ms on moveend  
-**Scale/Scope**: Per country: up to 50k listings on map; 12-zone analytics series; 4 summary card metrics
-
----
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Polyglot Service Architecture | ✅ PASS | Frontend in Next.js 15 (TypeScript), API changes in Go api-gateway. No cross-service imports. |
-| II. Event-Driven Communication | ✅ PASS | No new inter-service calls. Dashboard summary endpoint queries DB directly; no NATS events needed. |
-| III. Country-First Data Sovereignty | ✅ PASS | All new endpoints require `country` param. Dashboard summary scoped by country. Map viewport filter preserves country partitioning. |
-| IV. ML-Powered Intelligence | ✅ PASS | `deal_score` and `deal_tier` from existing ML pipeline are surfaced in map markers, popup, histogram. |
-| V. Code Quality Discipline | ✅ PASS | TypeScript strict mode; Go explicit error handling; `slog` for logging; TanStack Query for server state; Zod for custom zone form validation. |
-| VI. Security & Ethical Scraping | ✅ PASS | All new endpoints require Bearer JWT. POST /zones validates user ownership. Max 20 custom zones enforced. |
-| VII. Kubernetes-Native Deployment | ✅ PASS | No new services; all changes are within existing `api-gateway` and `frontend` deployments. |
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-**Complexity Tracking**: N/A — no constitution violations.
-
----
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/022-dashboard-analytics-map/
-├── plan.md              # This file
-├── spec.md              # Feature specification
-├── research.md          # Phase 0: Technology research and decisions
-├── data-model.md        # Phase 1: Entity definitions and relationships
-├── quickstart.md        # Phase 1: Developer onboarding guide
-├── contracts/
-│   └── api-extensions.yaml   # Phase 1: New/changed API contract definitions
-├── checklists/
-│   └── requirements.md       # Spec quality checklist
-└── tasks.md             # Phase 2 output (generated by /speckit.tasks — NOT created here)
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-services/api-gateway/
-├── internal/
-│   ├── handler/
-│   │   ├── dashboard.go          # NEW: GetDashboardSummary handler
-│   │   ├── listings.go           # MODIFIED: add bounds, format, lat/lng
-│   │   └── zones.go              # MODIFIED: add GetZoneGeometry + CreateCustomZone
-│   └── repository/
-│       ├── dashboard.go          # NEW: COUNT queries + Redis caching
-│       ├── listings.go           # MODIFIED: bounds filter, coordinate extraction
-│       └── zones.go              # MODIFIED: ST_AsGeoJSON, CreateCustomZone
-└── openapi.yaml                  # MODIFIED: new endpoints + schema additions
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-frontend/src/
-├── app/[locale]/(protected)/dashboard/
-│   └── page.tsx                  # REPLACE: RSC with country-tabbed dashboard
-├── components/dashboard/
-│   ├── SummaryCards.tsx          # NEW: four metric cards
-│   ├── CountryTabs.tsx           # NEW: country filter tabs (URL param sync)
-│   ├── TrendCharts.tsx           # NEW: container for three charts
-│   ├── PriceZoneChart.tsx        # NEW: Recharts LineChart (price/m² by zone)
-│   ├── VolumeChart.tsx           # NEW: Recharts BarChart (monthly volume)
-│   └── DealScoreHistogram.tsx    # NEW: Recharts BarChart (deal score bins)
-├── components/map/
-│   ├── PropertyMap.tsx           # NEW: SSR guard + dynamic import
-│   ├── PropertyMapClient.tsx     # NEW: MapLibre GL JS, all layers + events
-│   ├── ListingPopup.tsx          # NEW: Mini listing card for map popup
-│   ├── ZoneOverlayControl.tsx    # NEW: Toggle button + zone fill layer
-│   ├── DrawZoneControl.tsx       # NEW: mapbox-gl-draw integration + save form
-│   └── MapLayerToggle.tsx        # NEW: Markers/Heatmap toggle UI
-├── hooks/
-│   ├── useDashboardSummary.ts    # NEW: GET /api/v1/dashboard/summary
-│   ├── useZoneAnalytics.ts       # NEW: GET /api/v1/zones/{id}/analytics
-│   ├── useZoneList.ts            # NEW: GET /api/v1/zones?country=
-│   ├── useZoneGeometry.ts        # NEW: GET /api/v1/zones/{id}/geometry
-│   ├── useMapListings.ts         # NEW: GET /api/v1/listings?format=geojson&bounds=
-│   └── useCreateCustomZone.ts    # NEW: POST /api/v1/zones mutation
-└── stores/
-    └── dashboardStore.ts         # NEW: selectedCountry, mapMode, showZoneOverlay, drawingMode
+tests/
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
----
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
-## Implementation Phases
+## Complexity Tracking
 
-### Phase A: Backend — API Extensions (Go, api-gateway)
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
-**Goal**: Add all new endpoints and data contract extensions before frontend work begins.
-
-#### A1 — Extend `ListingSummary` schema with coordinates
-- `internal/repository/listings.go`: Add `ST_Y(location) AS latitude, ST_X(location) AS longitude` to the `SearchListings` SELECT. Update `Listing` struct with `Latitude *float64` and `Longitude *float64` fields.
-- `openapi.yaml`: Add `latitude` (number, nullable) and `longitude` (number, nullable) to the `ListingSummary` schema.
-- `internal/handler/listings.go`: Include coordinates in the JSON response mapping function.
-
-#### A2 — Add `bounds` query param and GeoJSON format to `GET /api/v1/listings`
-- `internal/repository/listings.go`: Add `Bounds *[4]float64` field to `ListingFilter`. When non-nil, add `AND ST_Intersects(location, ST_MakeEnvelope($minLng, $minLat, $maxLng, $maxLat, 4326))` to query.
-- `internal/handler/listings.go`:
-  - Parse `bounds` query param (format: `minLng,minLat,maxLng,maxLat`) and `format` param.
-  - When `format=geojson`: skip pagination, build `FeatureCollection` response from results.
-- `openapi.yaml`: Add `bounds` and `format` params; add `ListingsGeoJSON` schema; use `oneOf` on 200 response.
-
-#### A3 — `GET /api/v1/dashboard/summary` endpoint
-- `internal/repository/dashboard.go` (new file): Implement `GetDashboardSummary(ctx, country string) (*DashboardSummary, error)`.
-  - Four parallel COUNT queries using `pgx` `pgxpool.AcquireConn` batch or concurrent goroutines.
-  - Redis cache: key `dashboard:summary:{country}`, TTL 60s. Check before query; set after.
-- `internal/handler/dashboard.go` (new file): `GetDashboardSummary` handler — validates `country` param, checks subscription tier access, calls repo, returns JSON.
-- Router: Register `GET /api/v1/dashboard/summary`.
-- `openapi.yaml`: Add endpoint and `DashboardSummary` schema.
-
-#### A4 — `GET /api/v1/zones/{id}/geometry` endpoint
-- `internal/repository/zones.go`: Add `GetZoneGeometry(ctx, id string) (*ZoneGeometry, error)`.
-  - `SELECT id, name, ST_AsGeoJSON(geometry)::json, ST_AsGeoJSON(bbox)::json FROM zones WHERE id=$1`.
-  - Redis cache: key `zone:geometry:{id}`, TTL 5min.
-- `internal/handler/zones.go`: Add `GetZoneGeometry` handler. Parse `id` path param, call repo, return JSON.
-- Router: Register `GET /api/v1/zones/{id}/geometry`.
-- `openapi.yaml`: Add endpoint and `ZoneGeometry` schema.
-
-#### A5 — `POST /api/v1/zones` endpoint for custom zones
-- `internal/repository/zones.go`: Add `CreateCustomZone(ctx, req *CreateCustomZoneRequest, userID string) (*Zone, error)`.
-  - Validate polygon: `SELECT ST_IsValid(ST_GeomFromGeoJSON($1))`. Return error if invalid.
-  - Check user zone count: `SELECT COUNT(*) FROM zones WHERE user_id=$1 AND level=5`.
-  - Insert: `INSERT INTO zones (id, name, country, level, geometry, user_id, ...) VALUES (...)`.
-- `internal/handler/zones.go`: Add `CreateCustomZone` handler. Decode request body, validate, check auth, call repo.
-- Router: Register `POST /api/v1/zones`.
-- `openapi.yaml`: Add endpoint, `CreateCustomZoneRequest` schema.
-
----
-
-### Phase B: Frontend — Types and State Foundation
-
-**Goal**: Regenerate types, install packages, create Zustand store and all hooks before building UI.
-
-#### B1 — Install packages and regenerate types
-- `frontend/`: `npm install recharts @mapbox/mapbox-gl-draw @types/mapbox__mapbox-gl-draw`
-- Run `npm run generate-api-types` after Phase A backend changes are in openapi.yaml.
-- Verify `DashboardSummary`, `ListingGeoFeature`, `ZoneGeometry`, `CreateCustomZoneRequest` types in `frontend/src/types/api.ts`.
-
-#### B2 — `dashboardStore.ts` (Zustand)
-- Create `frontend/src/stores/dashboardStore.ts`.
-- State: `selectedCountry: string`, `mapMode: "markers" | "heatmap"`, `showZoneOverlay: boolean`, `drawingMode: boolean`.
-- Actions: `setCountry`, `setMapMode`, `toggleZoneOverlay`, `setDrawingMode`.
-- No persistence (map state is ephemeral).
-
-#### B3 — TanStack Query hooks
-- `useDashboardSummary(country)`: `queryKey: ["dashboard", "summary", country]`, stale 60s. GET `/api/v1/dashboard/summary?country=`.
-- `useZoneList(country)`: `queryKey: ["zones", "list", country]`, stale 5min. GET `/api/v1/zones?country=`.
-- `useZoneAnalytics(zoneId)`: `queryKey: ["zones", zoneId, "analytics"]`, stale 5min. GET `/api/v1/zones/{id}/analytics`.
-- `useZoneGeometry(zoneId, enabled)`: `queryKey: ["zones", zoneId, "geometry"]`, stale 10min, only fetches when `enabled=true`.
-- `useMapListings(country, bounds)`: `queryKey: ["listings", "map", country, bounds]`, stale 30s, `enabled: !!bounds`. GET `/api/v1/listings?format=geojson&country=&bounds=`.
-- `useCreateCustomZone()`: TanStack `useMutation`. POST `/api/v1/zones`. On success: invalidate `["zones", "list", country]`.
-- `useCountries()`: Already implied by existing code — verify or create. GET `/api/v1/countries`.
-
----
-
-### Phase C: Frontend — Dashboard Components
-
-**Goal**: Build the country-tabbed dashboard page with summary cards and trend charts.
-
-#### C1 — `CountryTabs.tsx`
-- Reads `countries` from `useCountries()`.
-- Filters displayed countries by user subscription tier (free: 1, basic: 3, pro/global: all).
-- On tab click: pushes `?country=XX` to URL using Next.js `useRouter().push()`.
-- Active tab determined by current URL param.
-
-#### C2 — `SummaryCards.tsx`
-- Receives `country` prop.
-- Calls `useDashboardSummary(country)`.
-- Renders four `<Card>` components (shadcn/ui):
-  1. **Total Listings** — `total_listings` with a `Building2` icon.
-  2. **New Today** — `new_today` with a `TrendingUp` icon.
-  3. **Tier 1 Deals Today** — `tier1_deals_today` with a `Star` icon (green accent).
-  4. **Price Drops (7d)** — `price_drops_7d` with a `ArrowDownRight` icon (blue accent).
-- While loading: render four `<Skeleton>` placeholders.
-- Error state: show error message inside card.
-
-#### C3 — Chart components
-
-**`PriceZoneChart.tsx`** (Recharts LineChart):
-- Calls `useZoneList(country)` to get zones, then calls `useZoneAnalytics(zone.id)` for each zone (up to 5 zones to avoid over-fetching).
-- Transforms `ZoneAnalyticsSeries.months[]` into Recharts dataset keyed by `month`.
-- `<ResponsiveContainer>` + `<LineChart>`. One `<Line>` per zone (differentiated colors from a 5-color palette).
-- `<Tooltip>` formatter: `${value.toLocaleString()} €/m²`. `<Legend>` with click-to-toggle.
-
-**`VolumeChart.tsx`** (Recharts BarChart):
-- Uses same zone analytics data; renders `listing_count` per month as stacked bars.
-- `<XAxis>` formatted as `MMM YY` (date-fns `format`). `<Tooltip>` shows count.
-
-**`DealScoreHistogram.tsx`** (Recharts BarChart):
-- Fetches first two pages of listings sorted by `deal_score` for country.
-- Buckets scores into 10 bins (0–9, 10–19, ... 90–100) via `Array.reduce`.
-- Renders as BarChart with bin labels on X axis. Tooltip: `N listings`.
-
-#### C4 — Updated `dashboard/page.tsx`
-- Server Component. Prefetches `DashboardSummary` and `countries` via `queryClient.prefetchQuery`.
-- Country derived from `searchParams.country ?? "ES"`.
-- Returns `<HydrationBoundary>` wrapping `<DashboardClient country={country} />`.
-
-**`DashboardClient.tsx`** (Client Component):
-- Layout: `<CountryTabs />` at top, then a responsive grid: `md:grid-cols-2 xl:grid-cols-4` for cards, full-width for charts, full-width for map.
-- Uses `useSearchParams()` to read active country; writes via `useRouter().push()`.
-- Renders `<SummaryCards>`, `<TrendCharts>`, `<PropertyMap>` in that order.
-
----
-
-### Phase D: Frontend — Map Components
-
-**Goal**: Build the full-featured PropertyMap with clustering, popups, zones, draw tool, and heatmap.
-
-#### D1 — `PropertyMap.tsx` (wrapper)
-- Pure server-side wrapper: `dynamic(() => import("./PropertyMapClient"), { ssr: false, loading: () => <MapSkeleton /> })`.
-- Passes `country` prop to client.
-
-#### D2 — `PropertyMapClient.tsx` (core map)
-- Mount MapLibre GL JS map:
-  - Style: `https://tiles.openfreemap.org/styles/liberty`
-  - Initial center: country centroid lookup (static map by country code).
-  - Controls: `NavigationControl` (top-right).
-- GeoJSON source setup (see quickstart.md for layer config including clustering).
-- **moveend handler** (debounce 300ms): compute `bounds` string → update `bounds` state → triggers `useMapListings` refetch.
-- **Data update effect**: When `useMapListings` returns new GeoJSON, call `source.setData(geojson)`.
-- **Cluster click**: `map.on("click", "clusters", ...)` → `map.easeTo()` to zoom in.
-- **Marker click**: `map.on("click", "unclustered-point", ...)` → create `maplibregl.Popup` → render `<ListingPopup listingId={id} />` via `createRoot`.
-- Reads `mapMode` from `dashboardStore`; toggles heatmap layer visibility when mode changes.
-- Reads `showZoneOverlay` from `dashboardStore`; adds/removes zone fill layers when toggled.
-
-#### D3 — `ListingPopup.tsx`
-- Receives `listingId` prop.
-- Calls `useQuery(["listings", listingId])` (existing pattern from `useListings`) to fetch listing detail.
-- Renders mini card: photo thumbnail (60×60px), price formatted `€ X,XXX,XXX`, deal score badge (colored by tier), address.
-- Loading state: inline skeleton (60×60 + two text lines).
-- Links to `/listing/{id}` for full detail.
-
-#### D4 — `ZoneOverlayControl.tsx`
-- Toggle button (`<Button variant="outline" size="sm">`): "Zones ON/OFF".
-- On click: `dashboardStore.toggleZoneOverlay()`.
-- When `showZoneOverlay` turns true:
-  - Fetch zone list (`useZoneList(country)`).
-  - For each zone, fetch geometry (`useZoneGeometry(zone.id, true)`).
-  - Add fill layer to map: `map.addLayer({ id: "zone-{id}", type: "fill", paint: { "fill-color": "#3b82f6", "fill-opacity": 0.15 } })`.
-  - Add hover tooltip: `map.on("mousemove", "zone-{id}", ...)`.
-- When `showZoneOverlay` turns false: remove all `zone-*` layers.
-
-#### D5 — `DrawZoneControl.tsx`
-- Integrates `@mapbox/mapbox-gl-draw`.
-- Button "Draw Zone" → `dashboardStore.setDrawingMode(true)` → `map.addControl(drawInstance)`.
-- On `draw.create` event: extract polygon from `event.features[0]`. Show name modal (`<Dialog>`).
-- Name form: `<Input>` + Zod validation (1–100 chars non-empty).
-- On submit: call `useCreateCustomZone()` mutation with polygon + name + country. Show success toast. `dashboardStore.setDrawingMode(false)`.
-- On cancel: `draw.deleteAll()`. `dashboardStore.setDrawingMode(false)`.
-
-#### D6 — `MapLayerToggle.tsx`
-- Two-button toggle group: "Markers" | "Heatmap".
-- On Markers: `dashboardStore.setMapMode("markers")`.
-- On Heatmap: `dashboardStore.setMapMode("heatmap")`.
-- Map effect in `PropertyMapClient`: when `mapMode === "heatmap"`, set `unclustered-point` and `clusters` visibility to `"none"`, add heatmap layer using `deal_score` property as weight. When `mapMode === "markers"`, remove heatmap layer, restore visibility.
-
----
-
-### Phase E: Integration & QA
-
-#### E1 — End-to-end flow validation
-- Dashboard loads in < 3s on broadband (verify with browser DevTools network tab).
-- Country tab switch updates all widgets in < 1s.
-- Map renders 50k+ markers without frame drops (test with Spain/ES dataset).
-- Popup shows correct data on marker click.
-- Custom zone saved and visible in zone list after reload.
-- Zone overlay toggles on/off correctly.
-- Heatmap renders and switches back to markers.
-- Mobile: pinch-to-zoom, drag-to-pan, marker tap all work.
-
-#### E2 — TypeScript type check and lint
-```bash
-cd frontend && npm run type-check && npm run lint
-```
-
-#### E3 — Backend endpoint tests
-- Table-driven tests for `GetDashboardSummary` with empty country, valid country, invalid country.
-- Test `bounds` filter: verify PostGIS `ST_MakeEnvelope` correctly constrains results.
-- Test `CreateCustomZone` with valid polygon, self-intersecting polygon, name too long, zone limit exceeded.
-- Test `GetZoneGeometry` for existing and non-existing zone IDs.
-
----
-
-## Dependency Order
-
-```
-A1 (coords) → A2 (bounds+geojson) → B1 (types) → B3 (hooks) → C3 (charts) → C4 (dashboard page)
-A3 (summary) → B3 → C2 (summary cards)
-A4 (geometry) → B3 → D4 (zone overlay)
-A5 (custom zone) → B3 → D5 (draw tool)
-B2 (store) → D2 (map client) → D3, D4, D5, D6
-D2 → E1
-```
-
-Frontend phases B and D can begin with mocked API responses (using MSW or hardcoded fixtures) before backend phases A3–A5 are complete.
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
