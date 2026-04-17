@@ -35,8 +35,9 @@ func NewAuthHandler(authService *service.AuthService, usersRepo *repository.User
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email       string  `json:"email"`
+		Password    string  `json:"password"`
+		DisplayName *string `json:"display_name"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, r, http.StatusBadRequest, "invalid request body")
@@ -54,7 +55,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.usersRepo.CreateUser(r.Context(), req.Email, hash)
+	user, err := h.usersRepo.CreateUser(r.Context(), req.Email, hash, req.DisplayName)
 	if err != nil {
 		if errors.Is(err, repository.ErrConflict) {
 			writeError(w, r, http.StatusConflict, "email already registered")

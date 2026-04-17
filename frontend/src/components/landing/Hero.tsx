@@ -24,7 +24,9 @@ export default async function Hero() {
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <Link href="/register?tier=free">{t("primaryCta")}</Link>
+            <Link data-testid="hero-primary-cta" href="/register?tier=free">
+              {t("primaryCta")}
+            </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link href="/#features">{t("secondaryCta")}</Link>

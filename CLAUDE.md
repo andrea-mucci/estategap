@@ -60,6 +60,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4 (seeded via asyncpg), MinIO (seeded via boto3), Redis 7 (seeded via redis-py) (029-kind-helm-validation)
 - Go 1.23, Python 3.12, TypeScript 5.6 / Node 22 (030-test-coverage-infrastructure)
 - PostgreSQL 16 + PostGIS 3.4, Redis 7, NATS JetStream, MinIO (all via testcontainers) (030-test-coverage-infrastructure)
+- Python 3.12 (API + WebSocket + concurrency tests), TypeScript 5.5 / Node.js 22 (Playwright browser tests) (031-e2e-test-suite)
+- No direct DB writes from tests. PostgreSQL seeded via existing `tests/fixtures/load.py`; Redis flushed per-run via helper script (031-e2e-test-suite)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -79,9 +81,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 031-e2e-test-suite: Added Python 3.12 (API + WebSocket + concurrency tests), TypeScript 5.5 / Node.js 22 (Playwright browser tests)
 - 030-test-coverage-infrastructure: Added Go 1.23, Python 3.12, TypeScript 5.6 / Node 22
 - 029-kind-helm-validation: Added Bash (scripts), Python 3.12 (seed loader + conformance), YAML (kind config + helm tests), HCL (docker-bake.hcl), GNU Make + kind 0.24+, Helm 3.14+, helm-unittest plugin, kubectl 1.30+, docker buildx, pyyaml, asyncpg, boto3, redis-py
-- 028-production-hardening: Added Go 1.23 (API Gateway), TypeScript 5.5 / Next.js 15 (frontend), Python 3.12 (Alembic migration for anonymization columns if needed) + chi v5.2.1, go-redis v9, shadcn/ui Dialog, next-intl, K6 v0.51+, Bitnami sealed-secrets controller, golangci-lint, govulncheck, pip-audit, ruff, mypy
 
 
 <!-- MANUAL ADDITIONS START -->

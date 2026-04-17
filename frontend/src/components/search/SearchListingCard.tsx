@@ -68,7 +68,7 @@ export function SearchListingCard({
   const tierDescription = getDealTierDescription(tSearch, tierMeta.value);
 
   return (
-    <Link className="block" href={`/listing/${listing.id}`}>
+    <Link className="block" data-testid="listing-card" href={`/listing/${listing.id}`}>
       <Card className="group h-full overflow-hidden transition hover:-translate-y-1 hover:shadow-2xl">
         <div className="relative h-56 bg-slate-100">
           {image ? (

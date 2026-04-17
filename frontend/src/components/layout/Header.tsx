@@ -24,6 +24,7 @@ export function Header() {
           aria-label={tCommon("menu")}
           className="lg:hidden"
           onClick={toggleSidebar}
+          data-testid="sidebar-toggle"
           size="icon"
           variant="outline"
         >

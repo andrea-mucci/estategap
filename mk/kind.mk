@@ -9,7 +9,7 @@ LOCAL_PATH_PROVISIONER_MANIFEST ?= https://raw.githubusercontent.com/rancher/loc
 TRAEFIK_CRD_MANIFEST ?= https://raw.githubusercontent.com/traefik/traefik/v3.1/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
 SEALED_SECRETS_CRD_MANIFEST ?= https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.3/controller-crds.yaml
 
-.PHONY: kind-up kind-down kind-build kind-load kind-deploy kind-seed kind-test kind-logs kind-shell kind-reset helm-lint helm-test helm-conformance helm-template helm-upgrade-test kind-prereqs
+.PHONY: kind-up kind-down kind-build kind-load kind-deploy kind-seed kind-test kind-test-api kind-test-ws kind-test-browser kind-test-visual kind-test-a11y kind-logs kind-shell kind-reset helm-lint helm-test helm-conformance helm-template helm-upgrade-test kind-prereqs
 
 kind-up:
 	@set -e; \
@@ -89,7 +89,33 @@ kind-seed:
 		uv run --project tests/fixtures python tests/fixtures/load.py
 
 kind-test:
-	@bash tests/helm/install-test.sh && bash tests/helm/schema-test.sh
+	@$(MAKE) kind-test-api
+	@$(MAKE) kind-test-ws
+	@$(MAKE) kind-test-browser
+
+kind-test-api:
+	@mkdir -p reports/e2e; \
+	uv run --project tests/e2e pytest tests/e2e/api -v --junitxml=reports/e2e/api.xml \
+		2>&1 | tee reports/e2e/api.log \
+		|| (bash tests/e2e/collect-artifacts.sh reports/e2e/artifacts && exit 1)
+
+kind-test-ws:
+	@mkdir -p reports/e2e; \
+	uv run --project tests/e2e pytest tests/e2e/websocket tests/e2e/concurrency -v --junitxml=reports/e2e/ws.xml \
+		2>&1 | tee reports/e2e/ws.log \
+		|| (bash tests/e2e/collect-artifacts.sh reports/e2e/artifacts && exit 1)
+
+kind-test-browser:
+	@mkdir -p reports/e2e; \
+	(cd frontend && pnpm playwright test --project=chromium --reporter=html,junit) \
+		2>&1 | tee reports/e2e/browser.log \
+		|| (bash tests/e2e/collect-artifacts.sh reports/e2e/artifacts && exit 1)
+
+kind-test-visual:
+	@(cd frontend && pnpm playwright test tests/e2e/visual/visual-regression.spec.ts --project=chromium)
+
+kind-test-a11y:
+	@(cd frontend && pnpm playwright test tests/e2e/specs/accessibility.spec.ts --project=chromium)
 
 kind-logs:
 	@set -e; \
