@@ -1,189 +1,104 @@
-# Implementation Plan: US Portal Spiders & Country-Specific ML Models
+# Implementation Plan: [FEATURE]
 
-**Branch**: `026-us-spiders-country-ml` | **Date**: 2026-04-17 | **Spec**: [spec.md](spec.md)  
-**Input**: Feature specification from `specs/026-us-spiders-country-ml/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
----
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Add three US real estate portal spiders (Zillow, Redfin, Realtor.com) using the existing Python spider worker framework and publish US listings (country="US") to the shared NATS ingestion stream with sqft→m² and USD→EUR normalisation. Extend the ML training pipeline to train per-country LightGBM models loaded from YAML feature configs, with transfer learning from Spain for low-data markets and automatic heuristic fallback when MAPE exceeds 20%. The ML scorer dispatches to the correct country model based on the listing's `country` field.
-
----
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Python 3.12 (spiders + ML trainer), Go 1.23 (no changes)  
-**Primary Dependencies**: Playwright 1.43+ with playwright-stealth (Zillow), httpx 0.27+ (Redfin/Realtor.com), LightGBM 4.3+, scikit-learn 1.5+, onnxruntime 1.18+, MLflow 2.x, geopandas 0.14+ (TIGER/Line import), nats-py 2.6+, asyncpg 0.29+  
-**Storage**: PostgreSQL 16 + PostGIS 3.4 (listings + model_versions extensions); MinIO (ONNX + LGB .txt artefacts); NATS JetStream (existing streams)  
-**Testing**: pytest + pytest-asyncio + pytest-httpx 0.30+ (spider mock tests); testcontainers (integration)  
-**Target Platform**: Linux (Kubernetes, existing spider-workers + ml-trainer deployments)  
-**Project Type**: Python microservices (spiders service + ML trainer service)  
-**Performance Goals**: Zillow spider: ≥ 1,000 listings / NYC metro run; ML training: MAPE < 12 % per country on held-out test  
-**Constraints**: Zillow rate limit 1 req/3 s; residential proxy required; ML ONNX export ≤ 500 MB per model  
-**Scale/Scope**: 6 countries, 3 new US portals, ~10 new source files
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
 
----
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-### I. Polyglot Service Architecture ✅
-All new code is Python inside existing `services/spider-workers/` and `services/ml/`. No cross-service package imports. Shared code added to `libs/common/` if needed.
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### II. Event-Driven Communication ✅
-US listings published to existing `listings.raw.ingested` NATS subject. ML training events published to existing `ml.training.*` subjects. No direct HTTP between services.
-
-### III. Country-First Data Sovereignty ✅
-`country = "US"` on all records. `asking_price` stored in USD cents + EUR cents. `built_area_sqft` stored alongside `built_area_m2`. Listings partition `listings_us` auto-created.
-
-### IV. ML-Powered Intelligence ✅
-Per-country LightGBM models, ONNX export, MLflow experiment tracking, SHAP values retained, transfer learning with documented confidence levels.
-
-### V. Code Quality Discipline ✅
-Pydantic v2 for all data models. `ruff` + `mypy` strict mode. `pytest` + `pytest-asyncio`. `pytest-httpx` for spider mock tests. Feature YAML configs avoid hardcoded feature lists.
-
-### VI. Security & Ethical Scraping ✅
-`robots.txt` respected for all three US portals (verified in research.md §1–3). Rate limits configurable per portal via env vars. Residential proxies via existing proxy rotation config.
-
-### VII. Kubernetes-Native Deployment ✅
-No new services — existing `spider-workers` and `ml-trainer` Dockerfiles are extended. New YAML configs and Python modules are included in existing image builds.
-
----
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/026-us-spiders-country-ml/
-├── plan.md              ← this file
-├── spec.md
-├── research.md
-├── data-model.md
-├── quickstart.md
-├── contracts/
-│   ├── spider_registry.md
-│   ├── ml_country_models.md
-│   └── zone_import.md
-└── tasks.md             ← generated by /speckit.tasks
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code Changes
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-services/spider-workers/
-└── estategap_spiders/
-    └── spiders/
-        ├── __init__.py                 MODIFY  (add US spider imports)
-        ├── us_utils.py                 NEW     (sqft_to_m2, usd helper fns)
-        ├── us_zillow.py                NEW     (Playwright + stealth spider)
-        ├── us_zillow_parser.py         NEW     (__NEXT_DATA__ JSON extractor)
-        ├── us_redfin.py                NEW     (httpx JSON API spider)
-        ├── us_redfin_parser.py         NEW     (above-fold + schools parser)
-        ├── us_realtor.py               NEW     (httpx HTML spider)
-        └── us_realtor_parser.py        NEW     (JSON-LD + window_data parser)
-
-services/pipeline/
-├── config/mappings/
-│   ├── us_zillow.yaml                  NEW
-│   ├── us_redfin.yaml                  NEW
-│   └── us_realtor.yaml                 NEW
-└── alembic/versions/
-    └── 026_add_us_listing_fields.py    NEW     (8 listing cols + 3 model_versions cols)
-
-services/ml/
-└── estategap_ml/
-    ├── config/
-    │   ├── features_us.yaml            NEW
-    │   ├── features_es.yaml            NEW     (externalise existing hardcoded features)
-    │   ├── features_fr.yaml            NEW
-    │   ├── features_it.yaml            NEW
-    │   ├── features_gb.yaml            NEW
-    │   ├── features_nl.yaml            NEW
-    │   └── features_base.yaml          NEW     (fallback base features)
-    ├── features/
-    │   ├── config.py                   NEW     (CountryFeatureConfig Pydantic model)
-    │   └── engineer.py                 MODIFY  (load features from YAML)
-    ├── trainer/
-    │   ├── __main__.py                 MODIFY  (--country / --countries-all flags)
-    │   ├── train.py                    MODIFY  (transfer learning logic + confidence flag)
-    │   └── registry.py                 MODIFY  (add transfer_learned, base_country, confidence)
-    └── scorer/
-        └── servicer.py                 MODIFY  (multi-country dispatch + heuristic fallback)
-
-scripts/zone-import/
-└── us_tiger.py                         NEW     (TIGER/Line shapefile importer)
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
 tests/
-├── spiders/
-│   ├── test_us_utils.py                NEW
-│   ├── test_us_zillow.py               NEW     (mocked Playwright responses)
-│   ├── test_us_redfin.py               NEW     (pytest-httpx mocks)
-│   └── test_us_realtor.py              NEW     (pytest-httpx mocks)
-└── ml/
-    ├── test_feature_config.py          NEW
-    ├── test_transfer_learning.py       NEW
-    └── test_scorer_dispatch.py         NEW
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
----
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
-No constitution violations. All additions are within existing service boundaries.
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
----
-
-## Phase 0 Output
-
-- [x] `research.md` complete — all technical decisions resolved, no open clarifications
-
-## Phase 1 Output
-
-- [x] `data-model.md` — listings + model_versions extensions, feature config schema
-- [x] `contracts/spider_registry.md` — US spider registration, rate limits, NATS subject
-- [x] `contracts/ml_country_models.md` — training trigger, model dispatch, artefact paths
-- [x] `contracts/zone_import.md` — TIGER/Line sources, import script interface, zone schema
-- [x] `quickstart.md` — dev setup, test commands, env var reference
-
----
-
-## Implementation Phases (for /speckit.tasks)
-
-### Phase A: Database Migration
-- Alembic migration adding 8 nullable columns to `listings` + 3 columns to `model_versions`
-
-### Phase B: US Spider Infrastructure
-1. `us_utils.py` — `sqft_to_m2`, `usd_to_cents`, shared US helpers
-2. `us_zillow.py` + `us_zillow_parser.py` — Playwright + `__NEXT_DATA__` extraction
-3. `us_redfin.py` + `us_redfin_parser.py` — httpx JSON API
-4. `us_realtor.py` + `us_realtor_parser.py` — httpx HTML + JSON-LD
-5. Update `__init__.py` to register all three spiders
-6. Create `us_zillow.yaml`, `us_redfin.yaml`, `us_realtor.yaml` normalisation mappings
-7. Spider unit tests (pytest-httpx mocks)
-
-### Phase C: US Zone Import
-1. `scripts/zone-import/us_tiger.py` — TIGER/Line shapefile importer using geopandas
-2. Integration test: import New York state, verify zone hierarchy
-
-### Phase D: Country Feature Configs
-1. Create `features_{country}.yaml` files for all 6 countries
-2. Create `config.py` with `CountryFeatureConfig` Pydantic model
-3. Modify `FeatureEngineer` to load features from YAML
-
-### Phase E: ML Trainer Multi-Country
-1. Add transfer learning logic to `train.py` (init_model, lr=0.01, n_iter=100)
-2. Add confidence flagging + MAPE-threshold check
-3. Update `registry.py` to persist `transfer_learned`, `base_country`, `confidence`
-4. Update `__main__.py` for `--country` / `--countries-all` CLI flags
-5. Per-city MAPE logging to MLflow
-
-### Phase F: Scorer Multi-Country Dispatch
-1. Modify `servicer.py` to load country-specific model by champion lookup
-2. Implement heuristic fallback for `insufficient_data` confidence
-3. Add `scoring_method` + `model_confidence` to response
-
-### Phase G: Integration Tests & Validation
-1. End-to-end test: Zillow spider → normaliser → scorer (US model)
-2. Transfer learning test with synthetic low-data country
-3. Scorer dispatch test: 6-country round-trip
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

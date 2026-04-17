@@ -222,6 +222,12 @@ class User(Base):
         nullable=False,
         server_default=sa.text("'EUR'"),
     )
+    onboarding_completed: Mapped[bool] = mapped_column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        server_default=sa.false(),
+    )
     allowed_countries: Mapped[StringList] = mapped_column(
         postgresql.ARRAY(sa.CHAR(2)),
         nullable=False,

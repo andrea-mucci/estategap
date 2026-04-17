@@ -141,7 +141,7 @@ components:
 
     UserProfile:
       type: object
-      required: [id, email, subscription_tier, alert_limit, email_verified, created_at]
+      required: [id, email, subscription_tier, preferred_currency, onboarding_completed, role, alert_limit, email_verified, created_at]
       properties:
         id:
           type: string
@@ -164,6 +164,18 @@ components:
           type: string
           enum: [free, basic, pro, global, api]
           example: pro
+        preferred_currency:
+          type: string
+          description: User's preferred display currency (ISO 4217).
+          example: EUR
+        onboarding_completed:
+          type: boolean
+          description: Whether the user has completed or skipped the onboarding tour.
+          example: false
+        role:
+          type: string
+          enum: [user, admin]
+          example: user
         alert_limit:
           type: integer
           example: 3
@@ -174,6 +186,20 @@ components:
           type: string
           format: date-time
           example: "2026-04-17T12:00:00Z"
+
+    UpdateUserProfileRequest:
+      type: object
+      description: Mutable fields of a user profile. All fields are optional.
+      properties:
+        preferred_currency:
+          type: string
+          description: ISO 4217 currency code. Must be one of the supported currencies.
+          example: USD
+          enum: [EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN]
+        onboarding_completed:
+          type: boolean
+          description: Set to true to mark the onboarding tour as completed or skipped.
+          example: true
 
     ListingSummary:
       type: object
@@ -1137,6 +1163,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [Auth]
+      summary: Update authenticated user profile
+      description: Partially update mutable fields of the authenticated user's profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserProfileRequest"
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
 

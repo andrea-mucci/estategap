@@ -52,6 +52,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4 (3 new tables + listings column extensions); Redis 7 (existing seen-IDs dedup) (025-eu-portals-enrichment)
 - Python 3.12 (spiders + ML trainer), Go 1.23 (no changes) + Playwright 1.43+ with playwright-stealth (Zillow), httpx 0.27+ (Redfin/Realtor.com), LightGBM 4.3+, scikit-learn 1.5+, onnxruntime 1.18+, MLflow 2.x, geopandas 0.14+ (TIGER/Line import), nats-py 2.6+, asyncpg 0.29+ (026-us-spiders-country-ml)
 - PostgreSQL 16 + PostGIS 3.4 (listings + model_versions extensions); MinIO (ONNX + LGB .txt artefacts); NATS JetStream (existing streams) (026-us-spiders-country-ml)
+- TypeScript 5.5 / Node.js 22 (frontend); Go 1.23 (API Gateway); Python 3.12 (Alembic migration) (027-landing-onboarding)
+- PostgreSQL 16 (users table extension); no Redis usage for this feature (027-landing-onboarding)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -71,9 +73,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 027-landing-onboarding: Added TypeScript 5.5 / Node.js 22 (frontend); Go 1.23 (API Gateway); Python 3.12 (Alembic migration)
 - 026-us-spiders-country-ml: Added Python 3.12 (spiders + ML trainer), Go 1.23 (no changes) + Playwright 1.43+ with playwright-stealth (Zillow), httpx 0.27+ (Redfin/Realtor.com), LightGBM 4.3+, scikit-learn 1.5+, onnxruntime 1.18+, MLflow 2.x, geopandas 0.14+ (TIGER/Line import), nats-py 2.6+, asyncpg 0.29+
 - 025-eu-portals-enrichment: Added Python 3.12 (spiders + pipeline enrichers) + nats-py 2.6+, asyncpg 0.29+, httpx 0.27+, playwright 1.43+ (SeLoger, LeBonCoin), beautifulsoup4 4.12+ (Rightmove), parsel 1.9+ (existing), rapidfuzz 3.6+ (UK address matching), geopandas 0.14+ (zone import), shapely 2.x (existing), pydantic-settings 2.2+, structlog 24.x, pytest-httpx 0.30+ (spider tests)
-- 024-zones-portfolio-admin: Added TypeScript 5.5 strict / Node.js 22 (frontend); Go 1.23 (API Gateway)
 
 
 <!-- MANUAL ADDITIONS START -->

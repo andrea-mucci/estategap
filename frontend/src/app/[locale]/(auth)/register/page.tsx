@@ -71,7 +71,7 @@ export default function RegisterPage() {
                 redirect: false,
               });
 
-              router.push(`/${locale}/dashboard`);
+              router.push(`/${locale}/home`);
               router.refresh();
             })}
           >

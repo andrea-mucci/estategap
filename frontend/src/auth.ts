@@ -34,6 +34,7 @@ function mapAuthPayload(payload: TokenPair) {
     image: profile?.avatar_url ?? null,
     subscriptionTier: profile?.subscription_tier ?? "free",
     preferredCurrency: profile?.preferred_currency ?? "EUR",
+    onboardingCompleted: profile?.onboarding_completed ?? false,
     role: toRole(profile),
     accessToken: payload.access_token,
     accessTokenExpires: Date.now() + payload.expires_in * 1000,
@@ -69,6 +70,7 @@ async function refreshAccessToken(token: {
       refreshToken: mapped.refreshToken,
       subscriptionTier: mapped.subscriptionTier,
       preferredCurrency: mapped.preferredCurrency,
+      onboardingCompleted: mapped.onboardingCompleted,
       role: mapped.role,
       error: undefined,
     };
@@ -130,8 +132,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user, account, trigger, session }) {
-      if (trigger === "update" && session?.preferredCurrency) {
-        token.preferredCurrency = session.preferredCurrency;
+      if (trigger === "update") {
+        if (session?.preferredCurrency) {
+          token.preferredCurrency = session.preferredCurrency;
+        }
+        if (typeof session?.onboardingCompleted === "boolean") {
+          token.onboardingCompleted = session.onboardingCompleted;
+        }
       }
 
       if (user) {
@@ -144,6 +151,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.refreshToken = user.refreshToken;
         token.subscriptionTier = user.subscriptionTier;
         token.preferredCurrency = user.preferredCurrency;
+        token.onboardingCompleted = user.onboardingCompleted;
         token.role = user.role;
       }
 
@@ -155,6 +163,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.refreshToken = account.refresh_token ?? token.refreshToken ?? "";
         token.subscriptionTier = token.subscriptionTier ?? "free";
         token.preferredCurrency = token.preferredCurrency ?? "EUR";
+        token.onboardingCompleted = token.onboardingCompleted ?? false;
         token.role = token.role ?? "user";
       }
 
@@ -185,6 +194,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.image = typeof token.picture === "string" ? token.picture : null;
       session.user.subscriptionTier = token.subscriptionTier ?? "free";
       session.user.preferredCurrency = token.preferredCurrency ?? "EUR";
+      session.user.onboardingCompleted = token.onboardingCompleted ?? false;
       session.user.role = token.role ?? "user";
       session.accessToken = token.accessToken;
       session.accessTokenExpires = token.accessTokenExpires;

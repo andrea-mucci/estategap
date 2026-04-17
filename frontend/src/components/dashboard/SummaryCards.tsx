@@ -70,12 +70,12 @@ export function SummaryCards({ country }: { country: string }) {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {cards.map((item) => {
+      {cards.map((item, index) => {
         const Icon = item.icon;
         const value = summary[item.key];
 
         return (
-          <Card key={item.key}>
+          <Card id={index === 0 ? "dashboard-summary-card" : undefined} key={item.key}>
             <CardContent className="pt-6">
               <div className="flex items-start justify-between gap-4">
                 <div>

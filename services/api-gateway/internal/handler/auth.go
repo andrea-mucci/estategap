@@ -203,26 +203,45 @@ func (h *AuthHandler) PatchMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		PreferredCurrency string `json:"preferred_currency"`
+		PreferredCurrency   *string `json:"preferred_currency"`
+		OnboardingCompleted *bool   `json:"onboarding_completed"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	currency := strings.ToUpper(strings.TrimSpace(req.PreferredCurrency))
-	if _, ok := supportedPreferredCurrencies[currency]; !ok {
-		writeError(w, r, http.StatusBadRequest, "preferred_currency must be a supported ISO 4217 code")
-		return
-	}
-
-	if err := h.usersRepo.UpdatePreferredCurrency(r.Context(), userID, currency); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			writeError(w, r, http.StatusNotFound, "user not found")
+	if req.PreferredCurrency != nil {
+		currency := strings.ToUpper(strings.TrimSpace(*req.PreferredCurrency))
+		if _, ok := supportedPreferredCurrencies[currency]; !ok {
+			writeError(w, r, http.StatusBadRequest, "preferred_currency must be a supported ISO 4217 code")
 			return
 		}
-		writeError(w, r, http.StatusServiceUnavailable, "failed to update user profile")
-		return
+
+		if err := h.usersRepo.UpdatePreferredCurrency(r.Context(), userID, currency); err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				writeError(w, r, http.StatusNotFound, "user not found")
+				return
+			}
+			writeError(w, r, http.StatusServiceUnavailable, "failed to update user profile")
+			return
+		}
+	}
+
+	if req.OnboardingCompleted != nil {
+		if !*req.OnboardingCompleted {
+			writeError(w, r, http.StatusBadRequest, "onboarding_completed can only be set to true")
+			return
+		}
+
+		if err := h.usersRepo.UpdateOnboardingCompleted(r.Context(), userID, *req.OnboardingCompleted); err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				writeError(w, r, http.StatusNotFound, "user not found")
+				return
+			}
+			writeError(w, r, http.StatusServiceUnavailable, "failed to update user profile")
+			return
+		}
 	}
 
 	user, err := h.usersRepo.GetUserByID(r.Context(), userID)
