@@ -3,6 +3,9 @@
 .specify/
 .agents/
 .codex/
+.make-cache/
+.buildx-cache/
+.kind-pids
 Dockerfile*
 .dockerignore
 .venv/

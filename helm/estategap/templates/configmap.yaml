@@ -34,3 +34,11 @@ data:
   STRIPE_PRICE_GLOBAL_ANNUAL: {{ .Values.stripe.priceGlobalAnnual | quote }}
   STRIPE_PRICE_API_MONTHLY: {{ .Values.stripe.priceApiMonthly | quote }}
   STRIPE_PRICE_API_ANNUAL: {{ .Values.stripe.priceApiAnnual | quote }}
+  {{- if and .Values.testMode .Values.testMode.enabled }}
+  ESTATEGAP_TEST_MODE: "true"
+  NOW_OVERRIDE: {{ .Values.testMode.nowOverride | quote }}
+  FAKE_LLM_PROVIDER: "true"
+  TEST_SCHEDULE_OVERRIDE: {{ .Values.testMode.scheduleOverride | quote }}
+  STRIPE_WEBHOOK_SECRET: {{ .Values.testMode.stripeWebhookSecret | quote }}
+  FIXTURE_MINIO_BUCKET: {{ .Values.testMode.fixtureMinIOBucket | quote }}
+  {{- end }}

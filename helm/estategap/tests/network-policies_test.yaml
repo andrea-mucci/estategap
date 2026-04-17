@@ -1,0 +1,29 @@
+suite: network-policies
+templates:
+  - templates/network-policies.yaml
+tests:
+  - it: renders one network policy per application namespace
+    asserts:
+      - hasDocuments:
+          count: 5
+
+  - it: keeps the gateway namespace policy in estategap-gateway
+    asserts:
+      - equal:
+          documentIndex: 0
+          path: metadata.namespace
+          value: estategap-gateway
+
+  - it: restricts the scraping namespace to estategap-system egress
+    asserts:
+      - equal:
+          documentIndex: 1
+          path: spec.egress[0].to[0].namespaceSelector.matchExpressions[0].values[0]
+          value: estategap-system
+
+  - it: allows the notifications namespace to reach estategap-gateway
+    asserts:
+      - equal:
+          documentIndex: 4
+          path: spec.egress[0].to[0].namespaceSelector.matchExpressions[0].values[1]
+          value: estategap-gateway

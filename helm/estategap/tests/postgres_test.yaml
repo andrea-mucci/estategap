@@ -1,0 +1,25 @@
+suite: postgresql
+templates:
+  - templates/postgresql-cluster.yaml
+tests:
+  - it: reflects postgresql.instances in the cluster spec
+    set:
+      postgresql.instances: 3
+    asserts:
+      - equal:
+          path: spec.instances
+          value: 3
+
+  - it: reflects the configured storage size
+    set:
+      postgresql.storage.size: 7Gi
+    asserts:
+      - equal:
+          path: spec.storage.size
+          value: 7Gi
+
+  - it: bootstraps PostGIS extensions during initdb
+    asserts:
+      - contains:
+          path: spec.bootstrap.initdb.postInitSQL
+          content: CREATE EXTENSION IF NOT EXISTS postgis

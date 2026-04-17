@@ -1,0 +1,35 @@
+suite: feature-flags
+tests:
+  - it: disables the Argo CD application in the test profile
+    template: templates/argocd-application.yaml
+    values:
+      - values-test.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: disables the spider-workers scaled object in the test profile
+    template: templates/keda-scaledobject.yaml
+    values:
+      - values-test.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: enables ESTATEGAP_TEST_MODE in the shared config map
+    template: templates/configmap.yaml
+    values:
+      - values-test.yaml
+    asserts:
+      - equal:
+          path: data.ESTATEGAP_TEST_MODE
+          value: "true"
+
+  - it: exposes the test schedule override in the shared config map
+    template: templates/configmap.yaml
+    values:
+      - values-test.yaml
+    asserts:
+      - equal:
+          path: data.TEST_SCHEDULE_OVERRIDE
+          value: "*/30 * * * * *"

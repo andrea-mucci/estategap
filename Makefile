@@ -6,6 +6,8 @@ PYTHON_SERVICES := spider-workers pipeline ml ai-chat
 GOCACHE ?= /tmp/estategap-go-cache
 UV_CACHE_DIR ?= /tmp/estategap-uv-cache
 
+include mk/kind.mk
+
 .PHONY: proto test lint build-all docker-build-all
 
 proto:

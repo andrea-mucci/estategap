@@ -174,6 +174,7 @@ def config() -> SimpleNamespace:
         anthropic_api_key=None,
         openai_api_key=None,
         litellm_model="gpt-4o-mini",
+        fake_llm_provider=False,
         redis_url="redis://localhost:6379/0",
         database_url="postgresql://estategap:password@localhost:5432/estategap",
         api_gateway_grpc_addr="localhost:50051",

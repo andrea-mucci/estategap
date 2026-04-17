@@ -56,6 +56,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 (users table extension); no Redis usage for this feature (027-landing-onboarding)
 - Go 1.23 (API Gateway), TypeScript 5.5 / Next.js 15 (frontend), Python 3.12 (Alembic migration for anonymization columns if needed) + chi v5.2.1, go-redis v9, shadcn/ui Dialog, next-intl, K6 v0.51+, Bitnami sealed-secrets controller, golangci-lint, govulncheck, pip-audit, ruff, mypy (028-production-hardening)
 - PostgreSQL 16 + PostGIS 3.4 (users table — soft delete already present); Redis 7 (auth:attempts:{ip} rate limit counters, zone-stats / top-deals / alert-rules cache keys) (028-production-hardening)
+- Bash (scripts), Python 3.12 (seed loader + conformance), YAML (kind config + helm tests), HCL (docker-bake.hcl), GNU Make + kind 0.24+, Helm 3.14+, helm-unittest plugin, kubectl 1.30+, docker buildx, pyyaml, asyncpg, boto3, redis-py (029-kind-helm-validation)
+- PostgreSQL 16 + PostGIS 3.4 (seeded via asyncpg), MinIO (seeded via boto3), Redis 7 (seeded via redis-py) (029-kind-helm-validation)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -75,9 +77,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 029-kind-helm-validation: Added Bash (scripts), Python 3.12 (seed loader + conformance), YAML (kind config + helm tests), HCL (docker-bake.hcl), GNU Make + kind 0.24+, Helm 3.14+, helm-unittest plugin, kubectl 1.30+, docker buildx, pyyaml, asyncpg, boto3, redis-py
 - 028-production-hardening: Added Go 1.23 (API Gateway), TypeScript 5.5 / Next.js 15 (frontend), Python 3.12 (Alembic migration for anonymization columns if needed) + chi v5.2.1, go-redis v9, shadcn/ui Dialog, next-intl, K6 v0.51+, Bitnami sealed-secrets controller, golangci-lint, govulncheck, pip-audit, ruff, mypy
 - 027-landing-onboarding: Added TypeScript 5.5 / Node.js 22 (frontend); Go 1.23 (API Gateway); Python 3.12 (Alembic migration)
-- 026-us-spiders-country-ml: Added Python 3.12 (spiders + ML trainer), Go 1.23 (no changes) + Playwright 1.43+ with playwright-stealth (Zillow), httpx 0.27+ (Redfin/Realtor.com), LightGBM 4.3+, scikit-learn 1.5+, onnxruntime 1.18+, MLflow 2.x, geopandas 0.14+ (TIGER/Line import), nats-py 2.6+, asyncpg 0.29+
 
 
 <!-- MANUAL ADDITIONS START -->

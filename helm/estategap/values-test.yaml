@@ -1,0 +1,246 @@
+cluster:
+  environment: test
+  domain: localhost
+  certIssuer: ""
+
+global:
+  testMode: true
+  imageRegistry: localhost:5001
+  imagePullSecrets: []
+
+argocd:
+  enabled: false
+
+prometheus:
+  enabled: false
+
+loki:
+  enabled: false
+
+tempo:
+  enabled: false
+
+keda:
+  enabled: false
+
+observability:
+  prometheus:
+    enabled: false
+  loki:
+    enabled: false
+  tempo:
+    enabled: false
+
+nats:
+  replicas: 1
+  streams:
+    - name: raw-listings
+      subjects: ["listings.raw.>"]
+      retention: limits
+      maxAge: 168h
+      replicas: 1
+      storage: file
+    - name: normalized-listings
+      subjects: ["listings.normalized.>"]
+      retention: limits
+      maxAge: 168h
+      replicas: 1
+      storage: file
+    - name: enriched-listings
+      subjects: ["listings.enriched.>", "enriched.listings"]
+      retention: limits
+      maxAge: 720h
+      replicas: 1
+      storage: file
+    - name: scored-listings
+      subjects: ["listings.scored.>", "scored.listings"]
+      retention: limits
+      maxAge: 720h
+      replicas: 1
+      storage: file
+    - name: alerts-triggers
+      subjects: ["alerts.triggers.>"]
+      retention: workqueue
+      maxAge: 24h
+      replicas: 1
+      storage: file
+    - name: alerts-notifications
+      subjects: ["alerts.notifications.>"]
+      retention: limits
+      maxAge: 168h
+      replicas: 1
+      storage: file
+    - name: scraper-commands
+      subjects: ["scraper.commands.>"]
+      retention: workqueue
+      maxAge: 1h
+      replicas: 1
+      storage: file
+    - name: scraper-cycle
+      subjects: ["scraper.cycle.>"]
+      retention: workqueue
+      maxAge: 1h
+      replicas: 1
+      storage: file
+    - name: price-changes
+      subjects: ["listings.price-change.>"]
+      retention: limits
+      maxAge: 2160h
+      replicas: 1
+      storage: file
+  config:
+    cluster:
+      replicas: 1
+    jetstream:
+      fileStore:
+        pvc:
+          size: 1Gi
+
+postgresql:
+  instances: 1
+  storage:
+    size: 5Gi
+
+redis:
+  architecture: standalone
+  auth:
+    enabled: false
+  sentinel:
+    enabled: false
+
+minio:
+  storage:
+    size: 1Gi
+
+mlTrainer:
+  image:
+    repository: ml
+    tag: dev
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+services:
+  api-gateway:
+    replicaCount: 1
+    image:
+      repository: api-gateway
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  websocket-server:
+    replicaCount: 1
+    image:
+      repository: ws-server
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  alert-engine:
+    replicaCount: 1
+    image:
+      repository: alert-engine
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  alert-dispatcher:
+    replicaCount: 1
+    image:
+      repository: alert-dispatcher
+      tag: dev
+    serviceMonitor:
+      enabled: false
+  scrape-orchestrator:
+    replicaCount: 1
+    image:
+      repository: scrape-orchestrator
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  proxy-manager:
+    replicaCount: 1
+    image:
+      repository: proxy-manager
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  spider-workers:
+    replicaCount: 1
+    image:
+      repository: spider-workers
+      tag: dev
+    hpa:
+      enabled: false
+    keda:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  pipeline:
+    replicaCount: 1
+    image:
+      repository: pipeline
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  pipeline-enricher:
+    replicaCount: 1
+    image:
+      repository: pipeline
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  pipeline-change-detector:
+    replicaCount: 1
+    image:
+      repository: pipeline
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  ml-scorer:
+    replicaCount: 1
+    image:
+      repository: ml
+      tag: dev
+    hpa:
+      enabled: false
+  ai-chat:
+    replicaCount: 1
+    image:
+      repository: ai-chat
+      tag: dev
+    hpa:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  frontend:
+    replicaCount: 1
+    image:
+      repository: frontend
+      tag: dev
+
+testMode:
+  enabled: true
+  nowOverride: ""
+  stripeWebhookSecret: whsec_test_fake
+  fixtureMinIOBucket: fixtures
+  fakeLLMProvider: true
+  scheduleOverride: "*/30 * * * * *"
