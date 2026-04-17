@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "home": "Home",
+    "search": "Ricerca",
+    "dashboard": "Dashboard",
+    "zones": "Zone",
+    "alerts": "Avvisi",
+    "portfolio": "Portafoglio",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Accedi",
+    "register": "Registrati",
+    "logout": "Esci",
+    "email": "Email",
+    "password": "Password",
+    "name": "Nome",
+    "loginWithGoogle": "Continua con Google",
+    "alreadyHaveAccount": "Hai già un account?",
+    "dontHaveAccount": "Non hai un account?",
+    "forgotPassword": "Password dimenticata?",
+    "loginError": "Non siamo riusciti ad accedere. Controlla le credenziali e riprova.",
+    "registerError": "Non siamo riusciti a creare il tuo account. Riprova.",
+    "signInHeading": "Bentornato",
+    "createAccountHeading": "Crea il tuo account EstateGap",
+    "submitLogin": "Accedi",
+    "submitRegister": "Crea account",
+    "passwordHint": "Usa almeno 8 caratteri."
+  },
+  "chat": {
+    "placeholder": "Chiedi una città, un budget o una tesi di investimento...",
+    "send": "Invia",
+    "thinking": "Sto pensando...",
+    "newSession": "Assistente in tempo reale",
+    "chooseOption": "Scegli un'opzione per far avanzare la ricerca.",
+    "reconnect": "Riconnetti",
+    "startConversation": "Avvia una conversazione con l'assistente immobiliare IA",
+    "disconnected": "Invia il primo messaggio quando la connessione in tempo reale è pronta."
+  },
+  "common": {
+    "loading": "Caricamento",
+    "error": "Si è verificato un errore",
+    "retry": "Riprova",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "confirm": "Conferma",
+    "close": "Chiudi",
+    "noResults": "Nessun risultato per ora",
+    "search": "Ricerca",
+    "menu": "Menu",
+    "notifications": "Notifiche",
+    "open": "Apri",
+    "back": "Indietro"
+  },
+  "listing": {
+    "price": "Prezzo",
+    "area": "Superficie",
+    "bedrooms": "Camere",
+    "bathrooms": "Bagni",
+    "dealScore": "Punteggio opportunità",
+    "viewDetails": "Vedi dettagli",
+    "location": "Posizione",
+    "results": "Risultati",
+    "noImage": "Nessuna immagine disponibile"
+  },
+  "alerts": {
+    "title": "Avvisi opportunità",
+    "empty": "Nessun avviso per ora",
+    "markAllRead": "Segna tutto come letto"
+  },
+  "meta": {
+    "appName": "EstateGap",
+    "tagline": "Trova opportunità immobiliari multilingue con un assistente IA live, accesso autenticato ai dati e avvisi in tempo reale.",
+    "dashboardTitle": "Dashboard di mercato",
+    "chatTitle": "Chat IA",
+    "searchTitle": "Cerca annunci",
+    "zonesTitle": "Analisi zone",
+    "alertsTitle": "Centro avvisi",
+    "portfolioTitle": "Vista portafoglio",
+    "adminTitle": "Area amministrazione"
+  }
+}

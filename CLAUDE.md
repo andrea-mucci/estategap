@@ -38,6 +38,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - Redis 7 (conversation state + message history — primary); PostgreSQL 16 + PostGIS 3.4 (visual_references table — read-only at runtime) (018-ai-chat-service)
 - Go 1.23 + gorilla/websocket v1.5, golang-jwt/jwt v5, nats.go v1.37, google.golang.org/grpc v1.64+, go-chi/chi v5, prometheus/client_golang v1.19, spf13/viper v1.19, redis/go-redis v9, slog (stdlib), `libs/pkg` (go.work path dep) (019-ws-chat-realtime)
 - Redis 7 (JWT blacklist check — read-only); no PostgreSQL access (019-ws-chat-realtime)
+- TypeScript 5.5 (strict mode), Node.js 22 + Next.js 15 (App Router, RSC), Tailwind CSS 4, shadcn/ui, next-intl, NextAuth v5, @tanstack/react-query v5, Zustand 5, openapi-typescript (already in devDeps) (020-nextjs-frontend-foundation)
+- No direct DB access — state via TanStack Query cache + Zustand; JWT stored in NextAuth session (020-nextjs-frontend-foundation)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -57,9 +59,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 020-nextjs-frontend-foundation: Added TypeScript 5.5 (strict mode), Node.js 22 + Next.js 15 (App Router, RSC), Tailwind CSS 4, shadcn/ui, next-intl, NextAuth v5, @tanstack/react-query v5, Zustand 5, openapi-typescript (already in devDeps)
 - 019-ws-chat-realtime: Added Go 1.23 + gorilla/websocket v1.5, golang-jwt/jwt v5, nats.go v1.37, google.golang.org/grpc v1.64+, go-chi/chi v5, prometheus/client_golang v1.19, spf13/viper v1.19, redis/go-redis v9, slog (stdlib), `libs/pkg` (go.work path dep)
 - 018-ai-chat-service: Added Python 3.12 + grpcio 1.63+, grpcio-tools 1.63+, anthropic (AsyncAnthropic), openai (AsyncOpenAI), litellm 1.35+, redis[asyncio] 5.x, asyncpg 0.29+, pydantic-settings 2.2+, pydantic v2, jinja2 3.x, structlog 24.x, prometheus-client 0.20+, estategap-common (path dep)
-- 017-notification-dispatcher: Added Go 1.23 + nats.go v1.37, go-chi/chi v5, pgx/v5, go-redis/v9, aws-sdk-go-v2/ses, go-telegram-bot-api v5, twilio-go, firebase-admin-go v4, prometheus/client_golang
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "home": "Start",
+    "search": "Suche",
+    "dashboard": "Dashboard",
+    "zones": "Zonen",
+    "alerts": "Alarme",
+    "portfolio": "Portfolio",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "register": "Registrieren",
+    "logout": "Abmelden",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "name": "Name",
+    "loginWithGoogle": "Mit Google fortfahren",
+    "alreadyHaveAccount": "Hast du bereits ein Konto?",
+    "dontHaveAccount": "Hast du noch kein Konto?",
+    "forgotPassword": "Passwort vergessen?",
+    "loginError": "Anmeldung fehlgeschlagen. Bitte prüfe deine Zugangsdaten.",
+    "registerError": "Dein Konto konnte nicht erstellt werden. Bitte versuche es erneut.",
+    "signInHeading": "Willkommen zurück",
+    "createAccountHeading": "Erstelle dein EstateGap-Konto",
+    "submitLogin": "Anmelden",
+    "submitRegister": "Konto erstellen",
+    "passwordHint": "Verwende mindestens 8 Zeichen."
+  },
+  "chat": {
+    "placeholder": "Frage nach einer Stadt, einem Budget oder einer Investmentthese...",
+    "send": "Senden",
+    "thinking": "Denke nach...",
+    "newSession": "Echtzeit-Assistent",
+    "chooseOption": "Wähle eine Option, um die Suche zu verfeinern.",
+    "reconnect": "Neu verbinden",
+    "startConversation": "Starte ein Gespräch mit dem KI-Immobilienassistenten",
+    "disconnected": "Sende deine erste Nachricht, sobald die Echtzeitverbindung bereit ist."
+  },
+  "common": {
+    "loading": "Lädt",
+    "error": "Etwas ist schiefgelaufen",
+    "retry": "Erneut versuchen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "close": "Schließen",
+    "noResults": "Noch keine Ergebnisse",
+    "search": "Suche",
+    "menu": "Menü",
+    "notifications": "Benachrichtigungen",
+    "open": "Öffnen",
+    "back": "Zurück"
+  },
+  "listing": {
+    "price": "Preis",
+    "area": "Fläche",
+    "bedrooms": "Schlafzimmer",
+    "bathrooms": "Bäder",
+    "dealScore": "Deal-Score",
+    "viewDetails": "Details ansehen",
+    "location": "Lage",
+    "results": "Ergebnisse",
+    "noImage": "Kein Bild verfügbar"
+  },
+  "alerts": {
+    "title": "Deal-Alarme",
+    "empty": "Noch keine Alarme",
+    "markAllRead": "Alles als gelesen markieren"
+  },
+  "meta": {
+    "appName": "EstateGap",
+    "tagline": "Finde mehrsprachige Immobilienchancen mit einem Live-KI-Assistenten, authentifiziertem Datenzugriff und Echtzeit-Deal-Alarmen.",
+    "dashboardTitle": "Markt-Dashboard",
+    "chatTitle": "KI-Chat",
+    "searchTitle": "Inserate suchen",
+    "zonesTitle": "Zonenanalyse",
+    "alertsTitle": "Alarmzentrale",
+    "portfolioTitle": "Portfolioansicht",
+    "adminTitle": "Admin-Bereich"
+  }
+}

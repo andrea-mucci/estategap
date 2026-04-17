@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "home": "Start",
+    "search": "Zoeken",
+    "dashboard": "Dashboard",
+    "zones": "Zones",
+    "alerts": "Meldingen",
+    "portfolio": "Portfolio",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Inloggen",
+    "register": "Registreren",
+    "logout": "Uitloggen",
+    "email": "E-mail",
+    "password": "Wachtwoord",
+    "name": "Naam",
+    "loginWithGoogle": "Doorgaan met Google",
+    "alreadyHaveAccount": "Heb je al een account?",
+    "dontHaveAccount": "Heb je nog geen account?",
+    "forgotPassword": "Wachtwoord vergeten?",
+    "loginError": "Inloggen is mislukt. Controleer je gegevens en probeer opnieuw.",
+    "registerError": "Je account kon niet worden aangemaakt. Probeer het opnieuw.",
+    "signInHeading": "Welkom terug",
+    "createAccountHeading": "Maak je EstateGap-account aan",
+    "submitLogin": "Inloggen",
+    "submitRegister": "Account aanmaken",
+    "passwordHint": "Gebruik minimaal 8 tekens."
+  },
+  "chat": {
+    "placeholder": "Vraag om een stad, budget of investeringsthese...",
+    "send": "Versturen",
+    "thinking": "Bezig met nadenken...",
+    "newSession": "Realtime assistent",
+    "chooseOption": "Kies een optie om de zoektocht verder te brengen.",
+    "reconnect": "Opnieuw verbinden",
+    "startConversation": "Start een gesprek met de AI-vastgoedassistent",
+    "disconnected": "Stuur je eerste bericht zodra de realtimeverbinding klaar is."
+  },
+  "common": {
+    "loading": "Laden",
+    "error": "Er ging iets mis",
+    "retry": "Opnieuw proberen",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "confirm": "Bevestigen",
+    "close": "Sluiten",
+    "noResults": "Nog geen resultaten",
+    "search": "Zoeken",
+    "menu": "Menu",
+    "notifications": "Meldingen",
+    "open": "Openen",
+    "back": "Terug"
+  },
+  "listing": {
+    "price": "Prijs",
+    "area": "Oppervlakte",
+    "bedrooms": "Slaapkamers",
+    "bathrooms": "Badkamers",
+    "dealScore": "Dealscore",
+    "viewDetails": "Bekijk details",
+    "location": "Locatie",
+    "results": "Resultaten",
+    "noImage": "Geen afbeelding beschikbaar"
+  },
+  "alerts": {
+    "title": "Dealmeldingen",
+    "empty": "Nog geen meldingen",
+    "markAllRead": "Alles als gelezen markeren"
+  },
+  "meta": {
+    "appName": "EstateGap",
+    "tagline": "Vind meertalige vastgoedkansen met een live AI-assistent, geauthenticeerde data en realtime dealmeldingen.",
+    "dashboardTitle": "Marktdashboard",
+    "chatTitle": "AI-chat",
+    "searchTitle": "Zoek woningen",
+    "zonesTitle": "Zone-analyse",
+    "alertsTitle": "Meldingscentrum",
+    "portfolioTitle": "Portfolio-overzicht",
+    "adminTitle": "Admin-werkruimte"
+  }
+}

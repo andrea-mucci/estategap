@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "search": "Recherche",
+    "dashboard": "Tableau de bord",
+    "zones": "Zones",
+    "alerts": "Alertes",
+    "portfolio": "Portefeuille",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "Inscription",
+    "logout": "Déconnexion",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "name": "Nom",
+    "loginWithGoogle": "Continuer avec Google",
+    "alreadyHaveAccount": "Vous avez déjà un compte ?",
+    "dontHaveAccount": "Vous n'avez pas de compte ?",
+    "forgotPassword": "Mot de passe oublié ?",
+    "loginError": "Connexion impossible. Vérifiez vos identifiants puis réessayez.",
+    "registerError": "Impossible de créer votre compte. Veuillez réessayer.",
+    "signInHeading": "Bon retour",
+    "createAccountHeading": "Créez votre compte EstateGap",
+    "submitLogin": "Se connecter",
+    "submitRegister": "Créer un compte",
+    "passwordHint": "Utilisez au moins 8 caractères."
+  },
+  "chat": {
+    "placeholder": "Demandez une ville, un budget ou une thèse d'investissement...",
+    "send": "Envoyer",
+    "thinking": "Réflexion...",
+    "newSession": "Assistant en temps réel",
+    "chooseOption": "Choisissez une option pour faire avancer la recherche.",
+    "reconnect": "Reconnexion",
+    "startConversation": "Commencez une conversation avec l'assistant immobilier IA",
+    "disconnected": "Envoyez votre premier message dès que la connexion temps réel est prête."
+  },
+  "common": {
+    "loading": "Chargement",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "noResults": "Aucun résultat pour le moment",
+    "search": "Recherche",
+    "menu": "Menu",
+    "notifications": "Notifications",
+    "open": "Ouvrir",
+    "back": "Retour"
+  },
+  "listing": {
+    "price": "Prix",
+    "area": "Surface",
+    "bedrooms": "Chambres",
+    "bathrooms": "Salles de bain",
+    "dealScore": "Score d'opportunité",
+    "viewDetails": "Voir les détails",
+    "location": "Localisation",
+    "results": "Résultats",
+    "noImage": "Aucune image disponible"
+  },
+  "alerts": {
+    "title": "Alertes opportunités",
+    "empty": "Aucune alerte pour le moment",
+    "markAllRead": "Tout marquer comme lu"
+  },
+  "meta": {
+    "appName": "EstateGap",
+    "tagline": "Trouvez des opportunités immobilières multilingues avec un assistant IA en direct, un accès authentifié aux données et des alertes temps réel.",
+    "dashboardTitle": "Tableau de bord marché",
+    "chatTitle": "Chat IA",
+    "searchTitle": "Rechercher des annonces",
+    "zonesTitle": "Analyse des zones",
+    "alertsTitle": "Centre d'alertes",
+    "portfolioTitle": "Vue portefeuille",
+    "adminTitle": "Espace d'administration"
+  }
+}
