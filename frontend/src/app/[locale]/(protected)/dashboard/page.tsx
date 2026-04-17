@@ -1,32 +1,36 @@
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
 
-import { DashboardOverview } from "@/components/listings/DashboardOverview";
-import { createServerApiClient, defaultListingsQuery } from "@/lib/api";
+import { DashboardClient } from "@/components/dashboard";
+import { requireSession } from "@/lib/auth";
+import { fetchCountries, fetchDashboardSummary } from "@/lib/api";
 
-export default async function DashboardPage() {
+type DashboardPageProps = {
+  searchParams?: Promise<{
+    country?: string;
+  }> | {
+    country?: string;
+  };
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const session = await requireSession();
   const queryClient = new QueryClient();
-  const client = await createServerApiClient();
+  const params = searchParams ? await Promise.resolve(searchParams) : undefined;
+  const country = (params?.country ?? "ES").toUpperCase();
 
   await queryClient.prefetchQuery({
-    queryKey: ["listings", {}],
-    queryFn: async () => {
-      const { data, error } = await client.GET("/api/v1/listings", {
-        params: {
-          query: defaultListingsQuery,
-        },
-      });
+    queryKey: ["dashboard", "summary", country],
+    queryFn: () => fetchDashboardSummary(session.accessToken, country),
+  });
 
-      if (error) {
-        throw new Error(error.error || "Failed to load listings");
-      }
-
-      return data;
-    },
+  await queryClient.prefetchQuery({
+    queryKey: ["countries"],
+    queryFn: () => fetchCountries(session.accessToken),
   });
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <DashboardOverview />
+      <DashboardClient country={country} />
     </HydrationBoundary>
   );
 }

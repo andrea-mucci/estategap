@@ -22,6 +22,8 @@ type Listing struct {
 	Region              *string             `json:"region" db:"region"`
 	PostalCode          *string             `json:"postal_code" db:"postal_code"`
 	LocationWKT         *string             `json:"location_wkt,omitempty" db:"location_wkt"`
+	Latitude            *float64            `json:"latitude,omitempty" db:"latitude"`
+	Longitude           *float64            `json:"longitude,omitempty" db:"longitude"`
 	ZoneID              *pgtype.UUID        `json:"zone_id" db:"zone_id"`
 	AskingPrice         *decimal.Decimal    `json:"asking_price" db:"asking_price"`
 	Currency            string              `json:"currency" db:"currency"`

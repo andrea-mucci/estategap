@@ -11,12 +11,15 @@ import (
 func mountZoneRoutes(r chi.Router, zonesHandler *handler.ZonesHandler) {
 	r.Get("/zones/compare", zonesHandler.Compare)
 	r.Get("/zones", zonesHandler.List)
+	r.Post("/zones", zonesHandler.Create)
 	r.Get("/zones/{id}", zonesHandler.Get)
 	r.Get("/zones/{id}/analytics", zonesHandler.Analytics)
+	r.Get("/zones/{id}/geometry", zonesHandler.Geometry)
 }
 
 func mountAuthenticatedV1Routes(
 	r chi.Router,
+	dashboardHandler *handler.DashboardHandler,
 	listingsHandler *handler.ListingsHandler,
 	zonesHandler *handler.ZonesHandler,
 	referenceHandler *handler.ReferenceHandler,
@@ -24,6 +27,7 @@ func mountAuthenticatedV1Routes(
 	alertRulesHandler *handler.AlertRulesHandler,
 	subscriptionsHandler *handler.SubscriptionsHandler,
 ) {
+	r.Get("/dashboard/summary", dashboardHandler.Summary)
 	r.Get("/listings", listingsHandler.List)
 	r.Get("/listings/{id}", listingsHandler.Get)
 	mountZoneRoutes(r, zonesHandler)

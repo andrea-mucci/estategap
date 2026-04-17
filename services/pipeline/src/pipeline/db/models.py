@@ -158,6 +158,10 @@ class Zone(Base):
         postgresql.UUID(as_uuid=True),
         sa.ForeignKey("zones.id"),
     )
+    user_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+    )
     geometry: Mapped[Any | None] = mapped_column(GeometryMultiPolygon)
     bbox: Mapped[Any | None] = mapped_column(Geometry(geometry_type="POLYGON", srid=4326))
     population: Mapped[int | None] = mapped_column(sa.Integer)

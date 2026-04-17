@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/estategap/libs/models"
@@ -11,6 +12,7 @@ import (
 	"github.com/estategap/services/api-gateway/internal/respond"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type ListingsHandler struct {
@@ -70,6 +72,11 @@ func (h *ListingsHandler) List(w http.ResponseWriter, r *http.Request) {
 	payload := make([]listingSummaryPayload, 0, len(items))
 	for i := range items {
 		payload = append(payload, listingSummaryFromModel(&items[i], items[i].PriceConverted, targetCurrency))
+	}
+
+	if filter.Format == "geojson" {
+		respond.JSON(w, http.StatusOK, listingsGeoJSONFromModels(items))
+		return
 	}
 
 	respond.JSON(w, http.StatusOK, listEnvelope(payload, cursor, cursor != "", totalCount, targetCurrency))
@@ -153,33 +160,155 @@ func buildListingFilter(r *http.Request) (repository.ListingFilter, error) {
 	if err != nil {
 		return repository.ListingFilter{}, err
 	}
+	format, err := parseListingFormat(values.Get("format"))
+	if err != nil {
+		return repository.ListingFilter{}, err
+	}
+	bounds, err := parseBounds(values.Get("bounds"))
+	if err != nil {
+		return repository.ListingFilter{}, err
+	}
 
 	country := strings.ToUpper(values.Get("country"))
 	if country == "" {
 		return repository.ListingFilter{}, errors.New("country is required")
 	}
+	if format == "geojson" && bounds == nil {
+		return repository.ListingFilter{}, errors.New("bounds is required when format=geojson")
+	}
 
 	return repository.ListingFilter{
-		Country:          country,
-		City:             values.Get("city"),
-		ZoneID:           zoneID,
-		PropertyType:     values.Get("property_type"),
-		MinPriceEUR:      minPrice,
-		MaxPriceEUR:      maxPrice,
-		MinAreaM2:        minArea,
-		MaxAreaM2:        maxArea,
-		PropertyCategory: propertyCategory,
-		MinBedrooms:      minBedrooms,
-		MinBathrooms:     minBathrooms,
-		DealTier:         dealTier,
-		Status:           status,
-		PortalID:         portalID,
-		MinDaysOnMarket:  minDaysOnMarket,
-		MaxDaysOnMarket:  maxDaysOnMarket,
-		SortBy:           sortBy,
-		SortDir:          parseSortDir(values.Get("sort_dir")),
-		Currency:         strings.ToUpper(values.Get("currency")),
-		Cursor:           values.Get("cursor"),
-		Limit:            parseLimit(values.Get("limit")),
+		Country:           country,
+		City:              values.Get("city"),
+		Bounds:            bounds,
+		ZoneID:            zoneID,
+		PropertyType:      values.Get("property_type"),
+		MinPriceEUR:       minPrice,
+		MaxPriceEUR:       maxPrice,
+		MinAreaM2:         minArea,
+		MaxAreaM2:         maxArea,
+		PropertyCategory:  propertyCategory,
+		MinBedrooms:       minBedrooms,
+		MinBathrooms:      minBathrooms,
+		DealTier:          dealTier,
+		Status:            status,
+		PortalID:          portalID,
+		MinDaysOnMarket:   minDaysOnMarket,
+		MaxDaysOnMarket:   maxDaysOnMarket,
+		SortBy:            sortBy,
+		SortDir:           parseSortDir(values.Get("sort_dir")),
+		Currency:          strings.ToUpper(values.Get("currency")),
+		Format:            format,
+		DisablePagination: format == "geojson",
+		Cursor:            values.Get("cursor"),
+		Limit:             parseLimit(values.Get("limit")),
 	}, nil
+}
+
+type geoJSONFeatureCollection struct {
+	Type     string           `json:"type"`
+	Features []geoJSONFeature `json:"features"`
+}
+
+type geoJSONFeature struct {
+	Type       string            `json:"type"`
+	Geometry   geoJSONPoint      `json:"geometry"`
+	Properties geoJSONProperties `json:"properties"`
+}
+
+type geoJSONPoint struct {
+	Type        string     `json:"type"`
+	Coordinates [2]float64 `json:"coordinates"`
+}
+
+type geoJSONProperties struct {
+	ID             string           `json:"id"`
+	DealTier       *models.DealTier `json:"deal_tier,omitempty"`
+	DealScore      *float64         `json:"deal_score,omitempty"`
+	AskingPriceEUR *float64         `json:"asking_price_eur,omitempty"`
+	AreaM2         *float64         `json:"area_m2,omitempty"`
+	Address        *string          `json:"address,omitempty"`
+	PhotoURL       *string          `json:"photo_url,omitempty"`
+	City           *string          `json:"city,omitempty"`
+	PropertyType   *string          `json:"property_type,omitempty"`
+}
+
+func listingsGeoJSONFromModels(items []models.Listing) geoJSONFeatureCollection {
+	features := make([]geoJSONFeature, 0, len(items))
+	for i := range items {
+		item := items[i]
+		if item.Latitude == nil || item.Longitude == nil {
+			continue
+		}
+
+		features = append(features, geoJSONFeature{
+			Type: "Feature",
+			Geometry: geoJSONPoint{
+				Type:        "Point",
+				Coordinates: [2]float64{*item.Longitude, *item.Latitude},
+			},
+			Properties: geoJSONProperties{
+				ID:             uuidString(item.ID),
+				DealTier:       item.DealTier,
+				DealScore:      decimalToFloat(item.DealScore),
+				AskingPriceEUR: decimalToFloat(item.AskingPriceEUR),
+				AreaM2:         decimalToFloat(item.BuiltAreaM2),
+				Address:        item.Address,
+				City:           item.City,
+				PropertyType:   item.PropertyType,
+			},
+		})
+	}
+
+	return geoJSONFeatureCollection{
+		Type:     "FeatureCollection",
+		Features: features,
+	}
+}
+
+func decimalToFloat(value *decimal.Decimal) *float64 {
+	if value == nil {
+		return nil
+	}
+
+	result := value.InexactFloat64()
+	return &result
+}
+
+func parseListingFormat(raw string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "json":
+		return "json", nil
+	case "geojson":
+		return "geojson", nil
+	default:
+		return "", errors.New("invalid format")
+	}
+}
+
+func parseBounds(raw string) (*[4]float64, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+
+	parts := strings.Split(raw, ",")
+	if len(parts) != 4 {
+		return nil, errors.New("invalid bounds")
+	}
+
+	var bounds [4]float64
+	for i, part := range parts {
+		value, err := strconv.ParseFloat(strings.TrimSpace(part), 64)
+		if err != nil {
+			return nil, errors.New("invalid bounds")
+		}
+		bounds[i] = value
+	}
+
+	if bounds[0] >= bounds[2] || bounds[1] >= bounds[3] {
+		return nil, errors.New("invalid bounds")
+	}
+
+	return &bounds, nil
 }

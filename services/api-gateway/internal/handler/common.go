@@ -185,6 +185,8 @@ type listingSummaryPayload struct {
 	Country          string                   `json:"country"`
 	City             *string                  `json:"city,omitempty"`
 	Address          *string                  `json:"address,omitempty"`
+	Latitude         *float64                 `json:"latitude,omitempty"`
+	Longitude        *float64                 `json:"longitude,omitempty"`
 	AskingPrice      *decimal.Decimal         `json:"asking_price,omitempty"`
 	AskingPriceEUR   *decimal.Decimal         `json:"asking_price_eur,omitempty"`
 	PriceConverted   *decimal.Decimal         `json:"price_converted,omitempty"`
@@ -260,7 +262,7 @@ type zoneDetailPayload struct {
 type zoneMonthlyStatPayload struct {
 	Month            string  `json:"month"`
 	MedianPriceM2EUR float64 `json:"median_price_m2_eur"`
-	ListingVolume    int64   `json:"listing_volume"`
+	ListingCount     int64   `json:"listing_count"`
 	DealCount        int64   `json:"deal_count"`
 }
 
@@ -351,6 +353,8 @@ func listingSummaryFromModel(item *models.Listing, convertedPrice *decimal.Decim
 		Country:          item.Country,
 		City:             item.City,
 		Address:          item.Address,
+		Latitude:         item.Latitude,
+		Longitude:        item.Longitude,
 		AskingPrice:      item.AskingPrice,
 		AskingPriceEUR:   item.AskingPriceEUR,
 		PriceConverted:   priceConverted,
@@ -443,9 +447,9 @@ func zoneAnalyticsFromMonths(zoneID uuid.UUID, months []repository.ZoneMonthStat
 	payload := make([]zoneMonthlyStatPayload, 0, len(months))
 	for _, month := range months {
 		payload = append(payload, zoneMonthlyStatPayload{
-			Month:            month.Month.UTC().Format("2006-01"),
+			Month:            month.Month.UTC().Format(time.RFC3339),
 			MedianPriceM2EUR: month.MedianPriceM2EUR,
-			ListingVolume:    month.ListingVolume,
+			ListingCount:     month.ListingVolume,
 			DealCount:        month.DealCount,
 		})
 	}
