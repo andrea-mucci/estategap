@@ -3,6 +3,13 @@ import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
+  snapshotPathTemplate: path.resolve(
+    __dirname,
+    "visual",
+    "baselines",
+    "{projectName}",
+    "{arg}{ext}",
+  ),
   testDir: path.resolve(__dirname),
   fullyParallel: true,
   globalSetup: path.resolve(__dirname, "global-setup.ts"),

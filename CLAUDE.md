@@ -62,6 +62,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4, Redis 7, NATS JetStream, MinIO (all via testcontainers) (030-test-coverage-infrastructure)
 - Python 3.12 (API + WebSocket + concurrency tests), TypeScript 5.5 / Node.js 22 (Playwright browser tests) (031-e2e-test-suite)
 - No direct DB writes from tests. PostgreSQL seeded via existing `tests/fixtures/load.py`; Redis flushed per-run via helper script (031-e2e-test-suite)
+- Python 3.12 + pytest 8.2+, pytest-asyncio 0.23+, playwright 1.43+ (Python), asyncpg 0.29+, nats-py 2.6+, redis 5.x, websockets 12+, httpx 0.27+, kubernetes 29.0+ (032-e2e-user-journeys)
+- PostgreSQL 16 (read-only verification via asyncpg), Redis 7 (notification spy reads + Redis reset), no schema changes (032-e2e-user-journeys)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -81,9 +83,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 032-e2e-user-journeys: Added Python 3.12 + pytest 8.2+, pytest-asyncio 0.23+, playwright 1.43+ (Python), asyncpg 0.29+, nats-py 2.6+, redis 5.x, websockets 12+, httpx 0.27+, kubernetes 29.0+
 - 031-e2e-test-suite: Added Python 3.12 (API + WebSocket + concurrency tests), TypeScript 5.5 / Node.js 22 (Playwright browser tests)
 - 030-test-coverage-infrastructure: Added Go 1.23, Python 3.12, TypeScript 5.6 / Node 22
-- 029-kind-helm-validation: Added Bash (scripts), Python 3.12 (seed loader + conformance), YAML (kind config + helm tests), HCL (docker-bake.hcl), GNU Make + kind 0.24+, Helm 3.14+, helm-unittest plugin, kubectl 1.30+, docker buildx, pyyaml, asyncpg, boto3, redis-py
 
 
 <!-- MANUAL ADDITIONS START -->
