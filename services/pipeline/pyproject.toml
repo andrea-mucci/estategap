@@ -29,9 +29,12 @@ dev = [
     "mypy",
     "pytest",
     "pytest-asyncio",
+    "pytest-cov>=5.0",
     "pytest-httpx>=0.30",
+    "pytest-mock>=3.14",
+    "respx>=0.21",
     "ruff",
-    "testcontainers[postgres]>=4.4",
+    "testcontainers[postgres,nats]>=4.4",
 ]
 
 [build-system]
@@ -52,3 +55,13 @@ line-length = 100
 python_version = "3.12"
 strict = true
 mypy_path = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--strict-markers --cov=src/pipeline --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=80"
+markers = [
+    "unit: Unit tests that run without external services.",
+    "integration: Tests that require real backing services or containers.",
+    "slow: Tests whose runtime is expected to exceed the fast unit-test path.",
+]

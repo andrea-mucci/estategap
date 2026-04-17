@@ -11,51 +11,74 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service:
-          - spider-workers
-          - pipeline
-          - ml
-          - ai-chat
+        include:
+          - name: libs-common
+            path: libs/common
+          - name: spider-workers
+            path: services/spider-workers
+          - name: pipeline
+            path: services/pipeline
+          - name: ml
+            path: services/ml
+          - name: ai-chat
+            path: services/ai-chat
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync
-        working-directory: services/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
       - run: uv run ruff check .
-        working-directory: services/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
       - run: uv run mypy --strict .
-        working-directory: services/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
 
   security:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service:
-          - spider-workers
-          - pipeline
-          - ml
-          - ai-chat
+        include:
+          - name: libs-common
+            path: libs/common
+          - name: spider-workers
+            path: services/spider-workers
+          - name: pipeline
+            path: services/pipeline
+          - name: ml
+            path: services/ml
+          - name: ai-chat
+            path: services/ai-chat
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync
-        working-directory: services/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
       - run: uv run pip-audit
-        working-directory: services/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
 
-  test:
+  test-unit:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service:
-          - spider-workers
-          - pipeline
-          - ml
-          - ai-chat
+        include:
+          - name: libs-common
+            path: libs/common
+          - name: spider-workers
+            path: services/spider-workers
+          - name: pipeline
+            path: services/pipeline
+          - name: ml
+            path: services/ml
+          - name: ai-chat
+            path: services/ai-chat
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync
-        working-directory: services/${{ matrix.service }}
-      - run: uv run pytest -x
-        working-directory: services/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
+      - run: uv run pytest -m "not integration and not slow"
+        working-directory: ${{ matrix.path }}
+      - uses: codecov/codecov-action@v4
+        with:
+          files: ${{ matrix.path }}/coverage.xml
+          flags: python-${{ matrix.name }}
+          name: python-${{ matrix.name }}
