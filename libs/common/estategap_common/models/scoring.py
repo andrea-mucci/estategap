@@ -58,6 +58,8 @@ class ScoringResult(EstateGapModel):
     shap_features: list[ShapValue]
     comparable_ids: list[UUID] = Field(default_factory=list)
     model_version: str
+    scoring_method: str = "ml"
+    model_confidence: str = "full"
     scored_at: AwareDatetime
 
     @field_validator("country")
@@ -77,6 +79,8 @@ class ScoredListingEvent(EstateGapModel):
     confidence_low_eur: Decimal
     confidence_high_eur: Decimal
     model_version: str
+    scoring_method: str = "ml"
+    model_confidence: str = "full"
     scored_at: AwareDatetime
     shap_features: list[ShapFeatureEvent] = Field(default_factory=list)
 

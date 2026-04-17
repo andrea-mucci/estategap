@@ -1,0 +1,30 @@
+{
+  "payload": {
+    "mainHouseInfo": {
+      "propertyId": "RF123",
+      "url": "/NY/New-York/10-Broadway-10004/home/12345",
+      "price": 880000,
+      "sqFt": 1200,
+      "beds": 3,
+      "baths": 2,
+      "monthlyHoaDues": "$325",
+      "lotSizeSqFt": 900,
+      "taxAssessedValue": "$640000",
+      "competeScore": 84,
+      "propertyType": "Condo",
+      "latitude": 40.706,
+      "longitude": -74.011,
+      "description": "Financial District condo"
+    },
+    "addressInfo": {
+      "streetLine": "10 Broadway",
+      "city": "New York",
+      "stateCode": "NY",
+      "zip": "10004"
+    },
+    "schoolsData": [
+      {"rating": 8},
+      {"greatSchoolsRating": 6}
+    ]
+  }
+}

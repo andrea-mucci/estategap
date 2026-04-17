@@ -10,13 +10,18 @@ from typing import Any
 import asyncpg
 from estategap_ml import logger
 from estategap_ml.config import Config
+from estategap_ml.features.config import CountryFeatureConfig
 from estategap_ml.features.engineer import FeatureEngineer
 from estategap_ml.features.zone_stats import fetch_zone_stats
 from estategap_ml.trainer.data_export import export_training_data, stratified_split
 from estategap_ml.trainer.evaluate import Metrics, evaluate_model
 from estategap_ml.trainer.mlflow_logger import log_training_run
 from estategap_ml.trainer.onnx_export import export_pipeline_to_onnx
-from estategap_ml.trainer.registry import get_active_champion, maybe_promote, next_version_tag
+from estategap_ml.trainer.registry import (
+    get_active_champion,
+    maybe_promote,
+    next_version_tag,
+)
 
 try:
     from prometheus_client import CollectorRegistry, Counter, Gauge, push_to_gateway
@@ -77,6 +82,8 @@ class TrainingResult:
     feature_engineer: FeatureEngineer
     previous_champion_tag: str | None = None
     transfer_learning: bool = False
+    confidence: str = "full"
+    base_country: str | None = None
 
 
 def _target_series(df: Any) -> Any:
@@ -93,6 +100,36 @@ async def _version_tag_for_country(country: str, config: Config) -> tuple[str, s
         return version_tag, champion.version_tag if champion else None
     finally:
         await conn.close()
+
+
+async def get_active_countries(config: Config, min_listings: int = 1000) -> list[tuple[str, int]]:
+    """Return countries with enough listings to participate in training."""
+
+    conn = await asyncpg.connect(config.database_url)
+    try:
+        rows = await conn.fetch(
+            """
+            SELECT LOWER(country) AS country, COUNT(*)::INTEGER AS listing_count
+            FROM listings
+            GROUP BY country
+            HAVING COUNT(*) >= $1
+            ORDER BY CASE WHEN LOWER(country) = 'es' THEN 0 ELSE 1 END, COUNT(*) DESC
+            """,
+            min_listings,
+        )
+    finally:
+        await conn.close()
+    return [(row["country"], row["listing_count"]) for row in rows]
+
+
+async def _build_feature_engineer(country: str, config: Config) -> FeatureEngineer:
+    stats = await fetch_zone_stats(country=country, dsn=config.database_url)
+    return FeatureEngineer(
+        zone_stats=stats.zone_stats,
+        city_stats=stats.city_stats,
+        country_stats=stats.country_stats,
+        country=country,
+    )
 
 
 def _best_param_metrics(cv_result: dict[str, list[float]]) -> float:
@@ -132,12 +169,7 @@ async def run_training(country: str, config: Config, *, dry_run: bool = False) -
     started = time.perf_counter()
     dataset = await export_training_data(country=country, dsn=config.database_url)
     train_df, val_df, test_df = stratified_split(dataset, stratify_col="city")
-    stats = await fetch_zone_stats(country=country, dsn=config.database_url)
-    feature_engineer = FeatureEngineer(
-        zone_stats=stats.zone_stats,
-        city_stats=stats.city_stats,
-        country_stats=stats.country_stats,
-    )
+    feature_engineer = await _build_feature_engineer(country=country, config=config)
     X_train = feature_engineer.fit_transform(train_df)
     X_val = feature_engineer.transform(val_df)
     X_test = feature_engineer.transform(test_df)
@@ -221,6 +253,7 @@ async def run_training(country: str, config: Config, *, dry_run: bool = False) -
         version_tag=version_tag,
         feature_names=feature_engineer.get_feature_names_out(),
         dataset_ref=feature_engineer.training_dataset_ref_,
+        confidence="full",
         dry_run=dry_run,
     )
     if promoted:
@@ -256,13 +289,13 @@ async def run_training(country: str, config: Config, *, dry_run: bool = False) -
         feature_engineer=feature_engineer,
         previous_champion_tag=previous_champion_tag,
         transfer_learning=False,
+        confidence="full",
     )
 
 
 async def run_transfer_training(
     country: str,
     spain_booster: Any,
-    feature_engineer: FeatureEngineer,
     config: Config,
     *,
     dry_run: bool = False,
@@ -276,6 +309,8 @@ async def run_transfer_training(
     started = time.perf_counter()
     dataset = await export_training_data(country=country, dsn=config.database_url)
     train_df, val_df, test_df = stratified_split(dataset, stratify_col="city")
+    feature_engineer = await _build_feature_engineer(country=country, config=config)
+    feature_engineer.fit(train_df)
     X_train = feature_engineer.transform(train_df)
     X_val = feature_engineer.transform(val_df)
     X_test = feature_engineer.transform(test_df)
@@ -295,11 +330,12 @@ async def run_transfer_training(
         data=np.concatenate([X_train, X_val], axis=0),
         label=np.concatenate([y_train, y_val], axis=0),
     )
-    model = lgb.train(params, dataset_train, init_model=spain_booster, num_boost_round=200)
+    model = lgb.train(params, dataset_train, init_model=spain_booster, num_boost_round=100)
     metrics = evaluate_model(model=model, X_test=X_test, y_test=y_test, city_labels=test_df["city"])
     metrics.n_train = len(train_df)
     metrics.n_val = len(val_df)
     metrics.n_test = len(test_df)
+    confidence = "transfer" if metrics.mape_national <= config.transfer_mape_max else "insufficient_data"
 
     onnx_path = export_pipeline_to_onnx(
         feature_engineer=feature_engineer,
@@ -318,6 +354,9 @@ async def run_transfer_training(
         version_tag=version_tag,
         feature_names=feature_engineer.get_feature_names_out(),
         dataset_ref=feature_engineer.training_dataset_ref_,
+        transfer_learned=True,
+        base_country=config.transfer_base_country,
+        confidence=confidence,
         dry_run=dry_run,
     )
     if promoted:
@@ -326,7 +365,7 @@ async def run_transfer_training(
     ML_TRAINING_DURATION_SECONDS.labels(country=country).set(time.perf_counter() - started)
     log_training_run(
         run_name=version_tag,
-        params={"learning_rate": 0.01, "n_estimators": 200, "transfer_learning": True},
+        params={"learning_rate": 0.01, "n_estimators": 100, "transfer_learning": True},
         metrics=metrics,
         onnx_path=onnx_path,
         fe_path=feature_engineer_path,
@@ -345,4 +384,6 @@ async def run_transfer_training(
         feature_engineer=feature_engineer,
         previous_champion_tag=previous_champion_tag,
         transfer_learning=True,
+        confidence=confidence,
+        base_country=config.transfer_base_country,
     )

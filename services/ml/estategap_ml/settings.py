@@ -24,12 +24,15 @@ class Config(BaseSettings):
     minio_endpoint: str = Field(alias="MINIO_ENDPOINT")
     minio_access_key: str = Field(alias="MINIO_ACCESS_KEY")
     minio_secret_key: str = Field(alias="MINIO_SECRET_KEY")
-    minio_bucket: str = Field(default="estategap-models", alias="MINIO_BUCKET")
+    minio_bucket: str = Field(default="ml-models", alias="MINIO_BUCKET")
     promotion_mape_improvement_pct: float = Field(
         default=0.02,
         alias="PROMOTION_MAPE_IMPROVEMENT_PCT",
     )
     min_listings_per_country: int = Field(default=5000, alias="MIN_LISTINGS_PER_COUNTRY")
+    transfer_min_listings: int = Field(default=5000, alias="ML_TRANSFER_MIN_LISTINGS")
+    transfer_mape_max: float = Field(default=0.20, alias="ML_TRANSFER_MAPE_MAX")
+    transfer_base_country: str = Field(default="ES", alias="ML_TRANSFER_BASE_COUNTRY")
     optuna_n_trials: int = Field(default=50, alias="OPTUNA_N_TRIALS")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     prometheus_pushgateway_url: str | None = Field(
@@ -47,3 +50,6 @@ class Config(BaseSettings):
     shap_timeout_seconds: float = Field(default=2.0, alias="SHAP_TIMEOUT_SECONDS")
     prometheus_port: int = Field(default=9091, alias="PROMETHEUS_PORT")
     local_artifact_dir: Path = Field(default=Path("./artifacts"), alias="LOCAL_ARTIFACT_DIR")
+
+
+__all__ = ["Config"]

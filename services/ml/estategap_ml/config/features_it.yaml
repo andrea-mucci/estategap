@@ -1,0 +1,27 @@
+country: it
+description: Italy feature configuration
+base_features:
+  - area_m2
+  - bedrooms
+  - bathrooms
+  - floor_number
+  - building_age_years
+  - zone_median_price_eur_m2
+  - dist_to_center_km
+  - dist_to_transit_km
+  - property_type_encoded
+  - photo_count
+  - is_new_construction
+country_specific_features:
+  - ape_rating
+  - omi_zone_min_price_eur_m2
+  - omi_zone_max_price_eur_m2
+optional_features:
+  - ape_rating
+  - omi_zone_min_price_eur_m2
+  - omi_zone_max_price_eur_m2
+encoding_rules:
+  ape_rating:
+    categories: ["A4", "A3", "A2", "A1", "B", "C", "D", "E", "F", "G"]
+    strategy: ordinal
+feature_drops: []

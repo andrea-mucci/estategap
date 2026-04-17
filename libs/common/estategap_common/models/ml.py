@@ -28,6 +28,9 @@ class MlModelVersion(EstateGapModel):
     feature_names: list[str] = Field(default_factory=list)
     metrics: dict[str, Any] = Field(default_factory=dict)
     status: ModelStatus = ModelStatus.STAGING
+    transfer_learned: bool = False
+    base_country: str | None = None
+    confidence: str = "full"
     trained_at: datetime
     promoted_at: datetime | None = None
     retired_at: datetime | None = None

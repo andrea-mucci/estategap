@@ -1,0 +1,27 @@
+country: fr
+description: France feature configuration
+base_features:
+  - area_m2
+  - bedrooms
+  - bathrooms
+  - floor_number
+  - building_age_years
+  - zone_median_price_eur_m2
+  - dist_to_center_km
+  - dist_to_transit_km
+  - property_type_encoded
+  - photo_count
+  - is_new_construction
+country_specific_features:
+  - dpe_rating
+  - dvf_median_transaction_price_eur_m2
+  - pieces_count
+optional_features:
+  - dpe_rating
+  - dvf_median_transaction_price_eur_m2
+  - pieces_count
+encoding_rules:
+  dpe_rating:
+    categories: ["G", "F", "E", "D", "C", "B", "A"]
+    strategy: ordinal
+feature_drops: []

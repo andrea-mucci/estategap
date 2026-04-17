@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
 import grpc
 from estategap.v1 import common_pb2, listings_pb2, ml_scoring_pb2, ml_scoring_pb2_grpc
-from estategap_common.models import ScoredListingEvent, ShapFeatureEvent
+from estategap_common.models import ScoredListingEvent, ScoringResult, ShapFeatureEvent
 
 from .comparables import ComparablesFinder
 from .db_writer import write_scores
-from .inference import score_listing
+from .inference import _deal_tier, score_listing
 from .model_registry import ModelRegistry
 from .shap_explainer import ShapExplainer
 
@@ -135,6 +135,8 @@ class MLScoringServicer(ml_scoring_pb2_grpc.MLScoringServiceServicer):
             confidence_low_eur=result.confidence_low,
             confidence_high_eur=result.confidence_high,
             model_version=result.model_version,
+            scoring_method=result.scoring_method,
+            model_confidence=result.model_confidence,
             scored_at=result.scored_at,
             shap_features=[
                 ShapFeatureEvent(
@@ -170,18 +172,80 @@ class MLScoringServicer(ml_scoring_pb2_grpc.MLScoringServiceServicer):
             scored_at=result.scored_at.isoformat(),
         )
 
+    async def _zone_median_price(self, row: dict[str, Any]) -> Decimal | None:
+        zone_id = row.get("zone_id")
+        country_code = str(row.get("country") or row.get("country_code") or "").upper()
+        if zone_id is not None:
+            async with self._db_pool.acquire() as conn:
+                median = await conn.fetchval(
+                    """
+                    SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (
+                        ORDER BY COALESCE(price_per_m2_eur, asking_price_eur / NULLIF(built_area_m2, 0))
+                    )
+                    FROM listings
+                    WHERE country = $1
+                      AND zone_id = $2
+                      AND built_area_m2 > 0
+                    """,
+                    country_code,
+                    zone_id,
+                )
+            if median is not None:
+                return Decimal(str(median)).quantize(Decimal("0.01"))
+        built_area_m2 = Decimal(str(row.get("built_area_m2") or 0))
+        asking_price = Decimal(str(row.get("asking_price_eur") or row.get("asking_price") or 0))
+        if built_area_m2 > 0 and asking_price > 0:
+            return (asking_price / built_area_m2).quantize(Decimal("0.01"))
+        return None
+
+    async def _heuristic_result(self, row: dict[str, Any], *, confidence: str) -> ScoringResult:
+        median_price_m2 = await self._zone_median_price(row)
+        built_area_m2 = Decimal(str(row.get("built_area_m2") or 0)).quantize(Decimal("0.01"))
+        asking_price = Decimal(str(row.get("asking_price_eur") or row.get("asking_price") or 0)).quantize(
+            Decimal("0.01")
+        )
+        estimated_price = asking_price
+        if median_price_m2 is not None and built_area_m2 > 0:
+            estimated_price = (median_price_m2 * built_area_m2).quantize(Decimal("0.01"))
+        if estimated_price == 0:
+            deal_score = Decimal("0.00")
+        else:
+            deal_score = ((estimated_price - asking_price) / estimated_price * Decimal("100")).quantize(
+                Decimal("0.01")
+            )
+        band = max(estimated_price * Decimal("0.10"), Decimal("1.00")).quantize(Decimal("0.01"))
+        return ScoringResult(
+            listing_id=row["id"],
+            country=str(row.get("country") or row.get("country_code") or "").lower(),
+            estimated_price=estimated_price,
+            asking_price=asking_price,
+            deal_score=deal_score,
+            deal_tier=_deal_tier(deal_score),
+            confidence_low=max(Decimal("0.00"), estimated_price - band).quantize(Decimal("0.01")),
+            confidence_high=(estimated_price + band).quantize(Decimal("0.01")),
+            shap_features=[],
+            comparable_ids=[],
+            model_version=str(row.get("model_version") or "heuristic"),
+            scoring_method="heuristic",
+            model_confidence=confidence,
+            scored_at=datetime.now(tz=UTC),
+        )
+
     async def _score_row(self, row: dict[str, Any]) -> Any:
         country_code = str(row.get("country") or row.get("country_code") or "").lower()
         bundle = self._registry.get(country_code)
         if bundle is None:
-            msg = f"No active model loaded for {country_code}"
-            raise LookupError(msg)
+            return await self._heuristic_result(row, confidence="none")
+        if getattr(bundle, "confidence", "full") == "insufficient_data":
+            return await self._heuristic_result(row, confidence="insufficient_data")
         result = score_listing(
             bundle,
             row,
             shap_explainer=self._shap_explainer,
             mode="ondemand",
         )
+        result.scoring_method = "ml"
+        result.model_confidence = getattr(bundle, "confidence", "full")
         if self._comparables_finder is not None:
             result.comparable_ids = [
                 listing_id

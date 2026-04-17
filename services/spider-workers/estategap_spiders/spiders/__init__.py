@@ -15,6 +15,9 @@ from . import (  # noqa: E402,F401
     it_idealista,
     it_immobiliare,
     nl_funda,
+    us_redfin,
+    us_realtor,
+    us_zillow,
 )
 
 

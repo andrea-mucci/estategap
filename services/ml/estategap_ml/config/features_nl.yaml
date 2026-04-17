@@ -1,0 +1,19 @@
+# transfer_learning: true
+country: nl
+description: Netherlands feature configuration
+base_features:
+  - area_m2
+  - bedrooms
+  - bathrooms
+  - floor_number
+  - building_age_years
+  - zone_median_price_eur_m2
+  - dist_to_center_km
+  - dist_to_transit_km
+  - property_type_encoded
+  - photo_count
+  - is_new_construction
+country_specific_features: []
+optional_features: []
+encoding_rules: {}
+feature_drops: []

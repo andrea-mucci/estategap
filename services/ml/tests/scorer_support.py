@@ -53,6 +53,9 @@ def build_fake_bundle(
     q95: float = 280000.0,
     feature_names: list[str] | None = None,
     lgb_booster: Any | None = None,
+    confidence: str = "full",
+    transfer_learned: bool = False,
+    base_country: str | None = None,
 ) -> Any:
     engineer = FakeFeatureEngineer(feature_names)
     return SimpleNamespace(
@@ -65,6 +68,9 @@ def build_fake_bundle(
         feature_engineer=engineer,
         input_name="features",
         feature_names=engineer.get_feature_names_out(),
+        confidence=confidence,
+        transfer_learned=transfer_learned,
+        base_country=base_country,
         loaded_at=datetime.now(tz=UTC),
     )
 

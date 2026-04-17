@@ -16,9 +16,13 @@ DECIMAL_TARGETS = {
     "asking_price",
     "asking_price_eur",
     "built_area",
+    "built_area_sqft",
     "built_area_m2",
+    "lot_size_sqft",
+    "lot_size_m2",
     "plot_area_m2",
     "price_per_m2_eur",
+    "school_rating",
     "usable_area_m2",
     "_lat",
     "_lon",
@@ -26,12 +30,16 @@ DECIMAL_TARGETS = {
 INTEGER_TARGETS = {
     "bathrooms",
     "bedrooms",
+    "compete_score",
     "leasehold_years_remaining",
     "floor_number",
+    "hoa_fees_monthly_usd",
     "images_count",
     "parking_spaces",
+    "tax_assessed_value_usd",
     "total_floors",
     "year_built",
+    "zestimate_reference_usd",
 }
 BOOLEAN_TARGETS = {"has_lift", "has_pool"}
 
