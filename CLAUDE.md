@@ -40,6 +40,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - Redis 7 (JWT blacklist check — read-only); no PostgreSQL access (019-ws-chat-realtime)
 - TypeScript 5.5 (strict mode), Node.js 22 + Next.js 15 (App Router, RSC), Tailwind CSS 4, shadcn/ui, next-intl, NextAuth v5, @tanstack/react-query v5, Zustand 5, openapi-typescript (already in devDeps) (020-nextjs-frontend-foundation)
 - No direct DB access — state via TanStack Query cache + Zustand; JWT stored in NextAuth session (020-nextjs-frontend-foundation)
+- TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router), Tailwind CSS 4, shadcn/ui, Zustand 5, TanStack Query v5, next-intl, react-markdown + remark-gfm, @tailwindcss/typography, MapLibre GL JS (021-ai-chat-search-ui)
+- sessionStorage (Zustand persist middleware) — no direct DB access (021-ai-chat-search-ui)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -59,9 +61,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 021-ai-chat-search-ui: Added TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router), Tailwind CSS 4, shadcn/ui, Zustand 5, TanStack Query v5, next-intl, react-markdown + remark-gfm, @tailwindcss/typography, MapLibre GL JS
 - 020-nextjs-frontend-foundation: Added TypeScript 5.5 (strict mode), Node.js 22 + Next.js 15 (App Router, RSC), Tailwind CSS 4, shadcn/ui, next-intl, NextAuth v5, @tanstack/react-query v5, Zustand 5, openapi-typescript (already in devDeps)
 - 019-ws-chat-realtime: Added Go 1.23 + gorilla/websocket v1.5, golang-jwt/jwt v5, nats.go v1.37, google.golang.org/grpc v1.64+, go-chi/chi v5, prometheus/client_golang v1.19, spf13/viper v1.19, redis/go-redis v9, slog (stdlib), `libs/pkg` (go.work path dep)
-- 018-ai-chat-service: Added Python 3.12 + grpcio 1.63+, grpcio-tools 1.63+, anthropic (AsyncAnthropic), openai (AsyncOpenAI), litellm 1.35+, redis[asyncio] 5.x, asyncpg 0.29+, pydantic-settings 2.2+, pydantic v2, jinja2 3.x, structlog 24.x, prometheus-client 0.20+, estategap-common (path dep)
 
 
 <!-- MANUAL ADDITIONS START -->

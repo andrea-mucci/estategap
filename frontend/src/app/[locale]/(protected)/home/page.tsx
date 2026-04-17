@@ -1,13 +1,10 @@
-import { ChatInput } from "@/components/chat/ChatInput";
-import { ChatPanel } from "@/components/chat/ChatPanel";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
-  return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <ChatPanel />
-      <div className="space-y-4">
-        <ChatInput />
-      </div>
-    </div>
-  );
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  redirect(`/${locale}/chat`);
 }
