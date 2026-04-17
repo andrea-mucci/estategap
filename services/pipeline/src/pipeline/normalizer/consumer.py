@@ -161,7 +161,7 @@ class NormalizerService:
                 trace_id=self._trace_id(message, raw.external_id),
             )
 
-            mapping = self._mapper.get(raw.portal)
+            mapping = self._mapper.get(raw.country_code, raw.portal)
             if mapping is None:
                 await self._quarantine_and_ack(
                     message=message,
@@ -333,6 +333,12 @@ def _build_normalized_listing(raw: RawListing, mapped: dict[str, Any]) -> Normal
         "has_lift": mapped.get("has_lift"),
         "has_pool": mapped.get("has_pool"),
         "year_built": mapped.get("year_built"),
+        "council_tax_band": _string_or_none(mapped.get("council_tax_band")),
+        "epc_rating": _string_or_none(mapped.get("epc_rating")),
+        "tenure": _string_or_none(mapped.get("tenure")),
+        "leasehold_years_remaining": mapped.get("leasehold_years_remaining"),
+        "seller_type": _string_or_none(mapped.get("seller_type")),
+        "bag_id": _string_or_none(mapped.get("bag_id")),
         "condition": _string_or_none(mapped.get("condition")),
         "energy_rating": _string_or_none(mapped.get("energy_rating")),
         "status": ListingStatus.ACTIVE,

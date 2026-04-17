@@ -162,7 +162,10 @@ class EnricherService:
                         enricher_cls(rate_limit=self._settings.catastro_rate_limit)  # type: ignore[misc]
                     )
                 else:
-                    enrichers.append(enricher_cls())
+                    try:
+                        enrichers.append(enricher_cls(pool=self._pool))  # type: ignore[misc]
+                    except TypeError:
+                        enrichers.append(enricher_cls())  # type: ignore[misc]
             self._enrichers_by_country[country] = enrichers
         return self._enrichers_by_country[country]
 

@@ -1,0 +1,75 @@
+portal: funda
+country: NL
+
+fields:
+  price.amount:
+    target: asking_price
+    transform: null
+  livingArea:
+    target: built_area
+    transform: null
+  numberOfRooms:
+    target: bedrooms
+    transform: null
+  constructionYear:
+    target: year_built
+    transform: null
+  energyLabel:
+    target: energy_rating
+    transform: null
+  bag_id:
+    target: bag_id
+    transform: null
+  latitude:
+    target: _lat
+    transform: null
+  longitude:
+    target: _lon
+    transform: null
+  propertyType:
+    target: property_type
+    transform: map_property_type
+  url:
+    target: source_url
+    transform: null
+  description:
+    target: description_orig
+    transform: null
+  address:
+    target: address
+    transform: null
+  city:
+    target: city
+    transform: null
+  region:
+    target: region
+    transform: null
+  postalCode:
+    target: postal_code
+    transform: null
+
+property_type_map:
+  appartement: residential
+  woning: residential
+  villa: residential
+  herenhuis: residential
+  kantoor: commercial
+  winkel: commercial
+  bedrijfshal: industrial
+  grond: land
+
+condition_map: {}
+
+currency_field: null
+area_unit_field: null
+country_uses_pieces: false
+expected_fields:
+  - asking_price
+  - built_area_m2
+  - bedrooms
+  - year_built
+  - energy_rating
+  - bag_id
+  - property_type
+  - location_wkt
+  - source_url

@@ -48,6 +48,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - No direct DB access — TanStack Query cache (server state), Zustand (UI state), localStorage (saved searches fallback) (023-listing-search-detail)
 - TypeScript 5.5 strict / Node.js 22 (frontend); Go 1.23 (API Gateway) (024-zones-portfolio-admin)
 - PostgreSQL 16 + PostGIS 3.4 (new `portfolio_properties` table; zone analytics query extended); Redis 7 (zone analytics cache extended; exchange rate cache 24h) (024-zones-portfolio-admin)
+- Python 3.12 (spiders + pipeline enrichers) + nats-py 2.6+, asyncpg 0.29+, httpx 0.27+, playwright 1.43+ (SeLoger, LeBonCoin), beautifulsoup4 4.12+ (Rightmove), parsel 1.9+ (existing), rapidfuzz 3.6+ (UK address matching), geopandas 0.14+ (zone import), shapely 2.x (existing), pydantic-settings 2.2+, structlog 24.x, pytest-httpx 0.30+ (spider tests) (025-eu-portals-enrichment)
+- PostgreSQL 16 + PostGIS 3.4 (3 new tables + listings column extensions); Redis 7 (existing seen-IDs dedup) (025-eu-portals-enrichment)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -67,9 +69,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 025-eu-portals-enrichment: Added Python 3.12 (spiders + pipeline enrichers) + nats-py 2.6+, asyncpg 0.29+, httpx 0.27+, playwright 1.43+ (SeLoger, LeBonCoin), beautifulsoup4 4.12+ (Rightmove), parsel 1.9+ (existing), rapidfuzz 3.6+ (UK address matching), geopandas 0.14+ (zone import), shapely 2.x (existing), pydantic-settings 2.2+, structlog 24.x, pytest-httpx 0.30+ (spider tests)
 - 024-zones-portfolio-admin: Added TypeScript 5.5 strict / Node.js 22 (frontend); Go 1.23 (API Gateway)
 - 023-listing-search-detail: Added TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router, RSC), TanStack Query v5, nuqs (new — URL state), shadcn/ui, Recharts 2.x, MapLibre GL JS 4.x, yet-another-react-lightbox (new), Zustand 5, react-hook-form + Zod, next-intl
-- 022-dashboard-analytics-map: Added TypeScript 5.5 (strict) / Node.js 22 (frontend); Go 1.23 (API gateway)
 
 
 <!-- MANUAL ADDITIONS START -->

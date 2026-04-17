@@ -1,0 +1,94 @@
+portal: immobiliare
+country: IT
+
+fields:
+  prezzo:
+    target: asking_price
+    transform: null
+  superficie:
+    target: built_area
+    transform: null
+  locali:
+    target: bedrooms
+    transform: null
+  bagni:
+    target: bathrooms
+    transform: null
+  piano:
+    target: floor_number
+    transform: null
+  annoCostruzione:
+    target: year_built
+    transform: null
+  classeEnergetica:
+    target: energy_rating
+    transform: null
+  tipologia:
+    target: property_type
+    transform: map_property_type
+  stato:
+    target: condition
+    transform: map_condition
+  latitudine:
+    target: _lat
+    transform: null
+  longitudine:
+    target: _lon
+    transform: null
+  url:
+    target: source_url
+    transform: null
+  descrizione:
+    target: description_orig
+    transform: null
+  numFoto:
+    target: images_count
+    transform: null
+  indirizzo:
+    target: address
+    transform: null
+  comune:
+    target: city
+    transform: null
+  provincia:
+    target: region
+    transform: null
+  codicePostale:
+    target: postal_code
+    transform: null
+
+property_type_map:
+  appartamento: residential
+  attico: residential
+  villa: residential
+  villetta: residential
+  rustico: residential
+  loft: residential
+  mansarda: residential
+  ufficio: commercial
+  negozio: commercial
+  capannone: industrial
+  terreno: land
+  box: commercial
+
+condition_map:
+  nuovo: new
+  ottimo: good
+  buono: good
+  da_ristrutturare: needs_renovation
+  da_ristrutturare_parzialmente: needs_renovation
+
+currency_field: null
+area_unit_field: null
+country_uses_pieces: false
+expected_fields:
+  - asking_price
+  - built_area_m2
+  - bedrooms
+  - bathrooms
+  - year_built
+  - energy_rating
+  - property_type
+  - location_wkt
+  - source_url
+  - description_orig

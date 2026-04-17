@@ -1,151 +1,104 @@
-# Implementation Plan: Zone Analytics, Portfolio Tracker & Admin Panel
+# Implementation Plan: [FEATURE]
 
-**Branch**: `024-zones-portfolio-admin` | **Date**: 2026-04-17 | **Spec**: [spec.md](spec.md)  
-**Input**: Feature specification from `specs/024-zones-portfolio-admin/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Implements three user-facing features on top of the existing EstateGap monorepo:
-
-1. **Zone Analytics page** (`/zones/[id]`): server-side rendered detail page with six core metrics, interactive Recharts-based price trend / volume / histogram charts, and a multi-zone cross-country comparison tool that normalises currencies to the user's preference.
-2. **Portfolio Tracker** (`/portfolio`): CRUD for manually-entered owned properties backed by a new `portfolio_properties` DB table + four new REST endpoints in the Go API Gateway; dashboard summaries derive gain/loss and rental yield from ML estimates and currency-converted purchase prices.
-3. **Admin Panel** (`/admin`): five-tab Next.js client component protected at both middleware and server level, backed by a new `/api/v1/admin/*` route group in the API Gateway guarded by a `RequireAdmin` middleware that checks the JWT `role` claim.
-
-Backend additions are strictly confined to the existing `services/api-gateway` Go service. No new microservice is introduced. The currency conversion layer lives in the frontend, sourcing daily exchange rates via a Next.js Route Handler.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.5 strict / Node.js 22 (frontend); Go 1.23 (API Gateway)
-**Primary Dependencies**:
-- Frontend — Next.js 15 App Router, Recharts 2.x, d3-array (bin), shadcn/ui, TanStack Query v5, Zustand 5, react-hook-form + Zod, next-intl
-- Backend — chi v5.2, pgx v5.7, go-redis v9.7, nats.go v1.37 (retrain trigger), slog (stdlib)
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
 
-**Storage**: PostgreSQL 16 + PostGIS 3.4 (new `portfolio_properties` table; zone analytics query extended); Redis 7 (zone analytics cache extended; exchange rate cache 24h)
-
-**Testing**: Vitest + React Testing Library (frontend components); Go table-driven tests (new handlers/repos); no new testcontainer tests required for this feature
-
-**Target Platform**: Web application (desktop-first, responsive down to 768px)
-
-**Project Type**: Web application (Next.js frontend + Go API Gateway)
-
-**Performance Goals**: Zone page FCP < 2s on desktop; portfolio dashboard < 3s; admin tabs < 3s each
-
-**Constraints**:
-- Admin routes accessible only to users with `role = "admin"` (email @estategap.com); 403 otherwise
-- All monetary display in user's preferred currency; conversion source visible in UI
-- Zone comparison supports up to 5 zones; histogram suppressed for fewer than 5 listings
-- Admin retrain trigger is idempotent — duplicate triggers while a job is running are rejected
-
-**Scale/Scope**: Up to 50 countries, 200 portals (admin); portfolios up to ~100 properties per user; zone comparison up to 5 concurrent selections
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design.*
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Polyglot Architecture | ✅ PASS | Frontend: Next.js. Backend additions: Go API Gateway only. No new service. |
-| II. Event-Driven Communication | ✅ PASS | Admin retrain publishes to NATS JetStream (`ml.retrain.requested`); no direct service-to-service HTTP. Frontend→API Gateway is the only HTTP path (external client). |
-| III. Country-First Data Sovereignty | ✅ PASS | `portfolio_properties` stores country code. All zone metrics grouped by country. Admin stats grouped by country. |
-| IV. ML-Powered Intelligence | ✅ PASS | Portfolio estimated value sourced from existing `/api/v1/model/estimate` endpoint (MLHandler.Estimate). |
-| V. Code Quality Discipline | ✅ PASS | TypeScript strict mode; React Hook Form + Zod validation; TanStack Query for server state; Zustand for UI state; Go: pgx (no ORM), slog, explicit error handling, golangci-lint. |
-| VI. Security & Ethical Scraping | ✅ PASS | JWT role claim used for admin guard. No secrets in code. No scraping changes. |
-| VII. Kubernetes-Native | ✅ PASS | No new Dockerfile or Helm chart needed; retrain trigger creates a K8s Job via NATS event handled by existing ml-trainer service. |
-
-**Verdict**: No violations. Proceeding to Phase 1 design.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/024-zones-portfolio-admin/
-├── plan.md              # This file
-├── research.md          # Phase 0 decisions
-├── data-model.md        # Phase 1 entities and schema
-├── contracts/           # Phase 1 OpenAPI additions
-│   ├── portfolio.yaml   # Portfolio CRUD endpoints
-│   └── admin.yaml       # Admin endpoint group
-└── tasks.md             # Phase 2 output (generated by /speckit.tasks)
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code Layout
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-# Backend — services/api-gateway/
-services/api-gateway/
-├── cmd/
-│   ├── main.go                    # wire new handlers + routes
-│   └── routes.go                  # mount portfolio + admin routes
-├── internal/
-│   ├── handler/
-│   │   ├── portfolio.go           # NEW: CRUD + summary endpoints
-│   │   └── admin.go               # NEW: scraping/ml/users/countries/system tabs
-│   ├── middleware/
-│   │   └── admin.go               # NEW: RequireAdmin (checks JWT role claim)
-│   └── repository/
-│       ├── portfolio.go           # NEW: portfolio_properties DB operations
-│       ├── admin.go               # NEW: admin stats queries (scraping, users, countries)
-│       └── zones.go               # EXTEND: GetZoneAnalytics + avg_days_on_market
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-# Database migrations — services/pipeline/ (Alembic owns schema)
-services/pipeline/
-└── alembic/versions/
-    └── xxxx_add_portfolio_properties.py   # NEW migration
+tests/
+├── contract/
+├── integration/
+└── unit/
 
-# Frontend — frontend/src/
-frontend/src/
-├── app/
-│   └── [locale]/
-│       ├── (protected)/
-│       │   ├── zones/
-│       │   │   └── [id]/
-│       │   │       ├── page.tsx                # NEW: zone detail server component
-│       │   │       └── loading.tsx             # NEW: Suspense skeleton
-│       │   ├── portfolio/
-│       │   │   └── page.tsx                    # REPLACE stub: portfolio page
-│       │   └── admin/
-│       │       └── page.tsx                    # REPLACE stub: admin page
-│       └── api/
-│           └── exchange-rates/
-│               └── route.ts                    # NEW: Next.js Route Handler (currency)
-├── components/
-│   ├── zones/
-│   │   ├── ZoneAnalyticsClient.tsx             # NEW: charts + metrics client component
-│   │   ├── ZoneMetricsBar.tsx                  # NEW: 6-metric KPI strip
-│   │   ├── ZonePriceTrendChart.tsx             # NEW: Recharts LineChart (12-month)
-│   │   ├── ZoneVolumeChart.tsx                 # NEW: Recharts BarChart (volume)
-│   │   ├── ZonePriceHistogram.tsx              # NEW: Recharts BarChart via d3-array bins
-│   │   └── ZoneComparisonTool.tsx              # NEW: multi-select + side-by-side + overlay
-│   ├── portfolio/
-│   │   ├── PortfolioClient.tsx                 # NEW: top-level portfolio client component
-│   │   ├── PortfolioSummaryCards.tsx           # NEW: invested / value / gain / yield
-│   │   ├── PortfolioPropertyTable.tsx          # NEW: property list with edit/delete
-│   │   └── PropertyFormDialog.tsx              # NEW: add/edit property modal (RHF + Zod)
-│   └── admin/
-│       ├── AdminClient.tsx                     # NEW: tabs shell
-│       ├── ScrapingHealthTab.tsx               # NEW: portal/country stats table
-│       ├── MLModelsTab.tsx                     # NEW: MAPE table + retrain button
-│       ├── UsersTab.tsx                        # NEW: paginated user list
-│       ├── CountriesTab.tsx                    # NEW: enable/disable + portal editor
-│       └── SystemHealthTab.tsx                 # NEW: NATS/DB/Redis metrics
-├── hooks/
-│   ├── useZoneStats.ts                         # NEW: fetches zone detail + analytics together
-│   ├── useZoneComparison.ts                    # NEW: multi-zone analytics fetch
-│   ├── usePortfolio.ts                         # NEW: portfolio CRUD + summary queries
-│   ├── useExchangeRates.ts                     # NEW: fetches rates from Route Handler
-│   ├── useAdminScraping.ts                     # NEW: admin scraping stats
-│   ├── useAdminML.ts                           # NEW: admin ML models + retrain mutation
-│   ├── useAdminUsers.ts                        # NEW: admin user list (paginated)
-│   ├── useAdminCountries.ts                    # NEW: country list + toggle mutation
-│   └── useAdminSystem.ts                       # NEW: system health metrics
-├── lib/
-│   └── currency.ts                             # NEW: conversion utils, formatCurrency()
-├── middleware.ts                               # EXTEND: add admin role guard
-└── messages/
-    └── en.json                                 # EXTEND: zone, portfolio, admin i18n keys
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
+
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
-No constitution violations requiring justification.
+> **Fill ONLY if Constitution Check has violations that must be justified**
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

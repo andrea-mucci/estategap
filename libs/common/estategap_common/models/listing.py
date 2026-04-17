@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Literal
@@ -80,6 +81,23 @@ class NormalizedListing(EstateGapModel):
     has_lift: bool | None = None
     has_pool: bool | None = None
     year_built: int | None = None
+    council_tax_band: str | None = None
+    epc_rating: str | None = None
+    tenure: str | None = None
+    leasehold_years_remaining: int | None = None
+    seller_type: str | None = None
+    omi_zone_code: str | None = None
+    omi_price_min_eur_m2: Decimal | None = None
+    omi_price_max_eur_m2: Decimal | None = None
+    omi_period: str | None = None
+    price_vs_omi: Decimal | None = None
+    bag_id: str | None = None
+    official_area_m2: Decimal | None = None
+    dvf_nearby_count: int | None = None
+    dvf_median_price_m2: Decimal | None = None
+    uk_lr_match_count: int | None = None
+    uk_lr_last_price_gbp: int | None = None
+    uk_lr_last_date: date | None = None
     cadastral_ref: str | None = None
     official_built_area_m2: Decimal | None = None
     area_discrepancy_flag: bool | None = None
