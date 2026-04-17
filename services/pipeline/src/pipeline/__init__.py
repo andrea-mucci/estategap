@@ -1,1 +1,1 @@
-"""Pipeline database package."""
+"""Pipeline service package."""

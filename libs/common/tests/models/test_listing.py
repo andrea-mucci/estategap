@@ -47,7 +47,18 @@ def _normalized_listing_payload() -> dict[str, object]:
         "plot_area_m2": None,
         "bedrooms": 3,
         "bathrooms": 2,
+        "floor_number": 2,
+        "total_floors": 5,
+        "parking_spaces": 1,
+        "has_lift": True,
+        "has_pool": False,
+        "year_built": 2005,
+        "condition": "good",
+        "energy_rating": "A",
         "status": ListingStatus.ACTIVE,
+        "description_orig": "Sunny apartment in central Madrid",
+        "images_count": 12,
+        "data_completeness": 0.75,
         "first_seen_at": _aware_datetime(),
         "last_seen_at": _aware_datetime(),
         "published_at": _aware_datetime(),
@@ -61,6 +72,7 @@ def test_normalized_listing_valid_construction() -> None:
     assert listing.country == "ES"
     assert listing.currency == "EUR"
     assert listing.property_category is PropertyCategory.RESIDENTIAL
+    assert listing.data_completeness == pytest.approx(0.75)
 
 
 @pytest.mark.parametrize(

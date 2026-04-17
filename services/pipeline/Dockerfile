@@ -18,4 +18,8 @@ COPY --from=builder /app /app
 
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Override this at deploy time to select the long-running worker you want:
+#   python -m pipeline.normalizer
+#   python -m pipeline.deduplicator
+# Kubernetes sets the container command per Deployment instead of baking it into the image.
 CMD ["python", "main.py"]

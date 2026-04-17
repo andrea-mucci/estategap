@@ -1,0 +1,82 @@
+portal: fotocasa
+country: ES
+
+fields:
+  price:
+    target: asking_price
+    transform: null
+  propertyTypeId:
+    target: property_type
+    transform: map_property_type
+  surface:
+    target: built_area
+    transform: null
+  rooms:
+    target: bedrooms
+    transform: null
+  bathrooms:
+    target: bathrooms
+    transform: null
+  floor:
+    target: floor_number
+    transform: null
+  hasLift:
+    target: has_lift
+    transform: null
+  parkingIncluded:
+    target: parking_spaces
+    transform: null
+  constructionYear:
+    target: year_built
+    transform: null
+  status:
+    target: condition
+    transform: map_condition
+  energyCertification:
+    target: energy_rating
+    transform: null
+  latitude:
+    target: _lat
+    transform: null
+  longitude:
+    target: _lon
+    transform: null
+  detailUrl:
+    target: source_url
+    transform: null
+  description:
+    target: description_orig
+    transform: null
+  multimedia.images.count:
+    target: images_count
+    transform: null
+  address:
+    target: address
+    transform: null
+  city:
+    target: city
+    transform: null
+  province:
+    target: region
+    transform: null
+  postalCode:
+    target: postal_code
+    transform: null
+
+property_type_map:
+  1: residential
+  2: residential
+  3: residential
+  4: commercial
+  5: industrial
+  6: land
+
+condition_map:
+  good: good
+  new: new
+  secondhand: good
+  toReform: needs_renovation
+
+currency_field: null
+area_unit_field: null
+country_uses_pieces: false

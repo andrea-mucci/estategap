@@ -1,0 +1,92 @@
+portal: idealista
+country: ES
+
+fields:
+  precio:
+    target: asking_price
+    transform: null
+  tipologia:
+    target: property_type
+    transform: map_property_type
+  superficie:
+    target: built_area
+    transform: null
+  habitaciones:
+    target: bedrooms
+    transform: null
+  banos:
+    target: bathrooms
+    transform: null
+  planta:
+    target: floor_number
+    transform: null
+  ascensor:
+    target: has_lift
+    transform: null
+  garaje:
+    target: parking_spaces
+    transform: null
+  terraza:
+    target: has_terrace
+    transform: null
+  anoConstruccion:
+    target: year_built
+    transform: null
+  estado:
+    target: condition
+    transform: map_condition
+  certificadoEnergetico:
+    target: energy_rating
+    transform: null
+  latitud:
+    target: _lat
+    transform: null
+  longitud:
+    target: _lon
+    transform: null
+  url:
+    target: source_url
+    transform: null
+  descripcion:
+    target: description_orig
+    transform: null
+  numFotos:
+    target: images_count
+    transform: null
+  direccion:
+    target: address
+    transform: null
+  municipio:
+    target: city
+    transform: null
+  provincia:
+    target: region
+    transform: null
+  codigoPostal:
+    target: postal_code
+    transform: null
+
+property_type_map:
+  piso: residential
+  atico: residential
+  casa: residential
+  chalet: residential
+  duplex: residential
+  estudio: residential
+  local: commercial
+  oficina: commercial
+  nave: industrial
+  terreno: land
+  solar: land
+  garaje: commercial
+
+condition_map:
+  buenEstado: good
+  paraReformar: needs_renovation
+  obraEnCurso: needs_renovation
+  obraGuarderia: new
+  obraNueva: new
+
+currency_field: null
+area_unit_field: null
+country_uses_pieces: false
