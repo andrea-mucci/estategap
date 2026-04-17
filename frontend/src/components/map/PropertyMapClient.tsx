@@ -360,6 +360,7 @@ export function PropertyMapClient({ country }: { country: string }) {
       </div>
       <div
         className="h-screen overflow-hidden rounded-[28px] border border-white/70 md:h-[640px]"
+        data-testid="map-container"
         ref={containerRef}
       />
     </div>

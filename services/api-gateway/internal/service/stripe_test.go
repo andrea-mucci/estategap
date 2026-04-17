@@ -132,3 +132,33 @@ func TestStripeServiceParseWebhookEventRejectsInvalidSignature(t *testing.T) {
 		t.Fatal("ParseWebhookEvent() error = nil, want invalid signature error")
 	}
 }
+
+func TestStripeServiceParseWebhookEventAcceptsFakeSignatureInTestMode(t *testing.T) {
+	t.Parallel()
+
+	t.Setenv("ESTATEGAP_TEST_MODE", "true")
+
+	payload := map[string]any{
+		"id":          "evt_testmode",
+		"object":      "event",
+		"api_version": stripe.APIVersion,
+		"type":        "invoice.payment_succeeded",
+	}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	svc := NewStripeService(&config.Config{
+		StripeSecretKey:     "sk_test_123",
+		StripeWebhookSecret: "whsec_test_fake",
+	})
+
+	event, err := svc.ParseWebhookEvent(payloadBytes, "whsec_test_fake")
+	if err != nil {
+		t.Fatalf("ParseWebhookEvent() error = %v", err)
+	}
+	if event.ID != "evt_testmode" {
+		t.Fatalf("event.ID = %q, want evt_testmode", event.ID)
+	}
+}

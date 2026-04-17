@@ -1,0 +1,48 @@
+suite: autoscaling
+templates:
+  - templates/api-gateway-deployment.yaml
+tests:
+  - it: renders an HPA with the configured replica bounds when enabled
+    values:
+      - values-test.yaml
+    set:
+      services.api-gateway.hpa.enabled: true
+      services.api-gateway.hpa.minReplicas: 2
+      services.api-gateway.hpa.maxReplicas: 5
+      services.api-gateway.hpa.cpuTarget: 65
+    asserts:
+      - hasDocuments:
+          count: 3
+      - equal:
+          documentIndex: 2
+          path: kind
+          value: HorizontalPodAutoscaler
+      - equal:
+          documentIndex: 2
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          documentIndex: 2
+          path: spec.maxReplicas
+          value: 5
+
+  - it: omits the HPA resource when autoscaling is disabled
+    values:
+      - values-test.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: flows maxReplicas through to the rendered HPA
+    values:
+      - values-test.yaml
+    set:
+      services.api-gateway.hpa.enabled: true
+      services.api-gateway.hpa.minReplicas: 1
+      services.api-gateway.hpa.maxReplicas: 7
+      services.api-gateway.hpa.cpuTarget: 70
+    asserts:
+      - equal:
+          documentIndex: 2
+          path: spec.maxReplicas
+          value: 7

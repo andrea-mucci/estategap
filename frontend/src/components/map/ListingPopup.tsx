@@ -52,7 +52,7 @@ export function ListingPopup({ listingId }: { listingId: string }) {
   const photo = listing.photo_urls?.[0] ?? listing.photo_url ?? "";
 
   return (
-    <div className="w-[260px] space-y-3">
+    <div className="w-[260px] space-y-3" data-testid="mini-listing-card">
       {photo ? (
         <img
           alt={listing.address ?? listing.id}

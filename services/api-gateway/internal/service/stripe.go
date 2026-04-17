@@ -1,8 +1,11 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/estategap/libs/models"
@@ -43,6 +46,19 @@ func (s *StripeService) DefaultPortalReturnURL() string {
 func (s *StripeService) ParseWebhookEvent(payload []byte, sigHeader string) (stripe.Event, error) {
 	if s == nil || s.cfg == nil {
 		return stripe.Event{}, errors.New("stripe not configured")
+	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("ESTATEGAP_TEST_MODE")), "true") {
+		expected := strings.TrimSpace(s.cfg.StripeWebhookSecret)
+		if expected == "" || strings.TrimSpace(sigHeader) != expected {
+			return stripe.Event{}, errors.New("invalid test-mode stripe signature")
+		}
+
+		var event stripe.Event
+		if err := json.Unmarshal(payload, &event); err != nil {
+			return stripe.Event{}, err
+		}
+		slog.Info("[test-mode] Stripe webhook accepted with fake signature", "event_id", event.ID, "type", string(event.Type))
+		return event, nil
 	}
 	return webhook.ConstructEvent(payload, sigHeader, s.cfg.StripeWebhookSecret)
 }

@@ -39,6 +39,7 @@ class Config(BaseSettings):
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     litellm_model: str | None = Field(default=None, alias="LITELLM_MODEL")
+    fake_llm_provider: bool = Field(default=False, alias="FAKE_LLM_PROVIDER")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     database_url: str = Field(alias="DATABASE_URL")
     api_gateway_grpc_addr: str = Field(

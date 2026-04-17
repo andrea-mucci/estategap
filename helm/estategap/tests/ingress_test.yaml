@@ -1,0 +1,30 @@
+suite: ingress
+templates:
+  - templates/ingress.yaml
+tests:
+  - it: renders the application host using cluster.domain
+    values:
+      - values-test.yaml
+    asserts:
+      - equal:
+          documentIndex: 3
+          path: spec.routes[0].match
+          value: Host(`app.localhost`)
+
+  - it: routes API traffic to the api-gateway service
+    values:
+      - values-test.yaml
+    asserts:
+      - equal:
+          documentIndex: 4
+          path: spec.routes[0].services[0].name
+          value: api-gateway
+
+  - it: routes websocket traffic to the websocket-server service
+    values:
+      - values-test.yaml
+    asserts:
+      - equal:
+          documentIndex: 5
+          path: spec.routes[0].services[0].name
+          value: websocket-server

@@ -93,23 +93,33 @@ export function ListingDetailPage({
         <p className="text-sm text-slate-500">{getListingLocation(listing)}</p>
       </div>
       <PhotoGallery photoUrls={listing.photo_urls} />
-      <KeyStatsBar listing={listing} locale={locale} />
+      <div data-testid="stats-panel">
+        <KeyStatsBar listing={listing} locale={locale} />
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <DealScoreCard listing={listing} locale={locale} />
-        <ShapChart listing={listing} />
+        <div data-testid="shap-chart">
+          <ShapChart listing={listing} />
+        </div>
       </div>
 
-      <PriceHistoryChart listing={listing} locale={locale} />
-      <ComparableCarousel comparableIds={listing.comparable_ids} />
+      <div data-testid="price-history">
+        <PriceHistoryChart listing={listing} locale={locale} />
+      </div>
+      <div data-testid="comparables">
+        <ComparableCarousel comparableIds={listing.comparable_ids} />
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <ZoneStatsCard listing={listing} locale={locale} />
-        <ListingMiniMap
-          latitude={listing.latitude}
-          longitude={listing.longitude}
-          pois={listing.zone_stats?.pois ?? undefined}
-        />
+        <div data-testid="map-embed">
+          <ListingMiniMap
+            latitude={listing.latitude}
+            longitude={listing.longitude}
+            pois={listing.zone_stats?.pois ?? undefined}
+          />
+        </div>
       </div>
 
       <DescriptionSection listing={listing} />

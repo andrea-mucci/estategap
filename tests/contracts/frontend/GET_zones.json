@@ -1,0 +1,27 @@
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Salamanca",
+      "name_local": "Salamanca",
+      "country": "ES",
+      "level": 4,
+      "parent_id": "550e8400-e29b-41d4-a716-446655440001",
+      "slug": "madrid-salamanca",
+      "area_km2": 5.2,
+      "listing_count": 128,
+      "median_price_m2_eur": 7032.1,
+      "deal_count": 16,
+      "price_trend_pct": 4.2
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 20,
+    "total": 1,
+    "total_pages": 1
+  },
+  "meta": {
+    "total_count": 1
+  }
+}

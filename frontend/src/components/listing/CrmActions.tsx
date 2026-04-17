@@ -25,7 +25,7 @@ export function CrmActions({
   const { crmEntry, updating, updateStatus } = useCrmStatus(listingId);
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" data-testid="crm-actions">
       <div>
         <h2 className="text-xl font-semibold text-slate-950">{t("crmActions")}</h2>
         <p className="text-sm text-slate-500">{t("crmSubtitle")}</p>
@@ -38,6 +38,7 @@ export function CrmActions({
           return (
             <Button
               className={cn(active ? "" : "bg-white text-slate-700 hover:bg-slate-50")}
+              data-testid={`crm-action-${status}`}
               disabled={updating}
               key={status}
               onClick={() => void updateStatus(active ? null : status)}

@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from .base import BaseLLMProvider, LLMMessage
 from .claude import ClaudeProvider
+from .fake_provider import FakeLLMProvider
 from .litellm import LiteLLMProvider
 from .openai import OpenAIProvider
 
@@ -39,6 +40,7 @@ else:
 
 _REGISTRY: dict[str, type[Any]] = {
     "claude": ClaudeProvider,
+    "fake": FakeLLMProvider,
     "openai": OpenAIProvider,
     "litellm": LiteLLMProvider,
 }
@@ -54,6 +56,8 @@ RETRYABLE_ERRORS: tuple[type[BaseException], ...] = (
 def get_provider(name: str, config: object) -> BaseLLMProvider:
     """Instantiate a provider by name."""
 
+    if getattr(config, "fake_llm_provider", False):
+        return FakeLLMProvider(config)
     provider_cls = _REGISTRY.get(name)
     if provider_cls is None:
         raise ValueError(f"Unknown LLM provider: {name!r}")

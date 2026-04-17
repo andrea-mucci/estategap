@@ -1,0 +1,271 @@
+[
+  {
+    "id": "8b51bba3-85d9-5edd-a34c-440c22a8635f",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "ES deals under 325,000",
+    "zone_ids": [
+      "a41e5c93-1e5c-5a39-9177-4a796f94ea17"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "ES",
+      "max_price_eur": 325000,
+      "zone_ids": [
+        "a41e5c93-1e5c-5a39-9177-4a796f94ea17"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      }
+    ],
+    "frequency": "instant",
+    "is_active": true,
+    "created_at": "2026-03-13T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "4b5a07b0-75ab-5a1e-b3ab-e139f5856d59",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "ES deals under 410,000",
+    "zone_ids": [
+      "61155c1b-47e5-5d81-8359-2e01bed5526b"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "ES",
+      "max_price_eur": 410000,
+      "zone_ids": [
+        "61155c1b-47e5-5d81-8359-2e01bed5526b"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      },
+      {
+        "type": "push"
+      }
+    ],
+    "frequency": "daily",
+    "is_active": true,
+    "created_at": "2026-03-14T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "d89db3f5-68aa-5eff-9391-f61bd6c63b43",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "IT deals under 390,000",
+    "zone_ids": [
+      "9a7c92a0-d82e-59b8-b0a9-b6cbdc44ab85"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "IT",
+      "max_price_eur": 390000,
+      "zone_ids": [
+        "9a7c92a0-d82e-59b8-b0a9-b6cbdc44ab85"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      }
+    ],
+    "frequency": "instant",
+    "is_active": true,
+    "created_at": "2026-03-15T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "7672f89e-c7c2-54ce-af54-58604437d513",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "IT deals under 455,000",
+    "zone_ids": [
+      "a8b4cd90-b49e-53d6-bb1a-40880a7e700b"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "IT",
+      "max_price_eur": 455000,
+      "zone_ids": [
+        "a8b4cd90-b49e-53d6-bb1a-40880a7e700b"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      }
+    ],
+    "frequency": "daily",
+    "is_active": true,
+    "created_at": "2026-03-16T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "aa11c9f3-ed5f-5203-a13e-2e1d630066d0",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "FR deals under 520,000",
+    "zone_ids": [
+      "d7e48979-a3e7-5df1-8bc0-96af0d7a8cff"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "FR",
+      "max_price_eur": 520000,
+      "zone_ids": [
+        "d7e48979-a3e7-5df1-8bc0-96af0d7a8cff"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      }
+    ],
+    "frequency": "instant",
+    "is_active": true,
+    "created_at": "2026-03-17T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "b9b0aade-3abf-5b2f-8e51-c5368b2ac317",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "PT deals under 285,000",
+    "zone_ids": [
+      "817f5257-2ef7-5b82-81b2-81e0888417c1"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "PT",
+      "max_price_eur": 285000,
+      "zone_ids": [
+        "817f5257-2ef7-5b82-81b2-81e0888417c1"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      }
+    ],
+    "frequency": "hourly",
+    "is_active": true,
+    "created_at": "2026-03-18T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "5ba76dc1-2d16-5a33-966e-acf57a52e649",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "GB deals under 600,000",
+    "zone_ids": [
+      "31da55d5-4cc6-5d1b-ae29-1e6de9c7eecc"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "GB",
+      "max_price_eur": 600000,
+      "zone_ids": [
+        "31da55d5-4cc6-5d1b-ae29-1e6de9c7eecc"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      }
+    ],
+    "frequency": "instant",
+    "is_active": true,
+    "created_at": "2026-03-19T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "9a881c5c-23dc-5b43-8a85-b62cb8f3f2ef",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "ES deals under 250,000",
+    "zone_ids": [
+      "a41e5c93-1e5c-5a39-9177-4a796f94ea17"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "ES",
+      "max_price_eur": 250000,
+      "zone_ids": [
+        "a41e5c93-1e5c-5a39-9177-4a796f94ea17"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      },
+      {
+        "type": "webhook"
+      }
+    ],
+    "frequency": "daily",
+    "is_active": true,
+    "created_at": "2026-03-20T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "eb76dff6-75dc-52b5-a7ec-601d4297342c",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "PT deals under 225,000",
+    "zone_ids": [
+      "817f5257-2ef7-5b82-81b2-81e0888417c1"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "PT",
+      "max_price_eur": 225000,
+      "zone_ids": [
+        "817f5257-2ef7-5b82-81b2-81e0888417c1"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      }
+    ],
+    "frequency": "instant",
+    "is_active": true,
+    "created_at": "2026-03-21T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  },
+  {
+    "id": "9b2b718b-b095-52c6-8064-ac1f9fdf4a51",
+    "user_id": "93d43d5b-1316-5823-b272-95d8a20106a5",
+    "name": "FR deals under 650,000",
+    "zone_ids": [
+      "d7e48979-a3e7-5df1-8bc0-96af0d7a8cff"
+    ],
+    "category": "residential",
+    "filter": {
+      "country": "FR",
+      "max_price_eur": 650000,
+      "zone_ids": [
+        "d7e48979-a3e7-5df1-8bc0-96af0d7a8cff"
+      ],
+      "min_bedrooms": 2
+    },
+    "channels": [
+      {
+        "type": "email"
+      },
+      {
+        "type": "push"
+      }
+    ],
+    "frequency": "hourly",
+    "is_active": true,
+    "created_at": "2026-03-22T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "Madrid Apartments Under 500k",
+  "zone_ids": [
+    "550e8400-e29b-41d4-a716-446655440000"
+  ],
+  "category": "residential",
+  "filter": {
+    "price_eur": {
+      "lte": 500000
+    },
+    "bedrooms": {
+      "gte": 3
+    }
+  },
+  "channels": [
+    {
+      "type": "email"
+    }
+  ],
+  "is_active": true,
+  "created_at": "2026-04-17T10:00:00Z",
+  "updated_at": "2026-04-17T10:00:00Z"
+}

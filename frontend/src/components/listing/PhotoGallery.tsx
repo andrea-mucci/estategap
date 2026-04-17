@@ -25,7 +25,10 @@ export function PhotoGallery({
 
   if (slides.length === 0) {
     return (
-      <div className="flex h-[340px] items-center justify-center rounded-[32px] bg-slate-100 text-slate-400">
+      <div
+        className="flex h-[340px] items-center justify-center rounded-[32px] bg-slate-100 text-slate-400"
+        data-testid="photo-gallery"
+      >
         <div className="flex items-center gap-2">
           <ImageIcon className="h-5 w-5" />
           {t("photoGalleryEmpty")}
@@ -35,7 +38,7 @@ export function PhotoGallery({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="photo-gallery">
       <button
         className="relative block h-[380px] w-full overflow-hidden rounded-[32px] bg-slate-100"
         onClick={() => setOpen(true)}

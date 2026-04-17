@@ -54,22 +54,38 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: libs/pkg
+            flag: libs-pkg
+          - module: services/api-gateway
+            flag: services-api-gateway
+          - module: services/ws-server
+            flag: services-ws-server
+          - module: services/scrape-orchestrator
+            flag: services-scrape-orchestrator
+          - module: services/proxy-manager
+            flag: services-proxy-manager
+          - module: services/alert-engine
+            flag: services-alert-engine
+          - module: services/alert-dispatcher
+            flag: services-alert-dispatcher
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23"
           cache: true
-      - run: |
-          for dir in libs/pkg \
-            services/api-gateway \
-            services/ws-server \
-            services/scrape-orchestrator \
-            services/proxy-manager \
-            services/alert-engine \
-            services/alert-dispatcher; do
-            (cd "$dir" && go test ./...)
-          done
+      - run: go test -race -coverprofile=coverage.out -covermode=atomic -tags '!integration' ./...
+        working-directory: ${{ matrix.module }}
+      - run: bash "${GITHUB_WORKSPACE}/scripts/check-go-coverage.sh" coverage.out
+        working-directory: ${{ matrix.module }}
+      - uses: codecov/codecov-action@v4
+        with:
+          files: ${{ matrix.module }}/coverage.out
+          flags: go-${{ matrix.flag }}
+          name: go-${{ matrix.flag }}
 
   build:
     runs-on: ubuntu-latest

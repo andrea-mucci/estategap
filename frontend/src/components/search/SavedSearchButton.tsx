@@ -25,7 +25,7 @@ export function SavedSearchButton() {
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button data-testid="save-search-button" variant="outline">
           <Bookmark className="mr-2 h-4 w-4" />
           {t("saveSearch")}
         </Button>
@@ -39,6 +39,7 @@ export function SavedSearchButton() {
             </p>
           </div>
           <Input
+            data-testid="save-search-name"
             onChange={(event) => setName(event.target.value)}
             placeholder={t("saveSearchPlaceholder")}
             value={name}
@@ -48,6 +49,7 @@ export function SavedSearchButton() {
               {tCommon("cancel")}
             </Button>
             <Button
+              data-testid="save-search-confirm"
               disabled={!name.trim() || isSaving}
               onClick={async () => {
                 await createSavedSearch({

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "31da55d5-4cc6-5d1b-ae29-1e6de9c7eecc",
+    "name": "London Zone 1",
+    "name_local": "London Zone 1",
+    "country_code": "GB",
+    "level": 3,
+    "parent_id": null,
+    "geometry_wkt": "MULTIPOLYGON(((-0.1876 51.4672,-0.0676 51.4672,-0.0676 51.5472,-0.1876 51.5472,-0.1876 51.4672)))",
+    "bbox_wkt": "POLYGON((-0.1876 51.4672,-0.0676 51.4672,-0.0676 51.5472,-0.1876 51.5472,-0.1876 51.4672))",
+    "population": 8960000,
+    "area_km2": 1572.0,
+    "slug": "gb-london-zone-1",
+    "osm_id": 100001,
+    "city": "London",
+    "region": "Greater London",
+    "district": "Westminster",
+    "lon": -0.1276,
+    "lat": 51.5072,
+    "postal_prefix": "SW1",
+    "created_at": "2025-12-02T12:00:00+00:00",
+    "updated_at": "2026-03-31T12:00:00+00:00"
+  }
+]

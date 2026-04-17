@@ -75,7 +75,11 @@ export function SummaryCards({ country }: { country: string }) {
         const value = summary[item.key];
 
         return (
-          <Card id={index === 0 ? "dashboard-summary-card" : undefined} key={item.key}>
+          <Card
+            data-testid={`dashboard-summary-card-${item.key}`}
+            id={index === 0 ? "dashboard-summary-card" : undefined}
+            key={item.key}
+          >
             <CardContent className="pt-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
