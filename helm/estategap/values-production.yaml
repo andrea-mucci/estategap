@@ -22,6 +22,9 @@ services:
   scrape-orchestrator:
     image:
       tag: 0.1.0
+  proxy-manager:
+    image:
+      tag: 0.1.0
   spider-workers:
     image:
       tag: 0.1.0

@@ -39,9 +39,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 010-scrape-orchestrator-proxy: Added Go 1.23
 - 009-openapi-grpc-alerts: Added Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, google.golang.org/grpc (existing), gopkg.in/yaml.v3 (for YAML→JSON conversion), embed (stdlib)
 - 008-stripe-subscriptions: Added Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, stripe-go/v81 (new), viper v1.19.0, slog (stdlib)
-- 007-listing-zone-endpoints: Added Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, shopspring/decimal v1.4.0
 
 
 <!-- MANUAL ADDITIONS START -->
