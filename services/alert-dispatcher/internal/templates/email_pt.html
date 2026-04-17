@@ -1,0 +1,32 @@
+{{define "email"}}
+<!DOCTYPE html>
+<html lang="pt">
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fb;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+          <tr><td style="padding:24px 32px;background:#0f172a;color:#ffffff;font-size:24px;font-weight:bold;">EstateGap</td></tr>
+          {{if .PhotoURL}}<tr><td><img src="{{.PhotoURL}}" alt="Imovel" style="display:block;width:100%;height:auto;"></td></tr>{{end}}
+          <tr><td style="padding:32px;">
+            <p style="margin:0 0 8px 0;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">Novo alerta</p>
+            <h1 style="margin:0 0 8px 0;font-size:28px;">{{.Address}}</h1>
+            <p style="margin:0 0 16px 0;font-size:22px;font-weight:bold;">{{.PriceFormatted}}</p>
+            <p style="display:inline-block;margin:0 0 24px 0;padding:8px 14px;border-radius:999px;background:{{.DealBadgeColor}};color:#ffffff;font-size:13px;font-weight:bold;">Nivel {{.DealTier}}</p>
+            {{if .IsDigest}}
+            <h2 style="margin:0 0 12px 0;font-size:20px;">Resumo</h2>
+            <p style="margin:0 0 20px 0;color:#475569;">{{.TotalMatches}} oportunidades prontas.</p>
+            {{range .Listings}}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 16px 0;border:1px solid #e2e8f0;border-radius:12px;"><tr><td style="padding:16px;"><strong style="display:block;margin-bottom:4px;">{{.Title}}</strong><span style="display:block;margin-bottom:4px;color:#475569;">{{.City}}</span><span style="display:block;margin-bottom:8px;">{{.PriceFormatted}} · Score {{.DealScore}}</span><a href="{{.AnalysisURL}}" style="color:#0f766e;">Abrir analise</a></td></tr></table>{{end}}
+            {{else}}
+            <ul style="margin:0 0 24px 20px;padding:0;color:#334155;">{{range .Features}}<li style="margin-bottom:6px;">{{.}}</li>{{end}}</ul>
+            {{end}}
+            <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="padding-right:12px;"><a href="{{.TrackClickAnalysis}}" style="display:inline-block;padding:12px 20px;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:999px;">Ver analise</a></td><td><a href="{{.TrackClickPortal}}" style="display:inline-block;padding:12px 20px;background:#e2e8f0;color:#0f172a;text-decoration:none;border-radius:999px;">Ver portal</a></td></tr></table>
+          </td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+  <img src="{{.TrackOpenURL}}" width="1" height="1" alt="">
+</body>
+</html>
+{{end}}
