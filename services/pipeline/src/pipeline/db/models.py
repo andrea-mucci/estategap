@@ -415,15 +415,10 @@ class AiMessage(Base):
 
 
 class MlModelVersion(Base):
-    __tablename__ = "ml_model_versions"
+    __tablename__ = "model_versions"
     __table_args__ = (
-        sa.Index("ix_ml_model_versions_country_code_status", "country_code", "status"),
-        sa.Index(
-            "uq_ml_model_versions_active_country",
-            "country_code",
-            unique=True,
-            postgresql_where=sa.text("status = 'active'"),
-        ),
+        sa.Index("ix_model_versions_country_code_status", "country_code", "status"),
+        sa.UniqueConstraint("country_code", "version_tag", name="uq_model_versions_country_version_tag"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -437,11 +432,11 @@ class MlModelVersion(Base):
         nullable=False,
     )
     algorithm: Mapped[str] = mapped_column(
-        sa.String(30),
+        sa.String(50),
         nullable=False,
         server_default=sa.text("'lightgbm'"),
     )
-    version_tag: Mapped[str] = mapped_column(sa.String(40), nullable=False, unique=True)
+    version_tag: Mapped[str] = mapped_column(sa.String(100), nullable=False)
     artifact_path: Mapped[str] = mapped_column(sa.Text, nullable=False)
     dataset_ref: Mapped[str | None] = mapped_column(sa.Text)
     feature_names: Mapped[StringList] = mapped_column(

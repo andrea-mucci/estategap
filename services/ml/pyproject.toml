@@ -3,18 +3,35 @@ name = "estategap-ml"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "asyncpg>=0.29",
+    "boto3>=1.34",
+    "joblib>=1.4",
     "lightgbm>=4.3",
+    "matplotlib>=3.9",
+    "mlflow>=2.13",
+    "nats-py>=2.6",
+    "numpy>=2.0",
     "onnxruntime>=1.18",
+    "onnxmltools>=1.12",
+    "optuna>=3.6",
+    "pandas>=2.2",
+    "prometheus-client>=0.20",
+    "pydantic-settings>=2.2",
+    "scikit-learn>=1.5",
     "shap>=0.45",
+    "skl2onnx>=1.17",
     "estategap-common",
+    "structlog>=24.1",
 ]
 
 [dependency-groups]
 dev = [
+    "moto>=5.0",
+    "mypy",
     "pytest",
     "pytest-asyncio",
-    "mypy",
     "ruff",
+    "testcontainers[postgres]>=4.4",
 ]
 
 [build-system]
@@ -26,3 +43,11 @@ packages = ["estategap_ml"]
 
 [tool.uv.sources]
 estategap-common = { path = "../../libs/common", editable = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
