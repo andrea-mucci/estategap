@@ -298,3 +298,216 @@ With three developers after Phase 2 completes:
 - Visual baselines (T069) must be generated on a stable build then committed — never auto-regenerated in CI
 - `@pytest.mark.slow` marks the keepalive/idle test (T041, ~31 s); exclude from fast feedback loop with `-m "not slow"`
 - Rate limit tests (T034) use `pytest-xdist -n 5` parallelism; ensure `TEST_RUN_ID` isolation prevents token-sharing between tier tests
+
+---
+
+---
+
+# User Journey Tests — Implementation Tasks
+
+**Branch**: `032-e2e-user-journeys`
+**Extends**: Tasks above (031-e2e-test-suite) which are complete
+**Scope**: 15 user journey tests in `tests/usecase/`
+
+---
+
+## Phase 9: User Journey Infrastructure (UJ Scaffold + Helpers)
+
+**Purpose**: Create the `tests/usecase/` project and all shared helpers that every journey test depends on.
+
+**⚠️ CRITICAL**: All phases 10–13 are blocked until this phase is complete.
+
+- [ ] T076 Create `tests/usecase/` directory and `tests/usecase/pyproject.toml` as a standalone uv project with dependencies: `playwright>=1.43`, `asyncpg>=0.29`, `kubernetes>=29.0`, `httpx>=0.27`, `nats-py>=2.6`, `websockets>=12.0`, `redis>=5.0`, `pydantic>=2.8`, `pytest>=8.2`, `pytest-asyncio>=0.23`, `ruff>=0.6`, `mypy>=1.11`; set `[tool.uv] package = false`; copy ruff/mypy config from `tests/e2e/pyproject.toml`
+
+- [ ] T077 Create `tests/usecase/pytest.ini` with: `asyncio_mode = auto`, markers `usecase`, `browser`, `slow`, `api`, `testpaths = .`, `python_files = uj*_test.py`, `python_classes = TestUJ*`, `python_functions = test_*`, `timeout = 300`, `log_cli = true`, `log_cli_level = INFO`
+
+- [ ] T078 Create `tests/usecase/conftest.py` with: (1) `sys.path` insert for `REPO_ROOT` and `tests/e2e/` so `tests/e2e/helpers/` is importable; (2) session-scoped `cluster` async fixture that instantiates `ClusterHelper` from `helpers/cluster.py`, calls `assert helper.is_ready()` and `assert helper.fixtures_loaded()`; (3) function-scoped `test_context` async fixture that creates `TestContext(cluster=cluster, test_name=request.node.name, run_id=uuid4().hex[:8])`, yields it, calls `await context.cleanup()` in teardown, and calls `await context.collect_failure_artifacts()` if `request.node.rep_call.failed` (use `pytest_runtest_makereport` hook to set `rep_call`); (4) `env_url` session fixture reading `GATEWAY_URL` (default `http://localhost:8080`), `WS_URL` (default `ws://localhost:8081`), `FRONTEND_URL` (default `http://localhost:3000`), `NATS_URL` (default `nats://localhost:4222`), `REDIS_URL` (default `redis://localhost:6379`), `GATEWAY_DB_DSN`
+
+- [ ] T079 [P] Create `tests/usecase/helpers/__init__.py` (empty); create `tests/usecase/helpers/api.py` implementing `ApiClient` with: `classmethod login(base_url, email, password) -> ApiClient` (calls `POST /api/v1/auth/login`, stores `access_token`, exposes `user: dict`); methods `create_alert_rule(payload) -> dict`, `delete_alert_rule(rule_id)`, `create_portfolio_item(payload) -> dict`, `delete_portfolio_item(item_id)`, `set_language_preference(lang: str)`, `set_currency_preference(currency: str)`, `get_listings(params: dict) -> dict`, `get_listing(id) -> dict`, `simulate_stripe_webhook(event_type: str, user_id: str, tier: str)`, `export_user_data() -> bytes`, `delete_account()`, `get_alert_rules() -> list`; wraps `AsyncAPIClient` from `tests/e2e/helpers/client.py`
+
+- [ ] T080 [P] Create `tests/usecase/helpers/ws.py` that re-exports `WSTestClient` from `tests/e2e/helpers/ws_client`; adds `collect_until_type(ws, msg_type, timeout=30) -> list[dict]` helper that reads messages until `msg["type"] == msg_type` and returns all collected messages; adds `collect_deal_alerts(ws, timeout=30) -> list[dict]` that collects until a `deal_alert` type arrives or timeout
+
+- [ ] T081 [P] Create `tests/usecase/helpers/cluster.py` implementing `ClusterHelper` with `__init__(namespace="estategap-system")`; `is_ready() -> bool`: runs `kubectl get pods -n {namespace} --field-selector=status.phase!=Running -o name` and returns True if output is empty; `fixtures_loaded() -> bool`: calls `kubectl exec -n {namespace} deploy/api-gateway -- wget -qO- http://localhost:8080/api/v1/listings?limit=1` and checks `total_count > 0` in JSON; `pod_logs(deployment: str, lines: int = 200) -> str`: runs `kubectl logs -n {namespace} deploy/{deployment} --tail={lines}`; `job_status(job_name: str) -> str`: parses `kubectl get job {job_name} -n {namespace} -o json` and returns `"succeeded"` / `"failed"` / `"running"`; `wait_for_job(job_name, timeout_seconds=300) -> bool`: polls `job_status()` every 10s until `succeeded` or `failed` or timeout; `exec_in_pod(deployment: str, cmd: list[str]) -> str`: runs `kubectl exec -n {namespace} deploy/{deployment} -- {cmd}`; all subprocess calls use `subprocess.run(..., capture_output=True, text=True, timeout=60)`
+
+- [ ] T082 [P] Create `tests/usecase/helpers/db.py` implementing `DbClient` as an async context manager; `__init__(dsn: str)` reads from `GATEWAY_DB_DSN` env; `async connect()` creates `asyncpg.create_pool(dsn, min_size=1, max_size=5)`; `async fetch(sql, *args) -> list[asyncpg.Record]`; `async fetchrow(sql, *args) -> asyncpg.Record`; `async execute(sql, *args)`; `async cleanup_by_run_id(run_id: str)`: deletes `listings` WHERE `source_id LIKE 'uj%-{run_id}-%'`, deletes `alert_rules` WHERE `name LIKE '%-{run_id}%'`, deletes `portfolio_properties` WHERE `name LIKE '{run_id}%'`; `async close()`: closes pool; class-level `@classmethod async def connect_from_env() -> DbClient`
+
+- [ ] T083 [P] Create `tests/usecase/helpers/fixtures.py` implementing: `async publish_raw_listing(nats_url: str, listing: dict) -> None` that connects `nats.aio.client.Client`, publishes `json.dumps(listing).encode()` to `raw.listings.{listing["country"].lower()}`, flushes and drains; `async inject_price_update(nats_url: str, listing_id: str, new_price_eur: float) -> None` that publishes a price-change event to `price.changes` subject with `{"listing_id": ..., "old_price_eur": ..., "new_price_eur": ..., "change_pct": ...}`; `def make_test_listing(run_id: str, seq: int, *, country="ES", city="Madrid", zone_id: str, asking_price: int = 450000, bedrooms: int = 2, property_type: str = "flat") -> dict`: returns a full raw listing dict with `source_id = f"uj-{run_id}-{seq:03d}"`, `source = "test-fixture"`, `published_at = datetime.now(UTC).isoformat()`
+
+- [ ] T084 [P] Create `tests/usecase/helpers/spies.py` implementing `EmailSpy` and `TelegramSpy`; both take `redis_url: str` in `__init__` and lazy-connect via `redis.asyncio.from_url(redis_url)`; `EmailSpy.received_for(email: str) -> bool`: checks `LLEN spy:email:{urllib.parse.quote(email, safe="")} > 0`; `EmailSpy.get_messages(email: str) -> list[dict]`: `LRANGE` all entries, JSON-decode each; `EmailSpy.clear(email: str)`: `DEL spy:email:{email}`; same pattern for `TelegramSpy` with key `spy:telegram:{chat_id}`; add `async def wait_for_spy(spy_fn, timeout=30, poll_interval=1) -> bool` helper that polls `spy_fn()` until True or timeout
+
+- [ ] T085 [P] Create `tests/usecase/helpers/time_travel.py` implementing `TimeTravel` with `configmap = "estategap-runtime"`, `namespace = "estategap-system"`, `affected_deployments = ["api-gateway", "alert-engine"]`; `async set_time(timestamp: datetime)`: runs `kubectl patch configmap {configmap} -n {namespace} --type merge -p '{json.dumps({"data":{"NOW_OVERRIDE": timestamp.isoformat()}})}'`; then for each deployment: `kubectl rollout restart deployment/{d} -n {namespace}` and `kubectl rollout status deployment/{d} -n {namespace} --timeout=3m`; `async advance_hours(n: int)`: calls `get_time()` + `timedelta(hours=n)` then `set_time()`; `async get_time() -> datetime`: runs `kubectl get configmap {configmap} -n {namespace} -o jsonpath='{.data.NOW_OVERRIDE}'` and parses ISO datetime; `async reset()`: removes `NOW_OVERRIDE` key with `kubectl patch configmap ... -p '{"data":{"NOW_OVERRIDE":null}}'` and restarts affected deployments
+
+- [ ] T086 [P] Create `tests/usecase/helpers/browser.py` implementing `BrowserHelper` using `playwright.async_api.async_playwright`; `__init__(base_url: str, headless: bool = True)`; `async start() -> BrowserHelper`: launches `chromium.launch(headless=headless)`, creates context with `viewport={"width":1280,"height":800}`; `async stop()`; use as async context manager; `async goto(path: str)`: `page.goto(f"{base_url}{path}", wait_until="networkidle")`; `async login(email: str, password: str)`: fills `[data-testid="email-input"]`, `[data-testid="password-input"]`, clicks `[data-testid="login-submit"]`, waits for URL to contain `/dashboard`; `async screenshot(name: str, artifacts_dir: Path) -> Path`: saves to `artifacts_dir / f"{name}.png"`; `@property page -> Page`; `PLAYWRIGHT_HEADLESS` env var overrides `headless` default
+
+- [ ] T087 [P] Create `tests/usecase/helpers/assertions.py` with: `BASELINES: dict[str, float] = {"uj02_search_to_detail": 3.0, "uj03_alert_latency": 15.0, "uj04_ai_to_alert": 30.0, "uj07_retrain_active": 180.0, "uj15_scrape_to_alert": 90.0}`; `REGRESSION_THRESHOLD = 1.20`; `def assert_within_baseline(test_name: str, actual: float) -> None`: if `actual > BASELINES[test_name] * REGRESSION_THRESHOLD` call `pytest.fail(...)`, elif `actual > BASELINES[test_name]` call `warnings.warn(...)`; `def assert_deal_tier(listing: dict, expected_tier: int)`: asserts `listing["deal_tier"] == expected_tier`; `def assert_gdpr_anonymized(user_row: asyncpg.Record)`: asserts `user_row["email"].startswith("deleted-")` and `user_row["email"].endswith("@estategap.test")` and `user_row["display_name"] is None`; `def assert_search_results_contain_countries(results: list[dict], expected_countries: list[str])`: checks each country appears at least once
+
+**Checkpoint**: `cd tests/usecase && uv sync && uv run pytest --collect-only` succeeds with no import errors.
+
+---
+
+## Phase 10: Core Multi-Service Journey Tests
+
+**Purpose**: Implement the six journey tests that exercise the full backend pipeline, multi-channel notifications, and time-sensitive business rules. These are API/NATS-only (no browser).
+
+**Goal**: `pytest -m "usecase and api and not slow"` passes for UJ-03, UJ-09, UJ-11, UJ-15; `pytest -m "usecase and slow"` passes for UJ-08.
+
+- [ ] T088 [US1] Create `tests/usecase/uj03_alert_notification_test.py` implementing `TestUJ03AlertNotification` with `@pytest.mark.usecase @pytest.mark.api`; `test_alert_multi_channel(test_context, env_url)`: (Given) `ApiClient.login(pro_user)`, `create_alert_rule({country=ES, zone_id=chamberí_zone_id, property_type=flat, max_price=600000, min_deal_tier=2, channels=[email,telegram,websocket], frequency=instant})`; (When) connect `WSTestClient`, start `asyncio.Task` collecting WS messages, instantiate `EmailSpy` and `TelegramSpy`, call `publish_raw_listing(nats_url, make_test_listing(run_id, zone_id=chamberí_zone_id))`; (Then) poll all three spies with 60s deadline using `asyncio.sleep(1)` loop; assert all three received; assert `latency < 60`; call `assert_within_baseline("uj03_alert_latency", latency)`; verify `alert_log` rows via `DbClient.fetch("SELECT channel FROM alert_log WHERE rule_id=$1", rule_id)` shows all three channels; resolve `chamberí_zone_id` at test start via `GET /api/v1/zones?country=ES&name=Chamberí`
+
+- [ ] T089 [US1] Create `tests/usecase/uj15_scrape_to_alert_latency_test.py` implementing `TestUJ15ScrapeToAlertLatency` with `@pytest.mark.usecase @pytest.mark.api`; `test_end_to_end_latency(test_context, env_url)`: (Given) create alert rule for pro user (ES, any zone, flat, max 800k, min_tier=1), connect WS spy task; (When) `start = time.monotonic()`, publish raw listing to NATS `raw.listings.es` and wait for `deal_alert` WS message via `collect_deal_alerts(ws, timeout=120)`; (Then) `latency = time.monotonic() - start`; assert `ws_hit` received; `assert_within_baseline("uj15_scrape_to_alert", latency)`; assert listing now exists in DB via `fetchrow("SELECT deal_tier FROM listings WHERE source_id=$1", source_id)` with tier 1 or 2; assert `alert_log` row exists
+
+- [ ] T090 [US1] Create `tests/usecase/uj11_price_drop_engagement_test.py` implementing `TestUJ11PriceDropEngagement` with `@pytest.mark.usecase @pytest.mark.api`; `test_price_drop_triggers_alert(test_context, env_url)`: (Given) pro user with alert rule (min_tier=1, channels=[email,websocket]); seed a test listing with `deal_tier=2`, `asking_price=550000` by publishing a raw listing and waiting for it to appear in `GET /listings`; (When) connect WS, `inject_price_update(nats_url, listing_id, new_price_eur=520000)` which triggers re-scoring and re-dispatch; poll `EmailSpy` and WS messages for up to 60s; (Then) assert email received with payload containing `listing_id`; assert WS `deal_alert` received; verify `deal_tier` in DB updated to 1; assert email payload has `tracking_url` field; simulate click by calling `GET {tracking_url}` and assert 200; verify CRM status can be set to `contacted` via `PUT /api/v1/portfolio/properties/{prop_id}` returning 200
+
+- [ ] T091 [US2] Create `tests/usecase/uj04_ai_chat_to_alert_test.py` implementing `TestUJ04AIChatToAlert` with `@pytest.mark.usecase @pytest.mark.api`; `test_conversational_search_creates_alert(test_context, env_url)`: (Given) `ApiClient.login(pro_user)`; (When) connect `WSTestClient(ws_url, token=api.access_token)`, send `chat_message` with text `"I'm looking for a 2-bedroom apartment in Madrid, under 500k, renovated"`; collect messages until `criteria_summary` received (`collect_messages(until_type="criteria_summary", timeout=30)`); send chip confirmation for zone `Chamberí` via `send_criteria_confirm(confirmed=True)` with notes `"zone: Chamberí, timing: this_year"`; collect next `criteria_summary`; (Then) assert `criteria_summary.payload.ready_to_search == True`; call `GET /api/v1/listings` with criteria params from summary, assert `total >= 5`; assert `GET /api/v1/alerts/rules` returns at least one rule matching the chat criteria; `assert latency < 60`; `assert_within_baseline("uj04_ai_to_alert", latency)` where latency measures from first `send_chat` to alert rule visible in API
+
+- [ ] T092 [US1] Create `tests/usecase/uj08_free_tier_delay_test.py` implementing `TestUJ08FreeTierDelay` with `@pytest.mark.usecase @pytest.mark.api @pytest.mark.slow`; `test_free_tier_delay(test_context, env_url)`: (Given) free user, `TimeTravel` instance; publish raw listing with `published_at = now()` and wait for pipeline to process it (poll `GET /listings?country=ES` until source_id appears for pro user, up to 60s); (When) free user calls `GET /api/v1/listings?country=ES` — assert the just-published listing does NOT appear (its `published_at` is < 48h ago); `TimeTravel.advance_hours(49)`, wait for pods to restart; free user retries `GET /api/v1/listings?country=ES` — assert listing NOW appears; (Then) assert `advance_hours` added exactly ~49h; call `TimeTravel.reset()` in teardown to restore real time; mark test as `slow` since pod restarts add ~60s
+
+- [ ] T093 [US3] Create `tests/usecase/uj05_subscription_upgrade_test.py` implementing `TestUJ05SubscriptionUpgrade` with `@pytest.mark.usecase @pytest.mark.api`; `test_basic_to_pro_upgrade(test_context, env_url)`: (Given) `ApiClient.login(basic_user)`; create 3 alert rules (loop); assert each succeeds with 201; (When) attempt 4th rule — assert response is 403 with body containing `"upgrade"` or `"Pro"` or `"limit"`; call `api.simulate_stripe_webhook(event_type="checkout.session.completed", user_id=api.user["id"], tier="pro")`; (Then) poll `GET /api/v1/subscriptions/me` until `tier == "pro"` or 10s; retry 4th alert rule creation — assert 201; total alert rules now 4; clean up all rules in teardown via `test_context`; note: webhook simulation calls `POST /api/v1/subscriptions/webhook` with pre-signed test payload defined in `helpers/api.py::simulate_stripe_webhook`
+
+**Checkpoint**: `pytest tests/usecase -m "usecase and api" -v` passes for UJ-03, UJ-05, UJ-09, UJ-11, UJ-15; `pytest -m slow` passes for UJ-08 (may take 3–4 minutes due to pod restarts).
+
+---
+
+## Phase 11: Browser-Based Journey Tests
+
+**Purpose**: Implement the five journey tests that require Playwright browser automation for user-facing flows.
+
+**Goal**: `pytest -m "usecase and browser" -v` passes for UJ-01, UJ-02, UJ-06, UJ-07, UJ-10.
+
+- [ ] T094 [US3] Create `tests/usecase/uj01_onboarding_test.py` implementing `TestUJ01Onboarding` with `@pytest.mark.usecase @pytest.mark.browser`; `test_new_user_registration_to_dashboard(test_context, env_url)`: (Given) `BrowserHelper(base_url=FRONTEND_URL)` started; generate unique email `f"uj01-{test_context.run_id}@estategap.test"`; (When) `browser.goto("/register")`; fill `[data-testid="email-input"]`, `[data-testid="password-input"]`, `[data-testid="display-name-input"]`; click `[data-testid="register-submit"]`; wait for URL to contain `/onboarding`; click through onboarding tour (next buttons, up to 5 steps); wait for URL to contain `/dashboard`; (Then) assert `page.url` contains `/dashboard`; assert `[data-testid="dashboard-welcome"]` visible; verify user exists in DB via `DbClient.fetchrow("SELECT id FROM users WHERE email=$1", email)`; call `browser.screenshot("dashboard_reached", artifacts_dir)` for evidence; cleanup: `DELETE /api/v1/me` using new user's token
+
+- [ ] T095 [US3] Create `tests/usecase/uj02_find_deal_test.py` implementing `TestUJ02FindDeal` with `@pytest.mark.usecase @pytest.mark.browser`; `test_search_tier1_deal_to_detail(test_context, env_url)`: (Given) `ApiClient.login(pro_user)`, `BrowserHelper` with pro user session injected via `browser.page.set_extra_http_headers({"Authorization": f"Bearer {api.access_token}"})`; `start = time.monotonic()`; (When) `browser.goto("/search")`; set filter `country=ES`, `city=Madrid`, `deal_tier=1`; wait for `[data-testid="listing-card"]` elements to appear; click first card; wait for URL to match `/listings/`; assert detail page loads: `[data-testid="price-display"]` visible, `[data-testid="estimated-value"]` visible, `[data-testid="confidence-range"]` visible, `[data-testid="shap-chart"]` visible (contains ≥ 5 factor rows), `[data-testid="comparable-card"]` elements count ≥ 5; `latency = time.monotonic() - start`; (Then) `assert latency < 5`; `assert_within_baseline("uj02_search_to_detail", latency)` — note: latency for UJ-02 covers the full browser flow from filter to detail page loaded
+
+- [ ] T096 [US3] Create `tests/usecase/uj06_portfolio_multi_currency_test.py` implementing `TestUJ06PortfolioMultiCurrency` with `@pytest.mark.usecase @pytest.mark.browser`; `test_portfolio_tracking_currency_switch(test_context, env_url)`: (Given) `ApiClient.login(pro_user)`, `BrowserHelper`; (When) `browser.goto("/portfolio")`; add 3 owned properties via API: `Madrid €450000 purchased 2020`, `London £350000 purchased 2022`, `Paris €600000 purchased 2023` (using `POST /api/v1/portfolio/properties`); reload portfolio page; assert all 3 cards visible, each has `[data-testid="ml-estimated-value"]` showing a value > 0, `[data-testid="gain-loss"]` showing ±% figure; assert `[data-testid="total-portfolio-value"]` visible with non-zero EUR amount; (Then) call `api.set_currency_preference("USD")`, reload page; assert prices now display `$` symbol; verify total value is reconverted (> 0, different numeric than EUR)
+
+- [ ] T097 [US3] Create `tests/usecase/uj07_admin_retrain_ml_test.py` implementing `TestUJ07AdminRetrain` with `@pytest.mark.usecase @pytest.mark.browser @pytest.mark.slow`; `test_manual_model_retrain(test_context, env_url)`: (Given) `ApiClient.login(admin_user)`, `BrowserHelper`, `ClusterHelper()`; (When) `browser.goto("/admin")`; click "ML Models" tab; assert `[data-testid="current-model-mape"]` visible; click `[data-testid="retrain-now-btn"]`; assert toast/status shows "Retraining started"; wait up to 3 minutes for `[data-testid="model-status"]` to show "active" for a new version (poll with `page.wait_for_selector` every 10s); (Then) verify K8s Job completed via `cluster.job_status("ml-retrain-job")` returns `"succeeded"`; call `GET /api/v1/model/estimate` with valid params and assert response uses new `model_version` field value; `assert_within_baseline("uj07_retrain_active", elapsed)` where elapsed = time from retrain click to model active
+
+- [ ] T098 [US3] Create `tests/usecase/uj10_gdpr_export_delete_test.py` implementing `TestUJ10GDPRExportDelete` with `@pytest.mark.usecase @pytest.mark.browser`; `test_gdpr_export_then_delete(test_context, env_url)`: (Given) create a fresh user `uj10-{run_id}@estategap.test` via register API; login; create 1 alert rule, 1 portfolio item, send 1 WS chat message to create conversation history; (When) `browser.goto("/settings")`, click `[data-testid="export-data-btn"]`, wait for download event using `page.expect_download()`, save to temp file; assert downloaded JSON contains keys `profile`, `conversations`, `alert_rules`, `portfolio`, `alert_history`; assert download completed within 30s; click `[data-testid="delete-account-btn"]`, click `[data-testid="confirm-delete-btn"]` in dialog; wait for redirect to `/` (logged out); (Then) attempt login with original credentials via API — assert 401; verify DB via `DbClient.fetchrow("SELECT email FROM users WHERE email LIKE 'uj10-%'")` — assert email starts with `deleted-` and ends with `@estategap.test` (PII anonymized via `assert_gdpr_anonymized`)
+
+**Checkpoint**: `pytest tests/usecase -m "usecase and browser" -v` passes for UJ-01, UJ-02, UJ-06, UJ-07, UJ-10 (UJ-07 and UJ-10 may take 2–3 minutes).
+
+---
+
+## Phase 12: Remaining Journey Tests
+
+**Purpose**: Implement the final six journey tests covering multi-country search, i18n, scraping recovery, WebSocket reconnection, and portfolio features. These can be implemented in parallel.
+
+- [ ] T099 [P] [US1] Create `tests/usecase/uj09_multi_country_search_test.py` implementing `TestUJ09MultiCountrySearch` with `@pytest.mark.usecase @pytest.mark.api`; `test_search_across_countries_with_currency_switch(test_context, env_url)`: (Given) `ApiClient.login(pro_user)` where pro_user has `allowed_countries=["ES","IT","FR"]`; (When) call `GET /api/v1/listings` with no country filter; (Then) assert response `data` contains listings with `country_code` values including `ES`, `IT`, `FR` (at least one each — use seeded data); assert all prices have `currency` field; call `api.set_currency_preference("EUR")`, re-fetch — assert prices display in EUR; call `api.set_currency_preference("GBP")`, re-fetch — assert `currency == "GBP"` in response and numeric values differ from EUR amounts; assert listing `prices.gbp` field is present and > 0
+
+- [ ] T100 [P] [US3] Create `tests/usecase/uj13_language_switch_test.py` implementing `TestUJ13LanguageSwitch` with `@pytest.mark.usecase @pytest.mark.browser`; `test_language_switch_preserves_url_state(test_context, env_url)`: (Given) `ApiClient.login(pro_user)`, `BrowserHelper`; (When) `browser.goto("/search?country=ES&city=Madrid&min_price=200000&max_price=500000")`; wait for results; assert URL has all 4 params; click language switcher (e.g. `[data-testid="lang-switcher"]`) and select `EN`; (Then) assert URL still contains `country=ES`, `city=Madrid`, `min_price=200000`, `max_price=500000` after locale change; assert at least one UI text element (e.g. the search input placeholder or filter label) is in English (not Spanish); assert `[data-testid="listing-card"]` count is same as before language switch (re-fetch did not break filters)
+
+- [ ] T101 [P] [US3] Create `tests/usecase/uj12_scraping_recovery_test.py` implementing `TestUJ12ScrapingRecovery` with `@pytest.mark.usecase @pytest.mark.browser @pytest.mark.slow`; `test_scraping_failure_and_recovery(test_context, env_url)`: (Given) `ApiClient.login(admin_user)`, `BrowserHelper`, `ClusterHelper()`; count listings before via `GET /api/v1/listings?country=ES` → `before_count`; (When) trigger a scraping job for Idealista via admin API `POST /admin/scraping/trigger` with proxy configured to fail (use test env var `PROXY_MODE=fail_403`); wait up to 60s for job status to show `failed`; verify admin received failure notification via `EmailSpy`; `browser.goto("/admin")`; assert `[data-testid="scraping-job-row"]` shows `failed` status; click `[data-testid="rotate-proxy-btn"]` to simulate proxy rotation; click `[data-testid="retrigger-scrape-btn"]`; wait for next job status `succeeded` (up to 90s); (Then) `after_count = GET /api/v1/listings?country=ES → total_count`; assert `after_count >= before_count` (zero listings lost); mark `@pytest.mark.slow` due to retry wait times
+
+- [ ] T102 [P] [US2] Create `tests/usecase/uj14_websocket_reconnect_test.py` implementing `TestUJ14WebSocketReconnect` with `@pytest.mark.usecase @pytest.mark.browser`; `test_ws_reconnection_preserves_session(test_context, env_url)`: (Given) `ApiClient.login(pro_user)`, `BrowserHelper`; (When) `browser.goto("/chat")`; send 3 messages via UI `[data-testid="chat-input"]` + `[data-testid="send-btn"]` and wait for each response (`[data-testid="assistant-message"]` count increases); record `session_id` from DOM `[data-testid="session-id"]` attribute; simulate network disconnect by calling `ClusterHelper().exec_in_pod("websocket-server", ["pkill", "-TERM", "-f", "connection_handler"])` (or equivalent to close existing WS connections); (Then) assert `[data-testid="reconnecting-indicator"]` appears within 3s; assert indicator disappears and chat is usable again within 10s; assert `[data-testid="session-id"]` attribute matches original `session_id`; assert previous 3 assistant messages still visible in DOM; send a 4th message and assert response received
+
+**Checkpoint**: `pytest tests/usecase -v` passes all 15 user journey tests (UJ-01 through UJ-15). Total elapsed < 30 minutes.
+
+---
+
+## Phase 13: Documentation & CI Integration
+
+**Purpose**: Document all 15 journey test scenarios with Given/When/Then, wire Makefile targets, and configure nightly CI.
+
+- [ ] T103 Create `docs/test-scenarios.md` with: (1) Introduction — purpose of user journey tests, when they run, how they differ from unit/integration tests; (2) for each UJ-01 through UJ-15: a section with ID, name, description, **Given/When/Then** steps (verbatim from plan.md user journey descriptions), services exercised, subscription tier required, performance target (if any), and make target to run it; (3) "Running Locally" section with prerequisites and commands; (4) "Debugging Failures" section covering artifact collection paths, how to run with `PLAYWRIGHT_HEADLESS=false`, how to read Redis spy output, how to tail pod logs; (5) "Adding a New Journey Test" section with 5-step checklist
+
+- [ ] T104 Add to root `Makefile` (or `mk/kind.mk`): `test-usecase` target: `cd tests/usecase && uv run pytest -v --tb=short -m usecase`; `test-usecase-fast` target: `cd tests/usecase && uv run pytest -v --tb=short -m "usecase and not slow"`; `test-usecase-browser` target: `cd tests/usecase && uv run pytest -v --tb=short -m "usecase and browser"`; `test-usecase-api` target: `cd tests/usecase && uv run pytest -v --tb=short -m "usecase and api"`; each target depends on `kind-port-forward-bg` (or equivalent background port-forward target)
+
+- [ ] T105 Create `.github/workflows/user-journeys.yml` defining: (1) nightly cron trigger `"0 2 * * *"` running against staging; (2) PR trigger on `paths: ["services/**", "helm/**", "tests/usecase/**", "frontend/src/**"]` running fast subset (`make test-usecase-fast`); (3) jobs: `setup-cluster` (kind create, helm install, kind-seed), `run-journeys` (depends on setup-cluster, runs `make test-usecase`), `collect-artifacts` (always runs after run-journeys, uploads `tests/usecase/artifacts/` and pod logs with 30-day retention); (4) `on.workflow_dispatch` with optional `journey_id` input to run a single test (e.g. `pytest uj03_*`)
+
+- [ ] T106 [P] Run `cd tests/usecase && uv run pytest --collect-only -q` to verify all 15 test files are collected and no import errors; run `uv run ruff check .` and `uv run mypy --strict helpers/` to verify zero linting/type errors; fix any issues found before marking complete
+
+- [ ] T107 [P] Run the fast usecase subset `pytest -m "usecase and api and not slow"` against a running kind cluster and verify UJ-03, UJ-05, UJ-09, UJ-11, UJ-15 all pass; document any timing or environment issues discovered; update `BASELINES` values in `helpers/assertions.py` if observed runtimes differ significantly from initial estimates
+
+**Checkpoint**: `docs/test-scenarios.md` committed; `make test-usecase-fast` green; `make test-usecase` completes < 30 minutes; GitHub Actions workflow validates on next PR.
+
+---
+
+## User Journey Dependencies & Execution Order
+
+### Phase Dependencies
+
+| Phase | Depends On | Can Parallelize With |
+|-------|-----------|---------------------|
+| Phase 9 (Infrastructure) | Phases 1–8 complete | — (must be complete before 10–13) |
+| Phase 10 (Core API Journeys) | Phase 9 | Phase 10 tasks are parallel to each other |
+| Phase 11 (Browser Journeys) | Phase 9 | Phase 11 tasks, Phase 10 tasks |
+| Phase 12 (Remaining Journeys) | Phase 9 | Phase 10, 11, 12 tasks all parallel |
+| Phase 13 (Docs + CI) | Phases 10–12 | T106, T107 parallel |
+
+### Journey → User Story Mapping
+
+| Journey | User Story | Services Exercised |
+|---------|-----------|-------------------|
+| UJ-01 Onboarding | US3 Browser | api-gateway, frontend |
+| UJ-02 Find Deal | US1 + US3 | api-gateway, ml-scorer, frontend |
+| UJ-03 Alert Notification | US1 | api-gateway, pipeline, alert-engine, notification-dispatcher |
+| UJ-04 AI Chat to Alert | US2 | ws-server, ai-chat, api-gateway |
+| UJ-05 Subscription Upgrade | US1 + US3 | api-gateway, frontend |
+| UJ-06 Portfolio Multi-Currency | US3 | api-gateway, ml-scorer, frontend |
+| UJ-07 Admin Retrain | US3 | api-gateway, ml-trainer, ml-scorer, frontend |
+| UJ-08 Free Tier Delay | US1 | api-gateway |
+| UJ-09 Multi-Country Search | US1 | api-gateway |
+| UJ-10 GDPR Export & Delete | US3 | api-gateway, frontend |
+| UJ-11 Price Drop Engagement | US1 | pipeline, alert-engine, notification-dispatcher, api-gateway |
+| UJ-12 Scraping Recovery | US3 | spider-workers, api-gateway, frontend |
+| UJ-13 Language Switch | US3 | frontend |
+| UJ-14 WS Reconnection | US2 | ws-server, frontend |
+| UJ-15 Scrape-to-Alert | US1 | pipeline, ml-scorer, alert-engine, notification-dispatcher |
+
+### Parallel Execution Example — Phase 10
+
+```
+# All Phase 10 tests can be implemented in parallel (different files):
+Task: T088  uj03_alert_notification_test.py
+Task: T089  uj15_scrape_to_alert_latency_test.py
+Task: T090  uj11_price_drop_engagement_test.py
+Task: T091  uj04_ai_chat_to_alert_test.py
+Task: T092  uj08_free_tier_delay_test.py  (mark slow)
+Task: T093  uj05_subscription_upgrade_test.py
+```
+
+### Parallel Execution Example — Phase 9 Helpers
+
+```
+# After T076-T078 (scaffold + conftest), helpers are all independent:
+Task: T079  helpers/api.py
+Task: T080  helpers/ws.py
+Task: T081  helpers/cluster.py
+Task: T082  helpers/db.py
+Task: T083  helpers/fixtures.py
+Task: T084  helpers/spies.py
+Task: T085  helpers/time_travel.py
+Task: T086  helpers/browser.py
+Task: T087  helpers/assertions.py
+```
+
+---
+
+## User Journey Implementation Strategy
+
+### MVP First (Core Backend Journeys)
+
+1. Complete Phase 9: Infrastructure
+2. Implement T088 (UJ-03 — validates spy pattern, most complex)
+3. Implement T089 (UJ-15 — validates full pipeline latency)
+4. **STOP and VALIDATE**: two hardest tests passing proves the infrastructure works
+5. Continue with remaining Phase 10–12 tests
+
+### Fast-to-Value Order (Recommended)
+
+1. Phase 9 (infrastructure) → `--collect-only` succeeds
+2. T088 (UJ-03) → spy pattern confirmed
+3. T099 (UJ-09) → simplest API test, quick win
+4. T091 (UJ-04) → WS + LLM integration confirmed
+5. T094 (UJ-01) → browser login flow confirmed
+6. Then parallelise remaining Phase 10–12
+
+---
+
+## User Journey Notes
+
+- `[P]` within phases 10–12 means tests can be written in parallel (independent files)
+- `@pytest.mark.slow` on UJ-07, UJ-08, UJ-12: involve pod restarts or K8s job waits — exclude from fast CI with `-m "not slow"`
+- UJ-08 (`time_travel`) modifies cluster state: ensure `TimeTravel.reset()` runs in teardown even on failure (use `try/finally` in test or `test_context` cleanup)
+- UJ-12 (`scraping_recovery`) requires `PROXY_MODE=fail_403` env var to be supported by the spider-worker test configuration — verify this is set in `values-test.yaml`
+- UJ-14 (`ws_reconnect`) may need `pkill` permission in the `websocket-server` container — verify it's available or use an alternative close mechanism (e.g. a test-mode HTTP endpoint `POST /internal/close-all-sessions`)
+- `chamberí_zone_id` needed by UJ-03, UJ-04: resolve dynamically via `GET /api/v1/zones?country=ES&name=Cham` at test start, don't hardcode UUID

@@ -1,44 +1,37 @@
-# Implementation Plan: E2E Test Suite
+# Implementation Plan: E2E User Journey Tests
 
-**Branch**: `031-e2e-test-suite` | **Date**: 2026-04-17 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `specs/031-e2e-test-suite/spec.md`
+**Branch**: `032-e2e-user-journeys` | **Date**: 2026-04-17 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `/specs/031-e2e-test-suite/spec.md`
 
 ## Summary
 
-Build a complete end-to-end test suite that validates the fully deployed EstateGap platform on a local kind cluster. The suite comprises three layers: Python pytest tests for the REST API and WebSocket protocol, TypeScript Playwright tests for browser UI flows, and Python concurrency stress tests. Orchestration is via Makefile targets (`make kind-test`) with bash artifact collection on failure.
+Implement 15 end-to-end user journey tests (`tests/usecase/`) that exercise the fully-deployed EstateGap platform on a kind cluster. Each journey validates a complete, business-critical user flow across multiple services (api-gateway, ws-server, ai-chat, ml-scorer, alert-engine, notification-dispatcher, pipeline). The test suite uses Python/pytest as the orchestrator with Playwright for browser-based interactions, reusing helpers from the existing `tests/e2e/` suite and adding new helpers for K8s, DB verification, time travel, and notification spying.
 
 ## Technical Context
 
-**Language/Version**: Python 3.12 (API + WebSocket + concurrency tests), TypeScript 5.5 / Node.js 22 (Playwright browser tests)
-**Primary Dependencies**:
-- Python: `pytest`, `pytest-asyncio`, `httpx`, `websockets`, `pytest-xdist` (parallel sharding)
-- TypeScript: `@playwright/test`, `axe-playwright` (accessibility), `@axe-core/playwright`
-**Storage**: No direct DB writes from tests. PostgreSQL seeded via existing `tests/fixtures/load.py`; Redis flushed per-run via helper script
-**Testing**: pytest 7+ (Python), Playwright test runner (TypeScript)
-**Target Platform**: kind cluster (`CLUSTER_NAME=estategap`), services exposed on localhost via port-forward (`tests/kind/port-forward.sh`):
-- API Gateway → `http://localhost:8080`
-- WebSocket server → `ws://localhost:8081`
-- Frontend → `http://localhost:3000`
-**Project Type**: Test infrastructure layer (not a deployable service)
-**Performance Goals**: Full suite < 20 min on CI runner; concurrency test: 100 concurrent WS sessions complete without errors
-**Constraints**: Tests MUST NOT import service-internal packages; cluster must already be deployed (`make kind-deploy`); test users seeded by existing `tests/fixtures/users.json`
-**Scale/Scope**: ~200 Python test cases, ~100 Playwright specs across 3 browsers, 4 CI shard runners
+**Language/Version**: Python 3.12
+**Primary Dependencies**: pytest 8.2+, pytest-asyncio 0.23+, playwright 1.43+ (Python), asyncpg 0.29+, nats-py 2.6+, redis 5.x, websockets 12+, httpx 0.27+, kubernetes 29.0+
+**Storage**: PostgreSQL 16 (read-only verification via asyncpg), Redis 7 (notification spy reads + Redis reset), no schema changes
+**Testing**: pytest + pytest-asyncio (asyncio_mode = auto), Playwright async API
+**Target Platform**: kind cluster (localhost) running full EstateGap platform
+**Project Type**: external test suite (no production code changes)
+**Performance Goals**: each journey < 5 minutes; full suite < 30 minutes
+**Constraints**: requires `make kind-deploy` + `make kind-seed` as prerequisites; time-travel tests restart pods (+30s overhead) and are marked `@pytest.mark.slow`
+**Scale/Scope**: 15 journey tests, 8 shared helpers, ~2000 LOC
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+| Principle | Check | Status |
+|-----------|-------|--------|
+| I. Polyglot Architecture | Python for test orchestration matches data/ML workload profile. No Go test code. Test helpers never import production service internals. | ✅ Pass |
+| II. Event-Driven Communication | Tests publish to NATS (raw listings), observe NATS-driven effects (alerts), never call services peer-to-peer. API access goes through api-gateway only. | ✅ Pass |
+| III. Country-First Data Sovereignty | Journey tests cover ES, IT, FR explicitly (UJ-09). Injected listings always include `country_code`. | ✅ Pass |
+| IV. ML-Powered Intelligence | UJ-02 validates SHAP on detail page; UJ-07 validates model retrain + hot-reload; UJ-11 validates re-scoring on price change. | ✅ Pass |
+| V. Code Quality Discipline | pytest + ruff + mypy strict in `pyproject.toml`. All helpers typed with Pydantic v2 models where applicable. `asyncio_mode = auto`. | ✅ Pass |
+| VI. Security & Ethical Scraping | Test users use seeded credentials, not production. No scraping patterns; test spiders are minimal fixture triggers only. | ✅ Pass |
+| VII. Kubernetes-Native Deployment | Tests run against kind cluster, use `kubectl` for K8s operations, clean up via DB queries not kubectl delete. | ✅ Pass |
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Polyglot Service Architecture | ✅ PASS | Tests are external to `services/`; language choices (Python API tests, TS Playwright) match workload profiles. No cross-service imports. |
-| II. Event-Driven Communication | ✅ PASS | Tests interact only via public HTTP/WS surface. NATS JetStream injected for deal-alert scenario via a helper that publishes to existing streams. |
-| III. Country-First Data Sovereignty | ✅ PASS | Test fixtures include multi-country data (ES, IT, FR, PT, GB). API tests exercise country-scoped filters. |
-| IV. ML-Powered Intelligence | ✅ PASS | ML estimate endpoint tested; SHAP chart render tested in Playwright listing detail spec. |
-| V. Code Quality Discipline | ✅ PASS | Python tests use `pytest` + `pytest-asyncio` per constitution. TypeScript tests use Playwright (separate from Vitest unit tests). `ruff` + `mypy` linting on Python test code. |
-| VI. Security & Ethical Scraping | ✅ PASS | Auth tests cover JWT expiry, invalid signatures, rate limiting per tier. No scraping ethics concerns in tests. |
-| VII. Kubernetes-Native Deployment | ✅ PASS | Tests target the kind cluster. No direct host DB access — uses port-forwarded services. `make kind-test` integrates cleanly with existing `mk/kind.mk` targets. |
-
-**Violations**: None. No Complexity Tracking table required.
+**Verdict**: No violations. No Complexity Tracking entry needed.
 
 ## Project Structure
 
@@ -47,159 +40,150 @@ Build a complete end-to-end test suite that validates the fully deployed EstateG
 ```text
 specs/031-e2e-test-suite/
 ├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output
-└── tasks.md             # Phase 2 output (/speckit.tasks command)
+├── research.md          # Phase 0: Stack and pattern decisions
+├── data-model.md        # Phase 1: Test infrastructure entities
+├── quickstart.md        # Phase 1: How to run and extend
+├── contracts/           # Phase 1: pytest.ini spec, make targets
+│   ├── pytest-ini.md    # pytest markers and config spec
+│   └── make-targets.md  # Makefile target definitions
+└── tasks.md             # Phase 2: implementation tasks
 ```
 
-### Source Code (repository root)
+### Source Code Layout
 
 ```text
-tests/e2e/
-├── api/
-│   ├── conftest.py               # session-scoped fixtures: api_base_url, test_users, authed_client
-│   ├── test_auth.py              # register, login, refresh, logout, /me, /me PATCH, Google OAuth callback
-│   ├── test_listings.py          # /listings, /listings/{id}, /listings/top-deals, filters, pagination, currency
-│   ├── test_zones.py             # /zones CRUD, /zones/{id}/stats, /zones/{id}/analytics, compare, geometry
-│   ├── test_alerts.py            # /alerts/rules CRUD, /alerts/history
-│   ├── test_subscriptions.py     # /subscriptions/checkout, /subscriptions/portal, /subscriptions/me, tier gating
-│   ├── test_admin.py             # admin/* endpoints, role enforcement
-│   ├── test_reference.py         # /countries, /portals
-│   ├── test_ml.py                # /model/estimate
-│   ├── test_portfolio.py         # /portfolio/properties CRUD
-│   ├── test_rate_limiting.py     # per-tier rate limits, Retry-After header, 429 shape
-│   ├── test_errors.py            # 400/403/404/409/500 response shapes
-│   └── fixtures/
-│       ├── listing_ids.py        # resolved at session start from seeded data
-│       └── zone_ids.py
-│
-├── websocket/
-│   ├── conftest.py               # ws_base_url, ws_token fixtures
-│   ├── test_connection.py        # valid JWT connects; invalid JWT → 4001; concurrent 100 sessions
-│   ├── test_chat_protocol.py     # chat_message → text_chunk stream → criteria_summary
-│   ├── test_image_carousel.py    # image_carousel receive, image_feedback send, criteria update
-│   ├── test_deal_alert.py        # inject NATS event → deal_alert received within 5 s
-│   ├── test_reconnection.py      # disconnect mid-stream, reconnect with same session_id → history intact
-│   └── test_keepalive.py         # ping/pong at 30 s interval; idle close after 30 min (time-skipped)
-│
-├── concurrency/
-│   ├── conftest.py
-│   ├── test_concurrent_search.py # 2 users same zone simultaneously
-│   ├── test_concurrent_alerts.py # 2 users create alerts on same listing; notifications isolated
-│   ├── test_concurrent_crm.py    # CRM status update under concurrent read
-│   └── test_concurrent_chat.py   # 100 WS sessions, no cross-talk
-│
+tests/usecase/
+├── conftest.py                    # Cluster fixture, test_context fixture, run_id
+├── pyproject.toml                 # uv project: playwright, asyncpg, kubernetes +
+│                                  #   inherited: httpx, nats-py, websockets, redis
+├── pytest.ini                     # asyncio_mode=auto, markers, testpaths
 ├── helpers/
 │   ├── __init__.py
-│   ├── client.py                 # AsyncAPIClient: login, token refresh, tier helpers
-│   ├── ws_client.py              # WSTestClient class from spec
-│   ├── fixtures.py               # resolve_listing_id(), resolve_zone_id() from seeded DB
-│   ├── assertions.py             # assert_error_shape(), assert_pagination(), assert_rate_limit_headers()
-│   ├── nats_injector.py          # publish deal alert event to NATS JetStream for test injection
-│   └── redis_reset.py            # flush test-run Redis key namespace
-│
-├── pytest.ini                    # asyncio_mode=auto, markers: api ws concurrency slow
-└── pyproject.toml                # uv project: httpx, websockets, pytest-asyncio, pytest-xdist, nats-py
-
-frontend/tests/e2e/
-├── playwright.config.ts          # 3 projects: chromium, firefox, webkit (critical only)
-├── fixtures/
-│   ├── users.ts                  # tier-aware user fixtures with stored auth state
-│   └── auth.ts                   # storageState login helper
-├── pages/                        # Page Object Model
-│   ├── LandingPage.ts
-│   ├── LoginPage.ts
-│   ├── RegisterPage.ts
-│   ├── ChatPage.ts
-│   ├── SearchPage.ts
-│   ├── ListingDetailPage.ts
-│   ├── DashboardPage.ts
-│   ├── AlertsPage.ts
-│   ├── SubscriptionPage.ts
-│   └── AdminPage.ts
-├── specs/
-│   ├── auth.spec.ts              # register, login, logout, Google OAuth (mocked)
-│   ├── ai-chat.spec.ts           # query → stream → chips → confirm → results → alert created
-│   ├── search.spec.ts            # filters, URL params, sort, grid/list toggle, saved search CRUD
-│   ├── listing-detail.spec.ts    # all sections render, gallery swipe, translate, CRM actions
-│   ├── dashboard.spec.ts         # cards, charts, country tab switching
-│   ├── map.spec.ts               # zoom, marker popup, draw zone, marker re-fetch on pan
-│   ├── alerts.spec.ts            # create/edit/delete rule, alert history
-│   ├── subscription.spec.ts      # upgrade prompt, Stripe Checkout (mocked), webhook → tier update
-│   ├── admin.spec.ts             # access denied for non-admin; stats, retrain, user list
-│   ├── responsive.spec.ts        # 375×667 mobile, 768×1024 tablet viewports
-│   └── accessibility.spec.ts     # keyboard nav, axe-core WCAG AA scan all pages
-├── visual/
-│   ├── baselines/                # committed PNG baselines per browser
-│   └── visual-regression.spec.ts # 5 pages × toHaveScreenshot(), 0.1% threshold
-└── utils/
-    ├── mock-stripe.ts            # intercept Stripe redirect, simulate webhook call to API
-    ├── mock-google-oauth.ts      # intercept Google OAuth redirect, inject fake callback params
-    └── mock-voice.ts             # stub SpeechRecognition Web API via page.addInitScript
-
-tests/e2e/collect-artifacts.sh    # kubectl logs, describe, pg_dump, NATS stream state → /tmp/e2e-artifacts/
+│   ├── api.py                     # ApiClient: thin wrapper around AsyncAPIClient
+│   │                              #   + login() classmethod, create_alert_rule(), etc.
+│   ├── ws.py                      # re-exports WSTestClient from tests/e2e/helpers/
+│   ├── browser.py                 # BrowserHelper: async_playwright wrapper,
+│   │                              #   login(), goto(), screenshot(), close()
+│   ├── cluster.py                 # ClusterHelper: is_ready(), fixtures_loaded(),
+│   │                              #   pod_logs(), job_status(), wait_for_job()
+│   ├── db.py                      # DbClient: asyncpg pool, fetch/fetchrow/execute,
+│   │                              #   cleanup_by_run_id()
+│   ├── fixtures.py                # publish_raw_listing(), inject_price_update()
+│   │                              #   builds NATS payloads for the pipeline
+│   ├── spies.py                   # EmailSpy, TelegramSpy: poll Redis spy:* keys
+│   ├── time_travel.py             # TimeTravel: ConfigMap patch + rollout restart
+│   └── assertions.py             # assert_within_baseline(), assert_deal_tier(),
+│                                  #   assert_gdpr_anonymized(), BASELINES dict
+├── uj01_onboarding_test.py        # browser + API
+├── uj02_find_deal_test.py         # browser + API (latency: < 5s)
+├── uj03_alert_notification_test.py# API + NATS + spies (latency: < 30s)
+├── uj04_ai_chat_to_alert_test.py  # WS + API (latency: < 60s)
+├── uj05_subscription_upgrade_test.py # browser + API + Stripe webhook
+├── uj06_portfolio_multi_currency_test.py # browser + API
+├── uj07_admin_retrain_ml_test.py  # browser + K8s Job (latency: < 5 min)
+├── uj08_free_tier_delay_test.py   # API + TimeTravel (slow)
+├── uj09_multi_country_search_test.py # API only
+├── uj10_gdpr_export_delete_test.py # browser + API + DB
+├── uj11_price_drop_engagement_test.py # API + NATS + spies + DB
+├── uj12_scraping_recovery_test.py # API + K8s + proxy stub
+├── uj13_language_switch_test.py   # browser only
+├── uj14_websocket_reconnect_test.py # WS + browser
+└── uj15_scrape_to_alert_latency_test.py # NATS + API + spies (latency: < 2 min)
 ```
 
-**Structure Decision**: Multi-language layout: Python under `tests/e2e/` (API, WS, concurrency), TypeScript under `frontend/tests/e2e/` (browser). Shares `tests/fixtures/` (existing seeded data). `collect-artifacts.sh` at `tests/e2e/` root, callable from Makefile trap.
+**Structure Decision**: Separate `tests/usecase/` sibling directory (not a subdirectory of `tests/e2e/`) to enable independent `pytest.ini` scoping, independent `make` targets, and a separate `pyproject.toml` with Playwright + asyncpg dependencies not present in the API/WS test suite. Helpers in `tests/usecase/helpers/` import from `tests/e2e/helpers/` via `sys.path` manipulation in `conftest.py` (same pattern as `tests/e2e/conftest.py`).
 
-## Makefile Integration
+## Phase 0 Research Summary
 
-New targets added to `mk/kind.mk` (or a new `mk/e2e.mk` included by root Makefile):
+See [research.md](research.md) for full decision log. Key choices:
 
-```makefile
-E2E_REPORT_DIR := reports/e2e
-UV_E2E_CMD     := uv run --project tests/e2e
+1. **Python pytest** orchestrates all 15 journeys; Playwright called inline for browser flows.
+2. **Notification spies** read from Redis: services write `spy:email:{email}` lists in `TEST_MODE=true`.
+3. **Time travel** patches `estategap-runtime` ConfigMap + `kubectl rollout restart`.
+4. **Test isolation** cleans up by `source_id` prefix per test, never full table truncate.
+5. **Stripe (UJ-05)**: browser drives to Checkout redirect; webhook fired programmatically.
+6. **Performance baselines** hardcoded in `helpers/assertions.py`; 20% regression threshold.
 
-kind-test: kind-test-api kind-test-ws kind-test-browser
-	@echo "All E2E tests passed"
+## Phase 1 Design Summary
 
-kind-test-api:
-	@mkdir -p $(E2E_REPORT_DIR)
-	@$(UV_E2E_CMD) pytest tests/e2e/api/ -v \
-		--junitxml=$(E2E_REPORT_DIR)/api.xml \
-		-n auto 2>&1 | tee $(E2E_REPORT_DIR)/api.log \
-		|| (bash tests/e2e/collect-artifacts.sh $(E2E_REPORT_DIR) && exit 1)
+See [data-model.md](data-model.md) for entity definitions. Core test infrastructure:
 
-kind-test-ws:
-	@mkdir -p $(E2E_REPORT_DIR)
-	@$(UV_E2E_CMD) pytest tests/e2e/websocket/ tests/e2e/concurrency/ -v \
-		--junitxml=$(E2E_REPORT_DIR)/ws.xml 2>&1 | tee $(E2E_REPORT_DIR)/ws.log \
-		|| (bash tests/e2e/collect-artifacts.sh $(E2E_REPORT_DIR) && exit 1)
+- `TestContext`: per-test lifecycle, run_id namespacing, artifact collection on failure.
+- `ClusterHelper`: session-scoped, wraps `kubectl` calls, checks pod readiness.
+- `DbClient`: asyncpg pool for verification reads and cleanup queries.
+- `EmailSpy` / `TelegramSpy`: Redis-backed notification verification.
+- `TimeTravel`: ConfigMap patch + rollout restart + rollout status wait.
+- `BrowserHelper`: Playwright page factory with screenshot-on-failure.
+- `BASELINES`: dict of latency reference values with 20% regression threshold.
 
-kind-test-browser:
-	@mkdir -p $(E2E_REPORT_DIR)
-	@(cd frontend && pnpm playwright test \
-		--reporter=junit,html \
-		--output-dir=../$(E2E_REPORT_DIR)/playwright 2>&1 | tee ../$(E2E_REPORT_DIR)/browser.log) \
-		|| (bash tests/e2e/collect-artifacts.sh $(E2E_REPORT_DIR) && exit 1)
+## Implementation Phases
 
-kind-test-visual:
-	@(cd frontend && pnpm playwright test visual/ --reporter=html)
+### Phase A: Infrastructure (Tasks 1–3)
 
-kind-test-a11y:
-	@(cd frontend && pnpm playwright test --grep "@a11y" --reporter=html)
-```
+Lay the shared foundation that all 15 journey tests build on.
 
-`kind-test` target replaces the existing stub in `mk/kind.mk` (currently only runs helm tests).
+**Task 1: Project scaffold**
+- `tests/usecase/pyproject.toml` with all dependencies
+- `tests/usecase/pytest.ini` with markers and asyncio config
+- `tests/usecase/conftest.py` with `cluster`, `test_context` fixtures
+- `tests/usecase/helpers/__init__.py`
 
-## Artifact Collection
+**Task 2: Core helpers**
+- `helpers/api.py`: `ApiClient` wrapper (login, create_alert_rule, create_portfolio_item, trigger_stripe_webhook, set_language_preference)
+- `helpers/ws.py`: re-export `WSTestClient`; add `collect_until_type()` convenience
+- `helpers/cluster.py`: `ClusterHelper` (is_ready, fixtures_loaded, pod_logs, job_status, wait_for_job)
+- `helpers/db.py`: `DbClient` (asyncpg pool, fetch, cleanup_by_run_id)
+- `helpers/fixtures.py`: `publish_raw_listing()`, `inject_price_update()`
 
-`tests/e2e/collect-artifacts.sh <output-dir>` collects on failure:
-1. `kubectl logs` all pods in `estategap-gateway`, `estategap-system`, `monitoring` namespaces
-2. `kubectl describe pod` for non-Running pods
-3. `pg_dump` via port-forwarded `localhost:5432`
-4. NATS stream state via `nats stream info` (all streams)
-5. Playwright auto-generates screenshot, video, trace (configured in `playwright.config.ts`)
+**Task 3: Advanced helpers**
+- `helpers/browser.py`: `BrowserHelper` (async_playwright, login, goto, screenshot, close)
+- `helpers/spies.py`: `EmailSpy`, `TelegramSpy`
+- `helpers/time_travel.py`: `TimeTravel` (set_time, advance_hours, reset)
+- `helpers/assertions.py`: `assert_within_baseline()`, `assert_deal_tier()`, `assert_gdpr_anonymized()`, `BASELINES`
 
-## Test Isolation Strategy
+### Phase B: Core Journey Tests (Tasks 4–9)
 
-- Each test run generates a UUID prefix (`TEST_RUN_ID`), used as a Redis key namespace prefix and as a label on created resources (alert rules, portfolio entries) to isolate parallel shards.
-- Global `conftest.py` `session`-scoped setup: verify cluster health via `GET /health`, load `TEST_RUN_ID`, resolve seeded listing/zone IDs.
-- Global teardown: delete test-run-prefixed resources via API; flush Redis keys matching `test-run-{TEST_RUN_ID}:*`.
-- Playwright: each spec file uses `storageState` for auth (pre-authenticated browser sessions); no shared state between spec files.
+Implement the highest-value, most-complex journeys first.
 
-## Complexity Tracking
+**Task 4: UJ-03 Alert Notification** (multi-service, validates spy pattern)
+**Task 5: UJ-15 Scrape-to-Alert Latency** (full pipeline, latency assertion)
+**Task 6: UJ-11 Price Drop Engagement** (re-scoring, email tracking)
+**Task 7: UJ-04 AI Chat to Alert** (WebSocket + LLM + alert auto-creation)
+**Task 8: UJ-08 Free Tier Delay** (time travel)
+**Task 9: UJ-05 Subscription Upgrade** (Stripe webhook simulation)
 
-> No constitution violations — table not required.
+### Phase C: Browser Journey Tests (Tasks 10–14)
+
+Tests requiring Playwright browser automation.
+
+**Task 10: UJ-01 Onboarding** (registration flow)
+**Task 11: UJ-02 Find Deal** (search + detail, SHAP, comparables, latency)
+**Task 12: UJ-06 Portfolio Multi-Currency** (CRUD + ML valuation + currency)
+**Task 13: UJ-07 Admin Retrain** (K8s Job, MLflow, model hot-reload)
+**Task 14: UJ-10 GDPR Export & Delete** (data export, anonymization, login failure)
+
+### Phase D: Remaining Journey Tests (Tasks 15–17)
+
+**Task 15: UJ-09, UJ-13 (API-only and i18n)**
+- UJ-09: Multi-country search + currency reconversion
+- UJ-13: Language switch preserves URL state
+
+**Task 16: UJ-12, UJ-14 (recovery and reconnection)**
+- UJ-12: Scraping failure + proxy rotation + re-scrape
+- UJ-14: WebSocket reconnection + session persistence
+
+**Task 17: Documentation and CI**
+- `docs/test-scenarios.md`: Given/When/Then for all 15 journeys, run instructions, debug guide
+- `Makefile`: `test-usecase`, `test-usecase-fast`, `test-usecase-browser`, `test-usecase-api` targets
+- GitHub Actions: nightly workflow, PR trigger for critical-path changes
+
+## Key Risks
+
+| Risk | Likelihood | Mitigation |
+|------|-----------|------------|
+| Spy pattern requires TEST_MODE in services | Medium | Verify TEST_MODE flag exists in notification-dispatcher; add if missing |
+| TimeTravel pod restart flakiness | Medium | Add `kubectl rollout status --timeout=3m`; retry once |
+| UJ-07 retrain exceeds 2-minute budget | Low | Use minimal fixture dataset (50 listings); mark `@pytest.mark.slow` |
+| Stripe Checkout iframe interaction | High | Test only up to redirect; fire webhook programmatically |
+| WS reconnect timing in UJ-14 | Medium | Use server-side close via kubectl exec; add 5s tolerance |
+| UJ-12 proxy stub setup complexity | Medium | Use a simple httptest server stub in `cluster.py`; container injection |
