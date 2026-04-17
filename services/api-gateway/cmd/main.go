@@ -124,20 +124,27 @@ func run() error {
 	authHandler := handler.NewAuthHandler(authService, usersRepo)
 	googleOAuthHandler := handler.NewGoogleOAuthHandler(oauthService)
 	dashboardHandler := handler.NewDashboardHandler(dashboardRepo, usersRepo)
-	listingsHandler := handler.NewListingsHandler(listingsRepo, usersRepo)
-	zonesHandler := handler.NewZonesHandler(zonesRepo)
+	listingsHandler := handler.NewListingsHandler(listingsRepo, usersRepo, cacheClient)
+	zonesHandler := handler.NewZonesHandler(zonesRepo, cacheClient)
 	referenceHandler := handler.NewReferenceHandler(referenceRepo)
 	docsHandler := handler.NewDocsHandler()
 	mlHandler := handler.NewMLHandler(mlClient, listingsRepo, grpcTimeout)
-	alertRulesHandler := handler.NewAlertRulesHandler(alertRulesRepo)
+	alertRulesHandler := handler.NewAlertRulesHandler(alertRulesRepo, cacheClient)
 	subscriptionsHandler := handler.NewSubscriptionsHandler(stripeService, subsRepo, usersRepo, redisClient)
 	portfolioHandler := handler.NewPortfolioHandler(portfolioRepo)
 	adminHandler := handler.NewAdminHandler(adminRepo, natsConn, redisClient)
+	meExportHandler := handler.NewMeExportHandler(usersRepo, alertRulesRepo, portfolioRepo, redisClient)
+	meDeleteHandler := handler.NewMeDeleteHandler(usersRepo, authService, redisClient)
+	dataRemovalRequestHandler := handler.NewDataRemovalRequestHandler()
 
 	go worker.StartDowngradeWorker(ctx, redisClient, usersRepo)
 
 	router := chi.NewRouter()
 	router.Use(gatewaymw.CORS(cfg.AllowedOrigins))
+	router.Use(gatewaymw.CSP(gatewaymw.CSPConfig{
+		ReportOnly: cfg.CSPReportOnly,
+		ReportURI:  cfg.CSPReportURI,
+	}))
 	router.Use(gatewaymw.RequestLogger())
 	router.Use(gatewaymw.MetricsMiddleware())
 
@@ -150,14 +157,20 @@ func run() error {
 
 	authenticator := gatewaymw.Authenticator(cfg.JWTSecret, redisClient)
 	rateLimiter := gatewaymw.RateLimiter(redisClient)
+	authRateLimiter := gatewaymw.AuthRateLimitMiddleware(redisClient)
 
 	router.Route("/v1/auth", func(r chi.Router) {
+		r.Use(authRateLimiter)
 		mountAuthRoutes(r, authHandler, googleOAuthHandler, authenticator, rateLimiter)
 	})
 
 	router.Route("/api/v1/auth", func(r chi.Router) {
+		r.Use(authRateLimiter)
 		mountAuthRoutes(r, authHandler, googleOAuthHandler, authenticator, rateLimiter)
 	})
+
+	router.Post("/v1/data-removal-requests", dataRemovalRequestHandler.ServeHTTP)
+	router.Post("/api/v1/data-removal-requests", dataRemovalRequestHandler.ServeHTTP)
 
 	router.Route("/v1", func(r chi.Router) {
 		r.Post("/webhooks/stripe", subscriptionsHandler.StripeWebhook)
@@ -167,7 +180,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler)
+			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler, meExportHandler, meDeleteHandler)
 		})
 	})
 
@@ -179,7 +192,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler)
+			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler, meExportHandler, meDeleteHandler)
 		})
 	})
 

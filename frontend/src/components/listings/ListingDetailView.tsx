@@ -54,7 +54,14 @@ export function ListingDetailView({ id }: { id: string }) {
     <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <div className="relative min-h-[360px] overflow-hidden rounded-[32px] bg-slate-100">
         {image ? (
-          <Image alt={listing.address ?? listing.id} className="object-cover" fill src={image} />
+          <Image
+            alt={listing.address ?? listing.id}
+            className="object-cover"
+            fill
+            priority
+            sizes="(max-width: 1280px) 100vw, 60vw"
+            src={image}
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-slate-400">
             {t("noImage")}

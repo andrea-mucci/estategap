@@ -5,6 +5,7 @@ import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import "@/app/globals.css";
+import { CookieConsent } from "@/components/cookie-consent";
 import { routing } from "@/i18n/routing";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
@@ -34,11 +35,19 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <link href="https://api.estategap.com" rel="preconnect" />
+        <link href="https://tiles.openfreemap.org" rel="preconnect" />
+        <link href="https://demotiles.maplibre.org" rel="preconnect" />
+      </head>
       <body className="app-shell">
         <NextIntlClientProvider messages={messages}>
           <NuqsAdapter>
             <AuthProvider>
-              <QueryProvider>{children}</QueryProvider>
+              <QueryProvider>
+                {children}
+                <CookieConsent />
+              </QueryProvider>
             </AuthProvider>
           </NuqsAdapter>
         </NextIntlClientProvider>

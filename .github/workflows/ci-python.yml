@@ -26,6 +26,23 @@ jobs:
       - run: uv run mypy --strict .
         working-directory: services/${{ matrix.service }}
 
+  security:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - spider-workers
+          - pipeline
+          - ml
+          - ai-chat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync
+        working-directory: services/${{ matrix.service }}
+      - run: uv run pip-audit
+        working-directory: services/${{ matrix.service }}
+
   test:
     runs-on: ubuntu-latest
     strategy:

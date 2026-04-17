@@ -49,6 +49,14 @@ mlScorer:
   modelPollIntervalSeconds: 30
 
 services:
+  api-gateway:
+    env:
+      ALLOWED_ORIGINS:
+        value: https://staging.estategap.com
+      CSP_REPORT_ONLY:
+        value: "false"
+      CSP_REPORT_URI:
+        value: ""
   ml-scorer:
     hpa:
       minReplicas: 1
@@ -73,3 +81,13 @@ services:
       healthPort: 8081
       workerPoolSize: 8
       batchSize: 25
+
+gdpr:
+  hardDeleteCron:
+    enabled: true
+
+loadTests:
+  enabled: false
+  apiBaseUrl: https://staging.estategap.com
+  wsUrl: wss://staging.estategap.com/chat
+  alertsTriggerUrl: https://staging.estategap.com/api/v1/internal/alerts/trigger

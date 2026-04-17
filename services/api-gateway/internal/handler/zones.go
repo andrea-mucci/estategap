@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	cachepkg "github.com/estategap/services/api-gateway/internal/cache"
 	"github.com/estategap/services/api-gateway/internal/repository"
 	"github.com/estategap/services/api-gateway/internal/respond"
 	"github.com/go-chi/chi/v5"
@@ -13,11 +14,16 @@ import (
 )
 
 type ZonesHandler struct {
-	repo *repository.ZonesRepo
+	repo           *repository.ZonesRepo
+	zoneStatsCache cachepkg.ZoneStatsCache
 }
 
-func NewZonesHandler(repo *repository.ZonesRepo) *ZonesHandler {
-	return &ZonesHandler{repo: repo}
+func NewZonesHandler(repo *repository.ZonesRepo, cacheClient ...*cachepkg.Client) *ZonesHandler {
+	handler := &ZonesHandler{repo: repo}
+	if len(cacheClient) > 0 {
+		handler.zoneStatsCache = cachepkg.NewZoneStatsCache(cacheClient[0])
+	}
+	return handler
 }
 
 func (h *ZonesHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +79,39 @@ func (h *ZonesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 		writeError(w, r, http.StatusServiceUnavailable, "failed to load zone")
 		return
+	}
+
+	respond.JSON(w, http.StatusOK, zoneDetailFromModel(item))
+}
+
+func (h *ZonesHandler) Stats(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid zone id")
+		return
+	}
+
+	item, hit, err := cachepkg.GetOrSetRequest(
+		r.Context(),
+		h.zoneStatsCache.RequestCache,
+		r,
+		func() (*repository.ZoneWithStats, error) {
+			return h.repo.GetZoneByID(r.Context(), id)
+		},
+	)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "zone not found")
+			return
+		}
+		writeError(w, r, http.StatusServiceUnavailable, "failed to load zone stats")
+		return
+	}
+
+	if hit {
+		w.Header().Set("X-Cache", "HIT")
+	} else {
+		w.Header().Set("X-Cache", "MISS")
 	}
 
 	respond.JSON(w, http.StatusOK, zoneDetailFromModel(item))
