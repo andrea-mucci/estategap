@@ -66,3 +66,10 @@ services:
         value: "8080"
       LOG_LEVEL:
         value: INFO
+  alert-dispatcher:
+    replicaCount: 1
+    config:
+      logLevel: INFO
+      healthPort: 8081
+      workerPoolSize: 8
+      batchSize: 25

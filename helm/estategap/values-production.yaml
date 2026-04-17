@@ -19,6 +19,9 @@ services:
   alert-engine:
     image:
       tag: 0.1.0
+  alert-dispatcher:
+    image:
+      tag: 0.1.0
   scrape-orchestrator:
     image:
       tag: 0.1.0
