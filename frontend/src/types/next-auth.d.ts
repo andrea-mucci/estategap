@@ -13,6 +13,7 @@ declare module "next-auth" {
       image: string | null;
       subscriptionTier: SubscriptionTier;
       preferredCurrency: string;
+      onboardingCompleted: boolean;
       role: UserRole;
     };
     accessToken: string;
@@ -28,6 +29,7 @@ declare module "next-auth" {
     image: string | null;
     subscriptionTier: SubscriptionTier;
     preferredCurrency: string;
+    onboardingCompleted: boolean;
     role: UserRole;
     accessToken: string;
     accessTokenExpires: number;
@@ -43,6 +45,7 @@ declare module "next-auth/jwt" {
     refreshToken: string;
     subscriptionTier: SubscriptionTier;
     preferredCurrency: string;
+    onboardingCompleted: boolean;
     role: UserRole;
     error?: string;
   }

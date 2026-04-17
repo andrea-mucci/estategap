@@ -13,6 +13,7 @@ export interface components {
       avatar_url?: string | null;
       subscription_tier: "free" | "basic" | "pro" | "global" | "api";
       preferred_currency: string;
+      onboarding_completed: boolean;
       role: "user" | "admin";
       alert_limit: number;
       email_verified: boolean;
@@ -23,6 +24,10 @@ export interface components {
       refresh_token: string;
       expires_in: number;
       user?: components["schemas"]["UserProfile"];
+    };
+    UpdateUserProfileRequest: {
+      preferred_currency?: "EUR" | "USD" | "GBP" | "CHF" | "SEK" | "NOK" | "DKK" | "PLN";
+      onboarding_completed?: boolean;
     };
     PaginationEnvelope: {
       next_cursor?: string | null;
@@ -266,6 +271,18 @@ export interface paths {
     get: {
       responses: {
         200: JsonResponse<components["schemas"]["UserProfile"]>;
+        401: JsonResponse<components["schemas"]["ErrorResponse"]>;
+      };
+    };
+    patch: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateUserProfileRequest"];
+        };
+      };
+      responses: {
+        200: JsonResponse<components["schemas"]["UserProfile"]>;
+        400: JsonResponse<components["schemas"]["ErrorResponse"]>;
         401: JsonResponse<components["schemas"]["ErrorResponse"]>;
       };
     };

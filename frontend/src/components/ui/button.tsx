@@ -22,24 +22,41 @@ const sizeClasses: Record<ButtonSize, string> = {
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  asChild?: boolean;
   variant?: ButtonVariant;
   size?: ButtonSize;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "default", type = "button", ...props }, ref) => (
-    <button
-      ref={ref}
-      type={type}
-      className={cn(
-        "inline-flex items-center justify-center rounded-full font-medium transition focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60",
-        variantClasses[variant],
-        sizeClasses[size],
-        className,
-      )}
-      {...props}
-    />
-  ),
+  ({ asChild = false, children, className, variant = "default", size = "default", type = "button", ...props }, ref) => {
+    const classes = cn(
+      "inline-flex items-center justify-center rounded-full font-medium transition focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60",
+      variantClasses[variant],
+      sizeClasses[size],
+      className,
+    );
+
+    if (asChild && React.isValidElement(children)) {
+      const child = children as React.ReactElement<{
+        className?: string;
+      }>;
+
+      return React.cloneElement(child, {
+        className: cn(classes, child.props.className),
+      });
+    }
+
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={classes}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  },
 );
 
 Button.displayName = "Button";

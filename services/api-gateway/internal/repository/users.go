@@ -14,7 +14,7 @@ import (
 
 const userColumns = `
 id, email, password_hash, oauth_provider, oauth_subject, display_name, avatar_url,
-subscription_tier, preferred_currency, allowed_countries, stripe_customer_id, stripe_sub_id, subscription_ends_at, alert_limit,
+subscription_tier, preferred_currency, onboarding_completed, allowed_countries, stripe_customer_id, stripe_sub_id, subscription_ends_at, alert_limit,
 email_verified, email_verified_at, last_login_at, deleted_at, created_at, updated_at
 `
 
@@ -231,6 +231,26 @@ func (r *UsersRepo) UpdatePreferredCurrency(ctx context.Context, userID uuid.UUI
 			updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL`,
 		pgUUID(userID), currency)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *UsersRepo) UpdateOnboardingCompleted(
+	ctx context.Context,
+	userID uuid.UUID,
+	completed bool,
+) error {
+	tag, err := r.primary.Exec(ctx, `
+		UPDATE users
+		SET onboarding_completed = $2,
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL`,
+		pgUUID(userID), completed)
 	if err != nil {
 		return err
 	}

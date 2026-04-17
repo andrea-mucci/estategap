@@ -26,7 +26,7 @@ export default function LoginPage() {
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? `/${locale}/dashboard`;
+  const callbackUrl = searchParams.get("callbackUrl") ?? `/${locale}/home`;
   const [errorMessage, setErrorMessage] = useState("");
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -82,7 +82,7 @@ export default function LoginPage() {
             <Button
               className="w-full"
               onClick={async () => {
-                await signIn("google", { callbackUrl: `/${locale}/dashboard` });
+                await signIn("google", { callbackUrl: `/${locale}/home` });
               }}
               type="button"
               variant="outline"

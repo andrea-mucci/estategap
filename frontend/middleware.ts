@@ -28,6 +28,10 @@ export default auth((request) => {
     return response;
   }
 
+  if (request.auth && pathname === `/${locale}`) {
+    return NextResponse.redirect(new URL(`/${locale}/home`, request.url));
+  }
+
   if (!firstSegment || !protectedSegments.has(firstSegment)) {
     return response;
   }

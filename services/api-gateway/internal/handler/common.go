@@ -169,16 +169,17 @@ type tokenPairResponse struct {
 }
 
 type userProfilePayload struct {
-	ID                string                  `json:"id"`
-	Email             string                  `json:"email"`
-	DisplayName       *string                 `json:"display_name,omitempty"`
-	AvatarURL         *string                 `json:"avatar_url,omitempty"`
-	SubscriptionTier  models.SubscriptionTier `json:"subscription_tier"`
-	PreferredCurrency string                  `json:"preferred_currency"`
-	Role              string                  `json:"role"`
-	AlertLimit        int16                   `json:"alert_limit"`
-	EmailVerified     bool                    `json:"email_verified"`
-	CreatedAt         string                  `json:"created_at"`
+	ID                  string                  `json:"id"`
+	Email               string                  `json:"email"`
+	DisplayName         *string                 `json:"display_name,omitempty"`
+	AvatarURL           *string                 `json:"avatar_url,omitempty"`
+	SubscriptionTier    models.SubscriptionTier `json:"subscription_tier"`
+	PreferredCurrency   string                  `json:"preferred_currency"`
+	OnboardingCompleted bool                    `json:"onboarding_completed"`
+	Role                string                  `json:"role"`
+	AlertLimit          int16                   `json:"alert_limit"`
+	EmailVerified       bool                    `json:"email_verified"`
+	CreatedAt           string                  `json:"created_at"`
 }
 
 type listingSummaryPayload struct {
@@ -339,16 +340,17 @@ func userPayload(user *models.User) *userProfilePayload {
 		return nil
 	}
 	return &userProfilePayload{
-		ID:                uuidString(user.ID),
-		Email:             user.Email,
-		DisplayName:       user.DisplayName,
-		AvatarURL:         user.AvatarURL,
-		SubscriptionTier:  user.SubscriptionTier,
-		PreferredCurrency: strings.ToUpper(strings.TrimSpace(defaultString(user.PreferredCurrency, "EUR"))),
-		Role:              userRoleFromEmail(user.Email),
-		AlertLimit:        user.AlertLimit,
-		EmailVerified:     user.EmailVerified,
-		CreatedAt:         timeString(user.CreatedAt),
+		ID:                  uuidString(user.ID),
+		Email:               user.Email,
+		DisplayName:         user.DisplayName,
+		AvatarURL:           user.AvatarURL,
+		SubscriptionTier:    user.SubscriptionTier,
+		PreferredCurrency:   strings.ToUpper(strings.TrimSpace(defaultString(user.PreferredCurrency, "EUR"))),
+		OnboardingCompleted: user.OnboardingCompleted,
+		Role:                userRoleFromEmail(user.Email),
+		AlertLimit:          user.AlertLimit,
+		EmailVerified:       user.EmailVerified,
+		CreatedAt:           timeString(user.CreatedAt),
 	}
 }
 
