@@ -341,6 +341,14 @@ sealedSecrets:
     username: AgReplaceWithKubesealOutput
     password: AgReplaceWithKubesealOutput
     dbname: AgReplaceWithKubesealOutput
+  apiGatewaySecrets:
+    dbPrimaryUrl: AgReplaceWithKubesealOutput
+    dbReplicaUrl: AgReplaceWithKubesealOutput
+    redisUrl: AgReplaceWithKubesealOutput
+    jwtSecret: AgReplaceWithKubesealOutput
+    googleClientId: AgReplaceWithKubesealOutput
+    googleClientSecret: AgReplaceWithKubesealOutput
+    googleRedirectUrl: AgReplaceWithKubesealOutput
   postgresqlBackupCredentials:
     accessKeyId: AgReplaceWithKubesealOutput
     secretAccessKey: AgReplaceWithKubesealOutput
@@ -357,17 +365,78 @@ services:
   api-gateway:
     enabled: true
     namespace: estategap-gateway
+    replicaCount: 2
     port: 8080
     image:
       repository: ghcr.io/andrea-mucci/estategap/api-gateway
       tag: latest
     resources:
       requests:
-        cpu: 250m
-        memory: 256Mi
+        cpu: 50m
+        memory: 64Mi
       limits:
-        cpu: "1"
-        memory: 1Gi
+        cpu: 200m
+        memory: 256Mi
+    env:
+      PORT:
+        value: "8080"
+      LOG_LEVEL:
+        value: INFO
+      ALLOWED_ORIGINS:
+        value: https://app.estategap.com
+      DB_PRIMARY_URL:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: DB_PRIMARY_URL
+      DB_REPLICA_URL:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: DB_REPLICA_URL
+      REDIS_URL:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: REDIS_URL
+      JWT_SECRET:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: JWT_SECRET
+      GOOGLE_CLIENT_ID:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: GOOGLE_CLIENT_ID
+      GOOGLE_CLIENT_SECRET:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: GOOGLE_CLIENT_SECRET
+      GOOGLE_REDIRECT_URL:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: GOOGLE_REDIRECT_URL
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 15
+      timeoutSeconds: 3
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: http
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 3
+    serviceMonitor:
+      enabled: true
+      path: /metrics
+      interval: 30s
     hpa:
       enabled: true
       minReplicas: 2
