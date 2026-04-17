@@ -249,14 +249,8 @@ class User(Base):
 class AlertRule(Base):
     __tablename__ = "alert_rules"
     __table_args__ = (
-        sa.Index("alert_rules_filters_gin_idx", "filters", postgresql_using="gin"),
-        sa.Index("ix_alert_rules_user_id_active", "user_id", "active"),
-        sa.Index(
-            "ix_alert_rules_active_last_triggered_at",
-            "active",
-            "last_triggered_at",
-            postgresql_where=sa.text("active = TRUE"),
-        ),
+        sa.Index("idx_alert_rules_user_id", "user_id"),
+        sa.Index("idx_alert_rules_user_active", "user_id", postgresql_where=sa.text("is_active = TRUE")),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -269,24 +263,24 @@ class AlertRule(Base):
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
-    filters: Mapped[JSONDict] = mapped_column(
+    name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    zone_ids: Mapped[StringList] = mapped_column(
+        postgresql.ARRAY(postgresql.UUID(as_uuid=True)),
+        nullable=False,
+        server_default=sa.text("'{}'::uuid[]"),
+    )
+    category: Mapped[str] = mapped_column(sa.String(50), nullable=False)
+    filter: Mapped[JSONDict] = mapped_column(
         JSONB,
         nullable=False,
         server_default=sa.text("'{}'::jsonb"),
     )
-    channels: Mapped[JSONDict] = mapped_column(
+    channels: Mapped[list[JSONDict]] = mapped_column(
         JSONB,
         nullable=False,
-        server_default=sa.text("'{\"email\": true}'::jsonb"),
+        server_default=sa.text("'[]'::jsonb"),
     )
-    active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
-    last_triggered_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    trigger_count: Mapped[int] = mapped_column(
-        sa.Integer,
-        nullable=False,
-        server_default=sa.text("0"),
-    )
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
         nullable=False,
@@ -299,17 +293,11 @@ class AlertRule(Base):
     )
 
 
-class AlertLog(Base):
-    __tablename__ = "alert_log"
+class AlertHistory(Base):
+    __tablename__ = "alert_history"
     __table_args__ = (
-        sa.Index("alert_log_rule_id_sent_at_idx", "rule_id", sa.text("sent_at DESC")),
-        sa.Index("ix_alert_log_listing_id", "listing_id"),
-        sa.Index(
-            "alert_log_pending_status_idx",
-            "status",
-            "created_at",
-            postgresql_where=sa.text("status = 'pending'"),
-        ),
+        sa.Index("idx_alert_history_rule_id", "rule_id", sa.text("triggered_at DESC")),
+        sa.Index("idx_alert_history_user", "rule_id"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -323,16 +311,15 @@ class AlertLog(Base):
         nullable=False,
     )
     listing_id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), nullable=False)
-    country: Mapped[str] = mapped_column(sa.CHAR(2), nullable=False)
     channel: Mapped[str] = mapped_column(sa.String(20), nullable=False)
-    status: Mapped[str] = mapped_column(
+    delivery_status: Mapped[str] = mapped_column(
         sa.String(20),
         nullable=False,
         server_default=sa.text("'pending'"),
     )
-    error_message: Mapped[str | None] = mapped_column(sa.Text)
-    sent_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
+    error_detail: Mapped[str | None] = mapped_column(sa.Text)
+    delivered_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    triggered_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
         nullable=False,
         server_default=sa.text("NOW()"),

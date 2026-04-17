@@ -18,6 +18,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4 (read replica pool); Redis 7 (caching) (007-listing-zone-endpoints)
 - Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, stripe-go/v81 (new), viper v1.19.0, slog (stdlib) (008-stripe-subscriptions)
 - PostgreSQL 16 (new `subscriptions` table; `users` table updated); Redis 7 (idempotency keys, downgrade sorted set) (008-stripe-subscriptions)
+- Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, google.golang.org/grpc (existing), gopkg.in/yaml.v3 (for YAML→JSON conversion), embed (stdlib) (009-openapi-grpc-alerts)
+- PostgreSQL 16 + PostGIS 3.4 (new tables: alert_rules, alert_history); Redis 7 (existing; not used by this feature directly) (009-openapi-grpc-alerts)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -37,9 +39,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 009-openapi-grpc-alerts: Added Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, google.golang.org/grpc (existing), gopkg.in/yaml.v3 (for YAML→JSON conversion), embed (stdlib)
 - 008-stripe-subscriptions: Added Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, stripe-go/v81 (new), viper v1.19.0, slog (stdlib)
 - 007-listing-zone-endpoints: Added Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, shopspring/decimal v1.4.0
-- 006-api-gateway: Added Go 1.23 + chi v5 (router), pgx/v5/pgxpool (PostgreSQL), redis/go-redis v9 (Redis), golang-jwt/jwt v5 (JWT), golang.org/x/oauth2 (Google OAuth2), golang.org/x/crypto/bcrypt (password hashing), prometheus/client_golang (metrics), spf13/viper (config), nats.go (NATS health check)
 
 
 <!-- MANUAL ADDITIONS START -->

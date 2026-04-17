@@ -1,0 +1,1577 @@
+openapi: 3.1.0
+info:
+  title: EstateGap API Gateway
+  version: 1.1.0
+  description: >
+    Public HTTP API for EstateGap. Includes authentication, listings, zones,
+    subscriptions, interactive API documentation, ML valuation, and alert rule management.
+
+servers:
+  - url: https://api.estategap.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Documentation
+    description: Embedded OpenAPI spec and browser-based docs
+  - name: Health
+    description: Liveness, readiness, and metrics
+  - name: Auth
+    description: Email/password and JWT session management
+  - name: OAuth
+    description: Google OAuth login
+  - name: Listings
+    description: Listing search and detail
+  - name: Zones
+    description: Zone search, analytics, and comparison
+  - name: Reference
+    description: Country and portal reference data
+  - name: ML
+    description: ML-powered listing valuation
+  - name: Alerts
+    description: Alert rule management and delivery history
+  - name: Subscriptions
+    description: Stripe-backed billing endpoints
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token issued by the auth endpoints.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: One-based page number.
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Maximum number of items per page.
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: invalid credentials
+        code:
+          type: string
+          example: INVALID_REQUEST
+        details:
+          type: object
+          additionalProperties: true
+        request_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    PaginationMeta:
+      type: object
+      required: [page, page_size, total, total_pages]
+      properties:
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 42
+        total_pages:
+          type: integer
+          example: 3
+
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, expires_in]
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        expires_in:
+          type: integer
+          example: 900
+        user:
+          $ref: "#/components/schemas/UserProfile"
+
+    UserProfile:
+      type: object
+      required: [id, email, subscription_tier, alert_limit, email_verified, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        email:
+          type: string
+          format: email
+          example: analyst@estategap.com
+        display_name:
+          type: string
+          nullable: true
+          example: Alex Analyst
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          example: https://cdn.estategap.com/avatars/alex.png
+        subscription_tier:
+          type: string
+          enum: [free, basic, pro, global, api]
+          example: pro
+        alert_limit:
+          type: integer
+          example: 3
+        email_verified:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-04-17T12:00:00Z"
+
+    ListingSummary:
+      type: object
+      required: [id, source, country, currency, status, first_seen_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 6c07c38e-0d03-4c46-96db-74e9f4d1d45d
+        source:
+          type: string
+          example: idealista
+        country:
+          type: string
+          example: ES
+        city:
+          type: string
+          nullable: true
+          example: Madrid
+        address:
+          type: string
+          nullable: true
+          example: Calle de Alcalá 10
+        asking_price:
+          type: number
+          nullable: true
+          example: 490000
+        asking_price_eur:
+          type: number
+          nullable: true
+          example: 490000
+        price_converted:
+          type: number
+          nullable: true
+          example: 490000
+        currency:
+          type: string
+          example: EUR
+        price_per_m2_eur:
+          type: number
+          nullable: true
+          example: 5120.5
+        area_m2:
+          type: number
+          nullable: true
+          example: 95
+        bedrooms:
+          type: integer
+          nullable: true
+          example: 3
+        bathrooms:
+          type: integer
+          nullable: true
+          example: 2
+        property_category:
+          type: string
+          nullable: true
+          enum: [residential, commercial, industrial, land]
+          example: residential
+        property_type:
+          type: string
+          nullable: true
+          example: apartment
+        deal_score:
+          type: number
+          nullable: true
+          example: 82
+        deal_tier:
+          type: integer
+          nullable: true
+          enum: [1, 2, 3, 4]
+          example: 1
+        status:
+          type: string
+          enum: [active, delisted, sold]
+          example: active
+        days_on_market:
+          type: integer
+          nullable: true
+          example: 12
+        photo_url:
+          type: string
+          nullable: true
+          example: https://images.estategap.com/listing-1.jpg
+        first_seen_at:
+          type: string
+          format: date-time
+          example: "2026-04-12T09:00:00Z"
+
+    ListingsPage:
+      type: object
+      required: [items, total, cursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingSummary"
+        total:
+          type: integer
+          example: 87
+        cursor:
+          type: string
+          nullable: true
+          example: MjAyNi0wNC0xN1QxMjowMDowMFo...
+
+    PriceHistoryItem:
+      type: object
+      required: [change_type, recorded_at]
+      properties:
+        old_price_eur:
+          type: number
+          nullable: true
+          example: 520000
+        new_price_eur:
+          type: number
+          nullable: true
+          example: 499000
+        change_type:
+          type: string
+          example: price_change
+        recorded_at:
+          type: string
+          format: date-time
+          example: "2026-04-10T08:00:00Z"
+
+    ZoneSummaryStats:
+      type: object
+      required: [zone_id, zone_name, listing_count, median_price_m2_eur, deal_count]
+      properties:
+        zone_id:
+          type: string
+          format: uuid
+        zone_name:
+          type: string
+          example: Salamanca
+        listing_count:
+          type: integer
+          example: 128
+        median_price_m2_eur:
+          type: number
+          example: 7032.1
+        deal_count:
+          type: integer
+          example: 16
+
+    ListingDetail:
+      allOf:
+        - $ref: "#/components/schemas/ListingSummary"
+        - type: object
+          required: [source_url, price_history, comparable_ids]
+          properties:
+            zone_id:
+              type: string
+              format: uuid
+              nullable: true
+            source_url:
+              type: string
+              format: uri
+              example: https://www.idealista.com/inmueble/123456/
+            usable_area_m2:
+              type: number
+              nullable: true
+              example: 88
+            plot_area_m2:
+              type: number
+              nullable: true
+            floor_number:
+              type: integer
+              nullable: true
+              example: 4
+            year_built:
+              type: integer
+              nullable: true
+              example: 1999
+            condition:
+              type: string
+              nullable: true
+              example: renovated
+            energy_rating:
+              type: string
+              nullable: true
+              example: B
+            has_lift:
+              type: boolean
+              nullable: true
+              example: true
+            has_pool:
+              type: boolean
+              nullable: true
+              example: false
+            has_garden:
+              type: boolean
+              nullable: true
+            estimated_price:
+              type: number
+              nullable: true
+              example: 487500
+            confidence_low:
+              type: number
+              nullable: true
+              example: 455000
+            confidence_high:
+              type: number
+              nullable: true
+              example: 515000
+            shap_features:
+              type: object
+              additionalProperties: true
+            model_version:
+              type: string
+              nullable: true
+              example: v2.3.1-de
+            published_at:
+              type: string
+              format: date-time
+              nullable: true
+            price_history:
+              type: array
+              items:
+                $ref: "#/components/schemas/PriceHistoryItem"
+            comparable_ids:
+              type: array
+              items:
+                type: string
+                format: uuid
+            zone_stats:
+              $ref: "#/components/schemas/ZoneSummaryStats"
+
+    ZoneDetail:
+      type: object
+      required: [id, name, country, level, listing_count, median_price_m2_eur, deal_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Salamanca
+        name_local:
+          type: string
+          nullable: true
+          example: Salamanca
+        country:
+          type: string
+          example: ES
+        level:
+          type: integer
+          example: 4
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        slug:
+          type: string
+          nullable: true
+          example: madrid-salamanca
+        area_km2:
+          type: number
+          nullable: true
+          example: 5.2
+        listing_count:
+          type: integer
+          example: 128
+        median_price_m2_eur:
+          type: number
+          example: 7032.1
+        deal_count:
+          type: integer
+          example: 16
+        price_trend_pct:
+          type: number
+          nullable: true
+          example: 4.2
+
+    ZoneListResponse:
+      type: object
+      required: [items, cursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ZoneDetail"
+        cursor:
+          type: string
+          nullable: true
+
+    ZoneAnalytics:
+      type: object
+      required: [zone_id, months]
+      properties:
+        zone_id:
+          type: string
+          format: uuid
+        months:
+          type: array
+          items:
+            type: object
+            required: [month, listing_count, median_price_m2_eur, deal_count]
+            properties:
+              month:
+                type: string
+                format: date-time
+              listing_count:
+                type: integer
+              median_price_m2_eur:
+                type: number
+              deal_count:
+                type: integer
+
+    ZoneCompareItem:
+      type: object
+      required: [zone_id, zone_name, country, listing_count, median_price_m2_eur, deal_count]
+      properties:
+        zone_id:
+          type: string
+          format: uuid
+        zone_name:
+          type: string
+        country:
+          type: string
+        listing_count:
+          type: integer
+        median_price_m2_eur:
+          type: number
+        deal_count:
+          type: integer
+
+    CountrySummary:
+      type: object
+      required: [code, name, currency, listing_count, deal_count, portal_count]
+      properties:
+        code:
+          type: string
+          example: ES
+        name:
+          type: string
+          example: Spain
+        currency:
+          type: string
+          example: EUR
+        listing_count:
+          type: integer
+          example: 12800
+        deal_count:
+          type: integer
+          example: 844
+        portal_count:
+          type: integer
+          example: 3
+
+    PortalSummary:
+      type: object
+      required: [id, name, country, base_url, enabled]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: idealista
+        country:
+          type: string
+          example: ES
+        base_url:
+          type: string
+          format: uri
+        enabled:
+          type: boolean
+          example: true
+        last_scrape_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    SubscriptionSummary:
+      type: object
+      required: [tier, status]
+      properties:
+        tier:
+          type: string
+          enum: [free, basic, pro, global, api]
+          example: pro
+        status:
+          type: string
+          example: active
+        billing_period:
+          type: string
+          nullable: true
+          example: monthly
+        next_invoice_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    NotificationChannel:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [email, push, webhook]
+          example: email
+        webhook_url:
+          type: string
+          format: uri
+          nullable: true
+          example: https://hooks.estategap.com/alerts
+
+    AlertFilter:
+      type: object
+      additionalProperties:
+        type: object
+        additionalProperties: true
+      example:
+        price_eur:
+          lte: 500000
+        bedrooms:
+          gte: 3
+
+    AlertRule:
+      type: object
+      required: [id, name, zone_ids, category, filter, channels, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        name:
+          type: string
+          example: Berlin Apartments Under 500k
+        zone_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example: [550e8400-e29b-41d4-a716-446655440000]
+        category:
+          type: string
+          enum: [residential, commercial, industrial, land]
+          example: residential
+        filter:
+          $ref: "#/components/schemas/AlertFilter"
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationChannel"
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-04-17T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-04-17T10:00:00Z"
+
+    CreateAlertRuleRequest:
+      type: object
+      required: [name, zone_ids, category, channels]
+      properties:
+        name:
+          type: string
+          example: Berlin Apartments Under 500k
+        zone_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        category:
+          type: string
+          enum: [residential, commercial, industrial, land]
+          example: residential
+        filter:
+          $ref: "#/components/schemas/AlertFilter"
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationChannel"
+      example:
+        name: Berlin Apartments Under 500k
+        zone_ids: [550e8400-e29b-41d4-a716-446655440000]
+        category: residential
+        filter:
+          price_eur:
+            lte: 500000
+          bedrooms:
+            gte: 3
+        channels:
+          - type: email
+
+    UpdateAlertRuleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        zone_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        filter:
+          $ref: "#/components/schemas/AlertFilter"
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationChannel"
+        is_active:
+          type: boolean
+
+    AlertHistoryEntry:
+      type: object
+      required: [id, rule_id, rule_name, listing_id, triggered_at, channel, delivery_status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        rule_id:
+          type: string
+          format: uuid
+        rule_name:
+          type: string
+          example: Berlin Apartments Under 500k
+        listing_id:
+          type: string
+          format: uuid
+        triggered_at:
+          type: string
+          format: date-time
+          example: "2026-04-17T09:30:00Z"
+        channel:
+          type: string
+          example: email
+        delivery_status:
+          type: string
+          enum: [pending, delivered, failed]
+          example: delivered
+        delivered_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_detail:
+          type: string
+          nullable: true
+
+    MLEstimate:
+      type: object
+      required: [listing_id, estimated_value, currency, confidence, shap_values, model_version]
+      properties:
+        listing_id:
+          type: string
+          format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        estimated_value:
+          type: number
+          example: 487500
+        currency:
+          type: string
+          example: EUR
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.87
+        shap_values:
+          type: object
+          additionalProperties:
+            type: number
+          example:
+            price_eur: 0.42
+            area_m2: 0.31
+            bedrooms: 0.15
+        model_version:
+          type: string
+          example: v2.3.1-de
+
+paths:
+  /api/openapi.json:
+    get:
+      tags: [Documentation]
+      security: []
+      summary: Serve the OpenAPI specification
+      responses:
+        "200":
+          description: OpenAPI 3.1 document as JSON
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/docs:
+    get:
+      tags: [Documentation]
+      security: []
+      summary: Redirect to the interactive docs UI
+      responses:
+        "301":
+          description: Redirects to /api/docs/
+
+  /api/docs/:
+    get:
+      tags: [Documentation]
+      security: []
+      summary: Interactive browser-based API docs
+      responses:
+        "200":
+          description: HTML page with live request execution
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /healthz:
+    get:
+      tags: [Health]
+      security: []
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              example:
+                status: ok
+
+  /readyz:
+    get:
+      tags: [Health]
+      security: []
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Dependencies are healthy
+          content:
+            application/json:
+              example:
+                status: ok
+                checks:
+                  postgres: ok
+                  redis: ok
+                  nats: ok
+        "503":
+          description: One or more dependencies are unavailable
+          content:
+            application/json:
+              example:
+                status: degraded
+                checks:
+                  postgres: error
+                  redis: ok
+                  nats: ok
+
+  /metrics:
+    get:
+      tags: [Health]
+      security: []
+      summary: Prometheus metrics
+      responses:
+        "200":
+          description: Prometheus text exposition
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                display_name:
+                  type: string
+            example:
+              email: analyst@estategap.com
+              password: supersecret123
+              display_name: Alex Analyst
+      responses:
+        "201":
+          description: User created and tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+            example:
+              email: analyst@estategap.com
+              password: supersecret123
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Refresh an access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+                  format: uuid
+            example:
+              refresh_token: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        "200":
+          description: Fresh token pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout the current session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+                  format: uuid
+      responses:
+        "204":
+          description: Session invalidated
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the authenticated user profile
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/google:
+    get:
+      tags: [OAuth]
+      security: []
+      summary: Start Google OAuth
+      responses:
+        "302":
+          description: Redirect to Google
+
+  /api/v1/auth/google/callback:
+    get:
+      tags: [OAuth]
+      security: []
+      summary: Finish Google OAuth
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OAuth login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "400":
+          description: Invalid OAuth state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/listings:
+    get:
+      tags: [Listings]
+      summary: Search listings
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema:
+            type: string
+            example: ES
+        - name: city
+          in: query
+          schema:
+            type: string
+            example: Madrid
+        - name: zone_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: property_type
+          in: query
+          schema:
+            type: string
+            example: apartment
+        - name: property_category
+          in: query
+          schema:
+            type: string
+            enum: [residential, commercial, industrial, land]
+        - name: min_price_eur
+          in: query
+          schema:
+            type: number
+        - name: max_price_eur
+          in: query
+          schema:
+            type: number
+        - name: min_area_m2
+          in: query
+          schema:
+            type: number
+        - name: max_area_m2
+          in: query
+          schema:
+            type: number
+        - name: min_bedrooms
+          in: query
+          schema:
+            type: integer
+        - name: min_bathrooms
+          in: query
+          schema:
+            type: integer
+        - name: deal_tier
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2, 3, 4]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, delisted, sold]
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [recency, deal_score, price, price_m2, days_on_market]
+        - name: sort_dir
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+        - name: currency
+          in: query
+          schema:
+            type: string
+            example: EUR
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Listing page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingsPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/listings/{id}:
+    get:
+      tags: [Listings]
+      summary: Get a listing by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Listing detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/zones:
+    get:
+      tags: [Zones]
+      summary: List zones
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema:
+            type: string
+            example: ES
+        - name: level
+          in: query
+          schema:
+            type: integer
+        - name: parent_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Zone page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZoneListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/zones/{id}:
+    get:
+      tags: [Zones]
+      summary: Get zone detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Zone detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZoneDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/zones/{id}/analytics:
+    get:
+      tags: [Zones]
+      summary: Get monthly zone analytics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Twelve-month analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZoneAnalytics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/zones/compare:
+    get:
+      tags: [Zones]
+      summary: Compare multiple zones
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          schema:
+            type: string
+            example: uuid-1,uuid-2
+      responses:
+        "200":
+          description: Comparable zone stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ZoneCompareItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/countries:
+    get:
+      tags: [Reference]
+      summary: List active countries
+      responses:
+        "200":
+          description: Active countries with summary statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CountrySummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/portals:
+    get:
+      tags: [Reference]
+      summary: List active portals
+      responses:
+        "200":
+          description: Portal metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PortalSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/model/estimate:
+    get:
+      tags: [ML]
+      summary: Get an ML valuation for a listing
+      parameters:
+        - name: listing_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+      responses:
+        "200":
+          description: ML valuation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MLEstimate"
+        "400":
+          description: Invalid listing_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: ML scorer unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: ML scoring service is temporarily unavailable
+                code: ML_SCORER_UNAVAILABLE
+
+  /api/v1/alerts/rules:
+    get:
+      tags: [Alerts]
+      summary: List alert rules
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Paginated alert rules
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertRule"
+                  pagination:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Alerts]
+      summary: Create an alert rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertRuleRequest"
+            example:
+              name: Berlin Apartments Under 500k
+              zone_ids: [550e8400-e29b-41d4-a716-446655440000]
+              category: residential
+              filter:
+                price_eur:
+                  lte: 500000
+                bedrooms:
+                  gte: 3
+              channels:
+                - type: email
+      responses:
+        "201":
+          description: Created alert rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Tier not permitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/alerts/rules/{id}:
+    put:
+      tags: [Alerts]
+      summary: Update an alert rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAlertRuleRequest"
+      responses:
+        "200":
+          description: Updated alert rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags: [Alerts]
+      summary: Soft-delete an alert rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Alert rule deactivated
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/alerts/history:
+    get:
+      tags: [Alerts]
+      summary: List alert delivery history
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: rule_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: delivery_status
+          in: query
+          schema:
+            type: string
+            enum: [pending, delivered, failed]
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paginated alert history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertHistoryEntry"
+                  pagination:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/subscriptions/checkout:
+    post:
+      tags: [Subscriptions]
+      summary: Create a Stripe Checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier, billing_period]
+              properties:
+                tier:
+                  type: string
+                  enum: [basic, pro, global, api]
+                billing_period:
+                  type: string
+                  enum: [monthly, annual]
+            example:
+              tier: pro
+              billing_period: monthly
+      responses:
+        "200":
+          description: Checkout URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkout_url:
+                    type: string
+                    format: uri
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/subscriptions/portal:
+    post:
+      tags: [Subscriptions]
+      summary: Create a Stripe Customer Portal session
+      responses:
+        "200":
+          description: Portal URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  portal_url:
+                    type: string
+                    format: uri
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/subscriptions/me:
+    get:
+      tags: [Subscriptions]
+      summary: Get the authenticated subscription
+      responses:
+        "200":
+          description: Subscription status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/webhooks/stripe:
+    post:
+      tags: [Subscriptions]
+      security: []
+      summary: Receive Stripe webhook events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Event accepted
+        "400":
+          description: Invalid event payload or signature
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

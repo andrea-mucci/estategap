@@ -1,7 +1,10 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/estategap/services/api-gateway/internal/handler"
+	gatewaymw "github.com/estategap/services/api-gateway/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -17,7 +20,8 @@ func mountAuthenticatedV1Routes(
 	listingsHandler *handler.ListingsHandler,
 	zonesHandler *handler.ZonesHandler,
 	referenceHandler *handler.ReferenceHandler,
-	alertsHandler *handler.AlertsHandler,
+	mlHandler *handler.MLHandler,
+	alertRulesHandler *handler.AlertRulesHandler,
 	subscriptionsHandler *handler.SubscriptionsHandler,
 ) {
 	r.Get("/listings", listingsHandler.List)
@@ -25,13 +29,37 @@ func mountAuthenticatedV1Routes(
 	mountZoneRoutes(r, zonesHandler)
 	r.Get("/countries", referenceHandler.Countries)
 	r.Get("/portals", referenceHandler.Portals)
-	r.Get("/alerts", alertsHandler.List)
-	r.Post("/alerts", alertsHandler.Create)
-	r.Get("/alerts/{id}", alertsHandler.Get)
-	r.Put("/alerts/{id}", alertsHandler.Update)
-	r.Delete("/alerts/{id}", alertsHandler.Delete)
-	r.Get("/alerts/{id}/history", alertsHandler.History)
+	r.Get("/model/estimate", mlHandler.Estimate)
+	r.Route("/alerts", func(r chi.Router) {
+		r.Get("/rules", alertRulesHandler.ListAlertRules)
+		r.Post("/rules", alertRulesHandler.CreateAlertRule)
+		r.Put("/rules/{id}", alertRulesHandler.UpdateAlertRule)
+		r.Delete("/rules/{id}", alertRulesHandler.DeleteAlertRule)
+		r.Get("/history", alertRulesHandler.ListAlertHistory)
+	})
 	r.Post("/subscriptions/checkout", subscriptionsHandler.Checkout)
 	r.Post("/subscriptions/portal", subscriptionsHandler.Portal)
 	r.Get("/subscriptions/me", subscriptionsHandler.Me)
+}
+
+func mountAuthRoutes(
+	r chi.Router,
+	authHandler *handler.AuthHandler,
+	googleOAuthHandler *handler.GoogleOAuthHandler,
+	authenticator func(http.Handler) http.Handler,
+	rateLimiter func(http.Handler) http.Handler,
+) {
+	r.Post("/register", authHandler.Register)
+	r.Post("/login", authHandler.Login)
+	r.Post("/refresh", authHandler.Refresh)
+	r.Get("/google", googleOAuthHandler.Redirect)
+	r.Get("/google/callback", googleOAuthHandler.Callback)
+
+	r.Group(func(r chi.Router) {
+		r.Use(authenticator)
+		r.Use(gatewaymw.RequireAuth)
+		r.Use(rateLimiter)
+		r.Post("/logout", authHandler.Logout)
+		r.Get("/me", authHandler.Me)
+	})
 }

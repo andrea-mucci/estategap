@@ -14,6 +14,7 @@ import (
 	cachepkg "github.com/estategap/services/api-gateway/internal/cache"
 	"github.com/estategap/services/api-gateway/internal/config"
 	"github.com/estategap/services/api-gateway/internal/db"
+	grpcclient "github.com/estategap/services/api-gateway/internal/grpc"
 	"github.com/estategap/services/api-gateway/internal/handler"
 	gatewaymw "github.com/estategap/services/api-gateway/internal/middleware"
 	"github.com/estategap/services/api-gateway/internal/natsutil"
@@ -74,7 +75,7 @@ func run() error {
 	listingsRepo := repository.NewListingsRepo(replicaPool)
 	zonesRepo := repository.NewZonesRepo(replicaPool, cacheClient)
 	referenceRepo := repository.NewReferenceRepo(replicaPool, cacheClient)
-	alertsRepo := repository.NewAlertsRepo(primaryPool, replicaPool)
+	alertRulesRepo := repository.NewAlertRulesRepo(primaryPool, replicaPool)
 	subsRepo := repository.NewSubscriptionsRepo(primaryPool, replicaPool)
 
 	authService := service.NewAuthService(cfg.JWTSecret, redisClient)
@@ -92,13 +93,37 @@ func run() error {
 		authService,
 	)
 
+	grpcTimeout := time.Duration(cfg.GRPCTimeoutSeconds) * time.Second
+	mlClient, err := grpcclient.NewMLClient(grpcclient.MLClientConfig{
+		Target:      cfg.GRPCMLScorerAddr,
+		Timeout:     grpcTimeout,
+		CBThreshold: cfg.GRPCCBThreshold,
+		CBWindow:    time.Duration(cfg.GRPCCBWindowSeconds) * time.Second,
+		CBCooldown:  time.Duration(cfg.GRPCCBCooldownSeconds) * time.Second,
+	})
+	if err != nil {
+		return err
+	}
+	defer mlClient.Close()
+
+	chatClient, err := grpcclient.NewChatClient(grpcclient.ChatClientConfig{
+		Target:  cfg.GRPCChatAddr,
+		Timeout: grpcTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer chatClient.Close()
+
 	healthHandler := handler.NewHealthHandler(primaryPool, redisClient, natsConn)
 	authHandler := handler.NewAuthHandler(authService, usersRepo)
 	googleOAuthHandler := handler.NewGoogleOAuthHandler(oauthService)
 	listingsHandler := handler.NewListingsHandler(listingsRepo, usersRepo)
 	zonesHandler := handler.NewZonesHandler(zonesRepo)
 	referenceHandler := handler.NewReferenceHandler(referenceRepo)
-	alertsHandler := handler.NewAlertsHandler(alertsRepo)
+	docsHandler := handler.NewDocsHandler()
+	mlHandler := handler.NewMLHandler(mlClient, listingsRepo, grpcTimeout)
+	alertRulesHandler := handler.NewAlertRulesHandler(alertRulesRepo)
 	subscriptionsHandler := handler.NewSubscriptionsHandler(stripeService, subsRepo, usersRepo, redisClient)
 
 	go worker.StartDowngradeWorker(ctx, redisClient, usersRepo)
@@ -108,6 +133,9 @@ func run() error {
 	router.Use(gatewaymw.RequestLogger())
 	router.Use(gatewaymw.MetricsMiddleware())
 
+	router.Get("/api/openapi.json", docsHandler.ServeOpenAPISpec)
+	router.Get("/api/docs", http.RedirectHandler("/api/docs/", http.StatusMovedPermanently).ServeHTTP)
+	router.Get("/api/docs/*", docsHandler.ServeSwaggerUI)
 	router.Get("/healthz", healthHandler.Healthz)
 	router.Get("/readyz", healthHandler.Readyz)
 	router.Handle("/metrics", promhttp.Handler())
@@ -116,19 +144,11 @@ func run() error {
 	rateLimiter := gatewaymw.RateLimiter(redisClient)
 
 	router.Route("/v1/auth", func(r chi.Router) {
-		r.Post("/register", authHandler.Register)
-		r.Post("/login", authHandler.Login)
-		r.Post("/refresh", authHandler.Refresh)
-		r.Get("/google", googleOAuthHandler.Redirect)
-		r.Get("/google/callback", googleOAuthHandler.Callback)
+		mountAuthRoutes(r, authHandler, googleOAuthHandler, authenticator, rateLimiter)
+	})
 
-		r.Group(func(r chi.Router) {
-			r.Use(authenticator)
-			r.Use(gatewaymw.RequireAuth)
-			r.Use(rateLimiter)
-			r.Post("/logout", authHandler.Logout)
-			r.Get("/me", authHandler.Me)
-		})
+	router.Route("/api/v1/auth", func(r chi.Router) {
+		mountAuthRoutes(r, authHandler, googleOAuthHandler, authenticator, rateLimiter)
 	})
 
 	router.Route("/v1", func(r chi.Router) {
@@ -139,7 +159,19 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, listingsHandler, zonesHandler, referenceHandler, alertsHandler, subscriptionsHandler)
+			mountAuthenticatedV1Routes(r, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler)
+		})
+	})
+
+	router.Route("/api/v1", func(r chi.Router) {
+		r.Post("/webhooks/stripe", subscriptionsHandler.StripeWebhook)
+
+		r.Group(func(r chi.Router) {
+			r.Use(authenticator)
+			r.Use(gatewaymw.RequireAuth)
+			r.Use(rateLimiter)
+
+			mountAuthenticatedV1Routes(r, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler)
 		})
 	})
 
