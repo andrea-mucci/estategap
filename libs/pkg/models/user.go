@@ -25,11 +25,17 @@ type User struct {
 }
 
 type Subscription struct {
-	UserID           pgtype.UUID         `json:"user_id" db:"user_id"`
-	Tier             SubscriptionTier    `json:"tier" db:"tier"`
-	StripeCustomerID *string             `json:"stripe_customer_id" db:"stripe_customer_id"`
-	StripeSubID      *string             `json:"stripe_sub_id" db:"stripe_sub_id"`
-	StartsAt         pgtype.Timestamptz  `json:"starts_at" db:"starts_at"`
-	EndsAt           *pgtype.Timestamptz `json:"ends_at" db:"ends_at"`
-	AlertLimit       int16               `json:"alert_limit" db:"alert_limit"`
+	ID                 pgtype.UUID         `json:"id" db:"id"`
+	UserID             pgtype.UUID         `json:"user_id" db:"user_id"`
+	StripeCustomerID   string              `json:"stripe_customer_id" db:"stripe_customer_id"`
+	StripeSubID        string              `json:"stripe_sub_id" db:"stripe_sub_id"`
+	Tier               SubscriptionTier    `json:"tier" db:"tier"`
+	Status             string              `json:"status" db:"status"`
+	BillingPeriod      string              `json:"billing_period" db:"billing_period"`
+	CurrentPeriodStart pgtype.Timestamptz  `json:"current_period_start" db:"current_period_start"`
+	CurrentPeriodEnd   pgtype.Timestamptz  `json:"current_period_end" db:"current_period_end"`
+	TrialEndAt         *pgtype.Timestamptz `json:"trial_end_at" db:"trial_end_at"`
+	PaymentFailedAt    *pgtype.Timestamptz `json:"payment_failed_at" db:"payment_failed_at"`
+	CreatedAt          pgtype.Timestamptz  `json:"created_at" db:"created_at"`
+	UpdatedAt          pgtype.Timestamptz  `json:"updated_at" db:"updated_at"`
 }

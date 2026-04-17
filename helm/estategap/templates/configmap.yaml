@@ -21,3 +21,14 @@ data:
   MINIO_BUCKET_LISTING_PHOTOS: {{ index .Values.minio.buckets 2 | quote }}
   MINIO_BUCKET_EXPORTS: {{ index .Values.minio.buckets 3 | quote }}
   MINIO_BUCKET_BACKUPS: {{ index .Values.minio.buckets 4 | quote }}
+  STRIPE_SUCCESS_URL: {{ .Values.stripe.successUrl | quote }}
+  STRIPE_CANCEL_URL: {{ .Values.stripe.cancelUrl | quote }}
+  STRIPE_PORTAL_RETURN_URL: {{ .Values.stripe.portalReturnUrl | quote }}
+  STRIPE_PRICE_BASIC_MONTHLY: {{ .Values.stripe.priceBasicMonthly | quote }}
+  STRIPE_PRICE_BASIC_ANNUAL: {{ .Values.stripe.priceBasicAnnual | quote }}
+  STRIPE_PRICE_PRO_MONTHLY: {{ .Values.stripe.priceProMonthly | quote }}
+  STRIPE_PRICE_PRO_ANNUAL: {{ .Values.stripe.priceProAnnual | quote }}
+  STRIPE_PRICE_GLOBAL_MONTHLY: {{ .Values.stripe.priceGlobalMonthly | quote }}
+  STRIPE_PRICE_GLOBAL_ANNUAL: {{ .Values.stripe.priceGlobalAnnual | quote }}
+  STRIPE_PRICE_API_MONTHLY: {{ .Values.stripe.priceApiMonthly | quote }}
+  STRIPE_PRICE_API_ANNUAL: {{ .Values.stripe.priceApiAnnual | quote }}

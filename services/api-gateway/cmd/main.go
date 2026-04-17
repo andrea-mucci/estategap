@@ -20,6 +20,7 @@ import (
 	"github.com/estategap/services/api-gateway/internal/redisclient"
 	"github.com/estategap/services/api-gateway/internal/repository"
 	"github.com/estategap/services/api-gateway/internal/service"
+	"github.com/estategap/services/api-gateway/internal/worker"
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/oauth2"
@@ -74,8 +75,10 @@ func run() error {
 	zonesRepo := repository.NewZonesRepo(replicaPool, cacheClient)
 	referenceRepo := repository.NewReferenceRepo(replicaPool, cacheClient)
 	alertsRepo := repository.NewAlertsRepo(primaryPool, replicaPool)
+	subsRepo := repository.NewSubscriptionsRepo(primaryPool, replicaPool)
 
 	authService := service.NewAuthService(cfg.JWTSecret, redisClient)
+	stripeService := service.NewStripeService(cfg)
 	oauthService := service.NewOAuthService(
 		redisClient,
 		&oauth2.Config{
@@ -96,7 +99,9 @@ func run() error {
 	zonesHandler := handler.NewZonesHandler(zonesRepo)
 	referenceHandler := handler.NewReferenceHandler(referenceRepo)
 	alertsHandler := handler.NewAlertsHandler(alertsRepo)
-	subscriptionsHandler := handler.NewSubscriptionsHandler()
+	subscriptionsHandler := handler.NewSubscriptionsHandler(stripeService, subsRepo, usersRepo, redisClient)
+
+	go worker.StartDowngradeWorker(ctx, redisClient, usersRepo)
 
 	router := chi.NewRouter()
 	router.Use(gatewaymw.CORS(cfg.AllowedOrigins))
