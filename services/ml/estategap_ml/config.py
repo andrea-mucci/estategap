@@ -1,4 +1,4 @@
-"""Configuration for the ML trainer service."""
+"""Configuration for the ML services."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Config(BaseSettings):
-    """Typed environment-backed settings for the training pipeline."""
+    """Typed environment-backed settings for the ML trainer and scorer."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -36,5 +36,14 @@ class Config(BaseSettings):
         default=None,
         alias="PROMETHEUS_PUSHGATEWAY_URL",
     )
+    grpc_port: int = Field(default=50051, alias="GRPC_PORT")
+    scorer_batch_size: int = Field(default=50, alias="SCORER_BATCH_SIZE")
+    scorer_batch_flush_seconds: int = Field(default=5, alias="SCORER_BATCH_FLUSH_SECONDS")
+    model_poll_interval_seconds: int = Field(default=60, alias="MODEL_POLL_INTERVAL_SECONDS")
+    comparables_refresh_interval_seconds: int = Field(
+        default=3600,
+        alias="COMPARABLES_REFRESH_INTERVAL_SECONDS",
+    )
+    shap_timeout_seconds: float = Field(default=2.0, alias="SHAP_TIMEOUT_SECONDS")
+    prometheus_port: int = Field(default=9091, alias="PROMETHEUS_PORT")
     local_artifact_dir: Path = Field(default=Path("./artifacts"), alias="LOCAL_ARTIFACT_DIR")
-

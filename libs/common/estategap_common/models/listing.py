@@ -148,6 +148,7 @@ class Listing(NormalizedListing):
     confidence_low: Decimal | None = None
     confidence_high: Decimal | None = None
     shap_features: list[ShapValue] | None = None
+    comparable_ids: list[UUID] | None = None
     model_version: str | None = None
     scored_at: AwareDatetime | None = None
     days_on_market: int | None = None

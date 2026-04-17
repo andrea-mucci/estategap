@@ -1,11 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
-
-pytest.importorskip("asyncpg")
-pd = pytest.importorskip("pandas")
 
 from estategap_ml.features.zone_stats import ZoneStats
 
@@ -43,7 +41,8 @@ def zone_stats_bundle(sample_zone_id: object) -> tuple[dict[object, ZoneStats], 
 
 
 @pytest.fixture
-def sample_training_frame(sample_zone_id: object) -> pd.DataFrame:
+def sample_training_frame(sample_zone_id: object) -> Any:
+    pd = pytest.importorskip("pandas")
     return pd.DataFrame(
         [
             {

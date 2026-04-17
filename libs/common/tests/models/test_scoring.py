@@ -8,7 +8,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from estategap_common.models import DealTier, ScoringResult
+from estategap_common.models import DealTier, ScoredListingEvent, ScoringResult
 
 
 def _aware_datetime() -> datetime:
@@ -52,3 +52,45 @@ def test_deal_tier_serializes_as_int() -> None:
     payload = json.loads(ScoringResult(**_scoring_payload()).model_dump_json())
 
     assert payload["deal_tier"] == 2
+
+
+def test_shap_feature_aliases_are_accepted() -> None:
+    payload = _scoring_payload()
+    payload["shap_features"] = [
+        {
+            "feature": "zone_price_median",
+            "value": 15234.5,
+            "shap_value": 1234.0,
+            "label": "Zone median price pushes estimate up",
+        }
+    ]
+
+    result = ScoringResult(**payload)
+
+    assert result.shap_features[0].feature_name == "zone_price_median"
+    assert result.shap_features[0].contribution == pytest.approx(1234.0)
+
+
+def test_scored_listing_event_valid_payload() -> None:
+    event = ScoredListingEvent(
+        listing_id=UUID("550e8400-e29b-41d4-a716-446655440000"),
+        country_code="ES",
+        estimated_price_eur=Decimal("420000"),
+        deal_score=Decimal("72.5"),
+        deal_tier=DealTier.GOOD_DEAL,
+        confidence_low_eur=Decimal("395000"),
+        confidence_high_eur=Decimal("445000"),
+        model_version="es-lgbm-v2.1.0",
+        scored_at=_aware_datetime(),
+        shap_features=[
+            {
+                "feature": "zone_price_median",
+                "value": 15234.5,
+                "shap_value": 1234.0,
+                "label": "Zone median price pushes estimate up",
+            }
+        ],
+    )
+
+    assert event.country_code == "ES"
+    assert event.shap_features[0].feature == "zone_price_median"

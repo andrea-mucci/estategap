@@ -16,7 +16,7 @@ from .listing import (
 )
 from .ml import MlModelVersion, ModelStatus
 from .reference import Country, ExchangeRate, Portal
-from .scoring import DealTier, ScoringResult, ShapValue
+from .scoring import DealTier, ScoredListingEvent, ScoringResult, ShapFeatureEvent, ShapValue
 from .user import Subscription, SubscriptionTier, User
 from .zone import Zone, ZoneLevel
 
@@ -40,8 +40,10 @@ __all__ = [
     "PriceHistory",
     "PropertyCategory",
     "RawListing",
+    "ScoredListingEvent",
     "ScoringResult",
     "ScrapeCycleEvent",
+    "ShapFeatureEvent",
     "ShapValue",
     "Subscription",
     "SubscriptionTier",

@@ -25,5 +25,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app /app
 
 ENV PATH="/app/.venv/bin:$PATH"
+ARG SERVICE_MODE=scorer
+ENV SERVICE_MODE=${SERVICE_MODE}
 
-CMD ["python", "main.py"]
+CMD ["python", "-m", "estategap_ml"]

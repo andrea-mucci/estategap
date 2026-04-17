@@ -1,0 +1,286 @@
+"""gRPC servicer implementation for ML scoring."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from decimal import Decimal
+from typing import Any
+from uuid import UUID
+
+import grpc
+from estategap.v1 import common_pb2, listings_pb2, ml_scoring_pb2, ml_scoring_pb2_grpc
+from estategap_common.models import ScoredListingEvent, ShapFeatureEvent
+
+from .comparables import ComparablesFinder
+from .db_writer import write_scores
+from .inference import score_listing
+from .model_registry import ModelRegistry
+from .shap_explainer import ShapExplainer
+
+
+def _timestamp(value: datetime | None) -> common_pb2.Timestamp:
+    millis = int((value.timestamp() if value else 0) * 1000)
+    return common_pb2.Timestamp(millis=millis)
+
+
+def _money(value: Any) -> common_pb2.Money:
+    if value is None:
+        return common_pb2.Money()
+    amount = int(Decimal(str(value)) * 100)
+    return common_pb2.Money(amount=amount, currency_code="EUR", eur_amount=amount)
+
+
+def _listing_status(value: str | None) -> int:
+    return {
+        "active": listings_pb2.LISTING_STATUS_ACTIVE,
+        "sold": listings_pb2.LISTING_STATUS_SOLD,
+        "rented": listings_pb2.LISTING_STATUS_RENTED,
+        "withdrawn": listings_pb2.LISTING_STATUS_WITHDRAWN,
+    }.get(str(value or "").lower(), listings_pb2.LISTING_STATUS_UNSPECIFIED)
+
+
+def _property_type(row: dict[str, Any]) -> int:
+    category = str(row.get("property_category") or "").lower()
+    return {
+        "residential": listings_pb2.PROPERTY_TYPE_RESIDENTIAL,
+        "commercial": listings_pb2.PROPERTY_TYPE_COMMERCIAL,
+        "industrial": listings_pb2.PROPERTY_TYPE_INDUSTRIAL,
+        "land": listings_pb2.PROPERTY_TYPE_LAND,
+    }.get(category, listings_pb2.PROPERTY_TYPE_UNSPECIFIED)
+
+
+def _listing_proto(row: dict[str, Any]) -> listings_pb2.Listing:
+    return listings_pb2.Listing(
+        id=str(row["id"]),
+        portal_id=str(row.get("portal_id") or ""),
+        country_code=str(row.get("country") or row.get("country_code") or "").upper(),
+        status=_listing_status(row.get("status")),
+        listing_type=listings_pb2.LISTING_TYPE_SALE,
+        property_type=_property_type(row),
+        price=_money(row.get("asking_price_eur") or row.get("asking_price")),
+        area_sqm=float(row.get("built_area_m2") or 0.0),
+        location=common_pb2.GeoPoint(
+            latitude=float(row.get("lat") or 0.0),
+            longitude=float(row.get("lon") or 0.0),
+        ),
+        created_at=_timestamp(row.get("created_at")),
+        updated_at=_timestamp(row.get("updated_at")),
+    )
+
+
+class MLScoringServicer(ml_scoring_pb2_grpc.MLScoringServiceServicer):
+    """Async gRPC implementation backed by the scorer runtime."""
+
+    def __init__(
+        self,
+        *,
+        config: Any,
+        db_pool: Any,
+        registry: ModelRegistry,
+        jetstream: Any,
+        shap_explainer: ShapExplainer | None = None,
+        comparables_finder: ComparablesFinder | None = None,
+    ) -> None:
+        self._config = config
+        self._db_pool = db_pool
+        self._registry = registry
+        self._jetstream = jetstream
+        self._shap_explainer = shap_explainer
+        self._comparables_finder = comparables_finder
+
+    async def _abort(self, context: grpc.aio.ServicerContext, code: grpc.StatusCode, message: str) -> None:
+        await context.abort(code, message)
+
+    async def _fetch_listing(self, listing_id: UUID, country_code: str) -> dict[str, Any] | None:
+        async with self._db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    listings.*,
+                    ST_Y(location) AS lat,
+                    ST_X(location) AS lon
+                FROM listings
+                WHERE id = $1
+                  AND country = $2
+                """,
+                listing_id,
+                country_code.upper(),
+            )
+        return dict(row) if row is not None else None
+
+    async def _fetch_listings(self, listing_ids: list[UUID], country_code: str) -> dict[UUID, dict[str, Any]]:
+        async with self._db_pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    listings.*,
+                    ST_Y(location) AS lat,
+                    ST_X(location) AS lon
+                FROM listings
+                WHERE id = ANY($1::uuid[])
+                  AND country = $2
+                """,
+                listing_ids,
+                country_code.upper(),
+            )
+        return {row["id"]: dict(row) for row in rows}
+
+    async def _publish_result(self, result: Any) -> None:
+        event = ScoredListingEvent(
+            listing_id=result.listing_id,
+            country_code=result.country.upper(),
+            estimated_price_eur=result.estimated_price,
+            deal_score=result.deal_score,
+            deal_tier=result.deal_tier,
+            confidence_low_eur=result.confidence_low,
+            confidence_high_eur=result.confidence_high,
+            model_version=result.model_version,
+            scored_at=result.scored_at,
+            shap_features=[
+                ShapFeatureEvent(
+                    feature=value.feature_name,
+                    value=value.value,
+                    shap_value=value.contribution,
+                    label=value.label,
+                )
+                for value in result.shap_features
+            ],
+        )
+        await self._jetstream.publish("scored.listings", event.model_dump_json().encode("utf-8"))
+
+    def _result_proto(self, result: Any) -> ml_scoring_pb2.ScoreListingResponse:
+        return ml_scoring_pb2.ScoreListingResponse(
+            listing_id=str(result.listing_id),
+            deal_score=float(result.deal_score),
+            shap_values=[
+                ml_scoring_pb2.ShapValue(
+                    feature_name=value.feature_name,
+                    value=float(value.value),
+                    contribution=float(value.contribution),
+                    label=value.label,
+                )
+                for value in result.shap_features
+            ],
+            model_version=result.model_version,
+            estimated_price=float(result.estimated_price),
+            asking_price=float(result.asking_price or 0),
+            confidence_low=float(result.confidence_low),
+            confidence_high=float(result.confidence_high),
+            deal_tier=int(result.deal_tier),
+            scored_at=result.scored_at.isoformat(),
+        )
+
+    async def _score_row(self, row: dict[str, Any]) -> Any:
+        country_code = str(row.get("country") or row.get("country_code") or "").lower()
+        bundle = self._registry.get(country_code)
+        if bundle is None:
+            msg = f"No active model loaded for {country_code}"
+            raise LookupError(msg)
+        result = score_listing(
+            bundle,
+            row,
+            shap_explainer=self._shap_explainer,
+            mode="ondemand",
+        )
+        if self._comparables_finder is not None:
+            result.comparable_ids = [
+                listing_id
+                for listing_id, _ in self._comparables_finder.get_comparables(
+                    row,
+                    bundle.feature_engineer,
+                )
+            ]
+        return result
+
+    async def ScoreListing(
+        self,
+        request: ml_scoring_pb2.ScoreListingRequest,
+        context: grpc.aio.ServicerContext,
+    ) -> ml_scoring_pb2.ScoreListingResponse:
+        try:
+            listing_id = UUID(request.listing_id)
+        except ValueError:
+            await self._abort(context, grpc.StatusCode.INVALID_ARGUMENT, "listing_id must be a UUID")
+        country_code = request.country_code.strip().lower()
+        if len(country_code) != 2:
+            await self._abort(context, grpc.StatusCode.INVALID_ARGUMENT, "country_code must be ISO-3166 alpha2")
+        row = await self._fetch_listing(listing_id, country_code)
+        if row is None:
+            await self._abort(context, grpc.StatusCode.NOT_FOUND, "listing not found")
+        try:
+            result = await self._score_row(row)
+            await write_scores(self._db_pool, [result])
+            await self._publish_result(result)
+        except LookupError as exc:
+            await self._abort(context, grpc.StatusCode.FAILED_PRECONDITION, str(exc))
+        except Exception as exc:
+            await self._abort(context, grpc.StatusCode.INTERNAL, str(exc))
+        return self._result_proto(result)
+
+    async def ScoreBatch(
+        self,
+        request: ml_scoring_pb2.ScoreBatchRequest,
+        context: grpc.aio.ServicerContext,
+    ) -> ml_scoring_pb2.ScoreBatchResponse:
+        if len(request.listing_ids) > 500:
+            await self._abort(context, grpc.StatusCode.RESOURCE_EXHAUSTED, "ScoreBatch max size is 500")
+        country_code = request.country_code.strip().lower()
+        if len(country_code) != 2:
+            await self._abort(context, grpc.StatusCode.INVALID_ARGUMENT, "country_code must be ISO-3166 alpha2")
+        try:
+            listing_ids = [UUID(value) for value in request.listing_ids]
+        except ValueError:
+            await self._abort(context, grpc.StatusCode.INVALID_ARGUMENT, "listing_ids must all be UUIDs")
+        rows = await self._fetch_listings(listing_ids, country_code)
+        if not rows:
+            await self._abort(context, grpc.StatusCode.NOT_FOUND, "no requested listings were found")
+        try:
+            results = [await self._score_row(rows[listing_id]) for listing_id in listing_ids if listing_id in rows]
+            await write_scores(self._db_pool, results)
+            for result in results:
+                await self._publish_result(result)
+        except LookupError as exc:
+            await self._abort(context, grpc.StatusCode.FAILED_PRECONDITION, str(exc))
+        except Exception as exc:
+            await self._abort(context, grpc.StatusCode.INTERNAL, str(exc))
+        return ml_scoring_pb2.ScoreBatchResponse(scores=[self._result_proto(result) for result in results])
+
+    async def GetComparables(
+        self,
+        request: ml_scoring_pb2.GetComparablesRequest,
+        context: grpc.aio.ServicerContext,
+    ) -> ml_scoring_pb2.GetComparablesResponse:
+        try:
+            listing_id = UUID(request.listing_id)
+        except ValueError:
+            await self._abort(context, grpc.StatusCode.INVALID_ARGUMENT, "listing_id must be a UUID")
+        country_code = request.country_code.strip().lower()
+        if len(country_code) != 2:
+            await self._abort(context, grpc.StatusCode.INVALID_ARGUMENT, "country_code must be ISO-3166 alpha2")
+        row = await self._fetch_listing(listing_id, country_code)
+        if row is None:
+            await self._abort(context, grpc.StatusCode.NOT_FOUND, "listing not found")
+        bundle = self._registry.get(country_code)
+        if bundle is None:
+            await self._abort(context, grpc.StatusCode.FAILED_PRECONDITION, f"No active model loaded for {country_code}")
+        if self._comparables_finder is None:
+            return ml_scoring_pb2.GetComparablesResponse()
+        comparable_pairs = self._comparables_finder.get_comparables(
+            row,
+            bundle.feature_engineer,
+            limit=max(1, min(request.limit or 5, 10)),
+        )
+        if not comparable_pairs:
+            return ml_scoring_pb2.GetComparablesResponse()
+        comparable_rows = await self._fetch_listings([listing_id for listing_id, _ in comparable_pairs], country_code)
+        return ml_scoring_pb2.GetComparablesResponse(
+            comparables=[
+                _listing_proto(comparable_rows[listing_id])
+                for listing_id, _ in comparable_pairs
+                if listing_id in comparable_rows
+            ],
+            distances=[distance for _, distance in comparable_pairs if _ in comparable_rows],
+        )
+
+
+__all__ = ["MLScoringServicer"]

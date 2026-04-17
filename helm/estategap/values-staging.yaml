@@ -43,3 +43,13 @@ prometheus:
 argocd:
   # Required: set this to the canonical repository URL for ArgoCD sync.
   repoURL: https://github.com/andrea-mucci/estategap.git
+
+mlScorer:
+  batchFlushSeconds: 3
+  modelPollIntervalSeconds: 30
+
+services:
+  ml-scorer:
+    hpa:
+      minReplicas: 1
+      maxReplicas: 2
