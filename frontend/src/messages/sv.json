@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "home": "Hem",
+    "search": "Sök",
+    "dashboard": "Översikt",
+    "zones": "Zoner",
+    "alerts": "Aviseringar",
+    "portfolio": "Portfölj",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Logga in",
+    "register": "Registrera dig",
+    "logout": "Logga ut",
+    "email": "E-post",
+    "password": "Lösenord",
+    "name": "Namn",
+    "loginWithGoogle": "Fortsätt med Google",
+    "alreadyHaveAccount": "Har du redan ett konto?",
+    "dontHaveAccount": "Har du inget konto ännu?",
+    "forgotPassword": "Glömt lösenordet?",
+    "loginError": "Det gick inte att logga in. Kontrollera uppgifterna och försök igen.",
+    "registerError": "Det gick inte att skapa ditt konto. Försök igen.",
+    "signInHeading": "Välkommen tillbaka",
+    "createAccountHeading": "Skapa ditt EstateGap-konto",
+    "submitLogin": "Logga in",
+    "submitRegister": "Skapa konto",
+    "passwordHint": "Använd minst 8 tecken."
+  },
+  "chat": {
+    "placeholder": "Fråga efter en stad, budget eller investeringsidé...",
+    "send": "Skicka",
+    "thinking": "Tänker...",
+    "newSession": "Assistent i realtid",
+    "chooseOption": "Välj ett alternativ för att driva sökningen vidare.",
+    "reconnect": "Återanslut",
+    "startConversation": "Starta en konversation med AI-fastighetsassistenten",
+    "disconnected": "Skicka ditt första meddelande när realtidsanslutningen är redo."
+  },
+  "common": {
+    "loading": "Laddar",
+    "error": "Något gick fel",
+    "retry": "Försök igen",
+    "save": "Spara",
+    "cancel": "Avbryt",
+    "confirm": "Bekräfta",
+    "close": "Stäng",
+    "noResults": "Inga resultat ännu",
+    "search": "Sök",
+    "menu": "Meny",
+    "notifications": "Aviseringar",
+    "open": "Öppna",
+    "back": "Tillbaka"
+  },
+  "listing": {
+    "price": "Pris",
+    "area": "Yta",
+    "bedrooms": "Sovrum",
+    "bathrooms": "Badrum",
+    "dealScore": "Deal-poäng",
+    "viewDetails": "Visa detaljer",
+    "location": "Plats",
+    "results": "Resultat",
+    "noImage": "Ingen bild tillgänglig"
+  },
+  "alerts": {
+    "title": "Deal-aviseringar",
+    "empty": "Inga aviseringar ännu",
+    "markAllRead": "Markera alla som lästa"
+  },
+  "meta": {
+    "appName": "EstateGap",
+    "tagline": "Hitta flerspråkiga fastighetsmöjligheter med en live AI-assistent, autentiserad dataåtkomst och realtidsaviseringar.",
+    "dashboardTitle": "Marknadsöversikt",
+    "chatTitle": "AI-chatt",
+    "searchTitle": "Sök objekt",
+    "zonesTitle": "Zonanalys",
+    "alertsTitle": "Aviseringscenter",
+    "portfolioTitle": "Portföljvy",
+    "adminTitle": "Adminyta"
+  }
+}

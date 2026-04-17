@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "search": "Buscar",
+    "dashboard": "Panel",
+    "zones": "Zonas",
+    "alerts": "Alertas",
+    "portfolio": "Cartera",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "register": "Registrarse",
+    "logout": "Cerrar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "name": "Nombre",
+    "loginWithGoogle": "Continuar con Google",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+    "dontHaveAccount": "¿No tienes una cuenta?",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "loginError": "No pudimos iniciar tu sesión. Revisa tus credenciales e inténtalo de nuevo.",
+    "registerError": "No pudimos crear tu cuenta. Inténtalo de nuevo.",
+    "signInHeading": "Bienvenido de nuevo",
+    "createAccountHeading": "Crea tu cuenta de EstateGap",
+    "submitLogin": "Entrar",
+    "submitRegister": "Crear cuenta",
+    "passwordHint": "Usa al menos 8 caracteres."
+  },
+  "chat": {
+    "placeholder": "Pide una ciudad, un presupuesto o una tesis de inversión...",
+    "send": "Enviar",
+    "thinking": "Pensando...",
+    "newSession": "Asistente en tiempo real",
+    "chooseOption": "Elige una opción para seguir afinando la búsqueda.",
+    "reconnect": "Reconectar",
+    "startConversation": "Inicia una conversación con el explorador inmobiliario con IA",
+    "disconnected": "Envía tu primer mensaje cuando la conexión en tiempo real esté lista."
+  },
+  "common": {
+    "loading": "Cargando",
+    "error": "Algo salió mal",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "noResults": "Sin resultados todavía",
+    "search": "Buscar",
+    "menu": "Menú",
+    "notifications": "Notificaciones",
+    "open": "Abrir",
+    "back": "Volver"
+  },
+  "listing": {
+    "price": "Precio",
+    "area": "Superficie",
+    "bedrooms": "Dormitorios",
+    "bathrooms": "Baños",
+    "dealScore": "Puntuación de oportunidad",
+    "viewDetails": "Ver detalles",
+    "location": "Ubicación",
+    "results": "Resultados",
+    "noImage": "No hay imagen disponible"
+  },
+  "alerts": {
+    "title": "Alertas de oportunidad",
+    "empty": "Todavía no hay alertas",
+    "markAllRead": "Marcar todo como leído"
+  },
+  "meta": {
+    "appName": "EstateGap",
+    "tagline": "Encuentra oportunidades inmobiliarias multilingües con un asistente de IA en vivo, datos autenticados y alertas de oportunidades en tiempo real.",
+    "dashboardTitle": "Panel de mercado",
+    "chatTitle": "Chat IA",
+    "searchTitle": "Buscar anuncios",
+    "zonesTitle": "Analítica de zonas",
+    "alertsTitle": "Centro de alertas",
+    "portfolioTitle": "Vista de cartera",
+    "adminTitle": "Espacio de administración"
+  }
+}

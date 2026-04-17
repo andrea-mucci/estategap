@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "dashboard": "Dashboard",
+    "zones": "Zones",
+    "alerts": "Alerts",
+    "portfolio": "Portfolio",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "loginWithGoogle": "Continue with Google",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "forgotPassword": "Forgot password?",
+    "loginError": "We couldn't sign you in. Check your credentials and try again.",
+    "registerError": "We couldn't create your account. Please try again.",
+    "signInHeading": "Welcome back",
+    "createAccountHeading": "Create your EstateGap account",
+    "submitLogin": "Sign in",
+    "submitRegister": "Create account",
+    "passwordHint": "Use at least 8 characters."
+  },
+  "chat": {
+    "placeholder": "Ask for a city, budget, or investment angle...",
+    "send": "Send",
+    "thinking": "Thinking...",
+    "newSession": "Real-time assistant",
+    "chooseOption": "Choose an option to keep the search moving.",
+    "reconnect": "Reconnect",
+    "startConversation": "Start a conversation with the AI property scout",
+    "disconnected": "Send your first prompt once the real-time connection is ready."
+  },
+  "common": {
+    "loading": "Loading",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "noResults": "No results yet",
+    "search": "Search",
+    "menu": "Menu",
+    "notifications": "Notifications",
+    "open": "Open",
+    "back": "Back"
+  },
+  "listing": {
+    "price": "Price",
+    "area": "Area",
+    "bedrooms": "Bedrooms",
+    "bathrooms": "Bathrooms",
+    "dealScore": "Deal score",
+    "viewDetails": "View details",
+    "location": "Location",
+    "results": "Results",
+    "noImage": "No image available"
+  },
+  "alerts": {
+    "title": "Deal alerts",
+    "empty": "No alerts yet",
+    "markAllRead": "Mark all as read"
+  },
+  "meta": {
+    "appName": "EstateGap",
+    "tagline": "Find multilingual real-estate opportunities with a live AI assistant, authenticated data access, and real-time deal alerts.",
+    "dashboardTitle": "Market dashboard",
+    "chatTitle": "AI chat",
+    "searchTitle": "Search listings",
+    "zonesTitle": "Zone analytics",
+    "alertsTitle": "Alert center",
+    "portfolioTitle": "Portfolio view",
+    "adminTitle": "Admin workspace"
+  }
+}

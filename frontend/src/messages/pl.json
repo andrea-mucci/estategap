@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "home": "Start",
+    "search": "Szukaj",
+    "dashboard": "Panel",
+    "zones": "Strefy",
+    "alerts": "Alerty",
+    "portfolio": "Portfolio",
+    "admin": "Admin"
+  },
+  "auth": {
+    "login": "Zaloguj się",
+    "register": "Zarejestruj się",
+    "logout": "Wyloguj się",
+    "email": "Email",
+    "password": "Hasło",
+    "name": "Imię",
+    "loginWithGoogle": "Kontynuuj z Google",
+    "alreadyHaveAccount": "Masz już konto?",
+    "dontHaveAccount": "Nie masz jeszcze konta?",
+    "forgotPassword": "Nie pamiętasz hasła?",
+    "loginError": "Nie udało się zalogować. Sprawdź dane i spróbuj ponownie.",
+    "registerError": "Nie udało się utworzyć konta. Spróbuj ponownie.",
+    "signInHeading": "Witamy ponownie",
+    "createAccountHeading": "Utwórz konto EstateGap",
+    "submitLogin": "Zaloguj się",
+    "submitRegister": "Utwórz konto",
+    "passwordHint": "Użyj co najmniej 8 znaków."
+  },
+  "chat": {
+    "placeholder": "Zapytaj o miasto, budżet albo tezę inwestycyjną...",
+    "send": "Wyślij",
+    "thinking": "Myślę...",
+    "newSession": "Asystent czasu rzeczywistego",
+    "chooseOption": "Wybierz opcję, aby doprecyzować wyszukiwanie.",
+    "reconnect": "Połącz ponownie",
+    "startConversation": "Rozpocznij rozmowę z AI asystentem nieruchomości",
+    "disconnected": "Wyślij pierwszą wiadomość, gdy połączenie czasu rzeczywistego będzie gotowe."
+  },
+  "common": {
+    "loading": "Ładowanie",
+    "error": "Coś poszło nie tak",
+    "retry": "Spróbuj ponownie",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "confirm": "Potwierdź",
+    "close": "Zamknij",
+    "noResults": "Brak wyników",
+    "search": "Szukaj",
+    "menu": "Menu",
+    "notifications": "Powiadomienia",
+    "open": "Otwórz",
+    "back": "Wstecz"
+  },
+  "listing": {
+    "price": "Cena",
+    "area": "Powierzchnia",
+    "bedrooms": "Sypialnie",
+    "bathrooms": "Łazienki",
+    "dealScore": "Ocena okazji",
+    "viewDetails": "Zobacz szczegóły",
+    "location": "Lokalizacja",
+    "results": "Wyniki",
+    "noImage": "Brak dostępnego zdjęcia"
+  },
+  "alerts": {
+    "title": "Alerty okazji",
+    "empty": "Brak alertów",
+    "markAllRead": "Oznacz wszystko jako przeczytane"
+  },
+  "meta": {
+    "appName": "EstateGap",
+    "tagline": "Szukaj wielojęzycznych okazji nieruchomościowych z pomocą AI na żywo, uwierzytelnionych danych i alertów w czasie rzeczywistym.",
+    "dashboardTitle": "Panel rynku",
+    "chatTitle": "Czat AI",
+    "searchTitle": "Szukaj ofert",
+    "zonesTitle": "Analiza stref",
+    "alertsTitle": "Centrum alertów",
+    "portfolioTitle": "Widok portfolio",
+    "adminTitle": "Przestrzeń administracyjna"
+  }
+}
