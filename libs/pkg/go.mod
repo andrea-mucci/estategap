@@ -5,10 +5,12 @@ go 1.23
 require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/nats-io/nats.go v1.37.0
+	github.com/prometheus/client_golang v1.20.5
+	github.com/segmentio/kafka-go v0.4.47
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
+	github.com/testcontainers/testcontainers-go v0.32.0
 	google.golang.org/grpc v1.67.1
 )
 
@@ -18,8 +20,6 @@ require (
 	github.com/klauspost/compress v1.17.2 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/nats-io/nkeys v0.4.7 // indirect
-	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect

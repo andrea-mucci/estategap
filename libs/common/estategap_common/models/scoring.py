@@ -33,7 +33,7 @@ class ShapValue(EstateGapModel):
 
 
 class ShapFeatureEvent(EstateGapModel):
-    """Event payload stored in JSONB and published onto NATS."""
+    """Event payload stored in JSONB and published onto Kafka."""
 
     feature: str = Field(validation_alias=AliasChoices("feature", "feature_name"))
     value: float

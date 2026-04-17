@@ -1,14 +1,13 @@
-"""NATS JetStream consumer for scrape commands."""
+"""Kafka consumer for scrape commands."""
 
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
 
-import nats
 import redis.asyncio as redis
 import structlog
-from nats.errors import TimeoutError as NatsTimeoutError
+from estategap_common.broker import KafkaBroker, KafkaConfig, Message
+from estategap_common.broker.kafka_lag import start_lag_poller
 
 from .config import Config
 from .http_client import ParseError, PermanentFailureError
@@ -23,48 +22,48 @@ LOGGER = structlog.get_logger(__name__)
 
 
 async def run(config: Config) -> None:
-    """Run the pull-based JetStream consumer loop."""
+    """Run the Kafka consumer loop."""
 
-    nc = await nats.connect(config.nats_url)
-    js = nc.jetstream()
-    sub = await js.pull_subscribe(
-        config.consumer_subject,
-        durable=config.consumer_durable,
-        stream=config.consumer_stream,
+    broker = KafkaBroker(
+        KafkaConfig(
+            brokers=config.kafka_brokers,
+            topic_prefix=config.kafka_topic_prefix,
+            max_retries=config.kafka_max_retries,
+        ),
+        service_name="spider-workers",
     )
+    consumer = await broker.create_consumer(["scraper-commands"], "estategap.spider-workers")
+    lag_task = asyncio.create_task(start_lag_poller(consumer, "estategap.spider-workers"))
 
     LOGGER.info(
         "consumer_started",
-        stream=config.consumer_stream,
-        durable=config.consumer_durable,
-        subject=config.consumer_subject,
+        topic=broker.full_topic_name("scraper-commands"),
+        group="estategap.spider-workers",
     )
 
     try:
-        while True:
-            try:
-                messages = await sub.fetch(batch=1, timeout=1)
-            except NatsTimeoutError:
-                continue
-            for message in messages:
-                await process_message(message, js, config)
+        async def handler(message: Message) -> None:
+            await process_message(message, broker, config)
+
+        await broker.consume(consumer, "estategap.spider-workers", handler)
     except asyncio.CancelledError:
         LOGGER.info("consumer_cancelled")
         raise
     finally:
-        await nc.close()
+        lag_task.cancel()
+        await asyncio.gather(lag_task, return_exceptions=True)
+        await broker.stop()
 
 
-async def process_message(message, js, config: Config) -> None:
+async def process_message(message: Message, broker: KafkaBroker, config: Config) -> None:
     """Process a single scrape command message."""
 
     try:
-        command = ScraperCommand.model_validate_json(message.data)
+        command = ScraperCommand.model_validate_json(message.value)
     except Exception as exc:  # noqa: BLE001
         SCRAPE_ERRORS.labels(portal="unknown", country="unknown", error_type="parse_error").inc()
         LOGGER.error("invalid_scraper_command", error=str(exc))
-        await _safe_terminal_ack(message)
-        return
+        raise
 
     if config.estategap_test_mode:
         spider = FixtureSpider(config, country=command.country, portal=command.portal)
@@ -76,17 +75,15 @@ async def process_message(message, js, config: Config) -> None:
                 country=command.country,
                 error_type="unknown_portal",
             ).inc()
-            await message.nak()
-            return
+            raise LookupError(f"unknown portal {command.portal!r} for country {command.country!r}")
         spider = spider_cls(config)
     spider.search_url = command.search_url
 
     try:
         if command.mode == "detect_new":
-            await _run_detect_new(spider, command, js, config)
+            await _run_detect_new(spider, command, broker, config)
         else:
-            await _run_full_scrape(spider, command, js, config)
-        await message.ack()
+            await _run_full_scrape(spider, command, broker, config)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -97,12 +94,12 @@ async def process_message(message, js, config: Config) -> None:
             error_type=error_type,
         ).inc()
         LOGGER.error("scrape_command_failed", error=str(exc), error_type=error_type)
-        await message.nak(delay=timedelta(seconds=config.transient_retry_delay_seconds))
+        raise
     finally:
         await spider.close()
 
 
-async def _run_full_scrape(spider, command: ScraperCommand, js, config: Config) -> None:
+async def _run_full_scrape(spider, command: ScraperCommand, broker: KafkaBroker, config: Config) -> None:
     quarantine_redis = redis.from_url(config.redis_url, decode_responses=True)
     quarantine = QuarantineStore(quarantine_redis, config.quarantine_ttl_days)
     try:
@@ -126,7 +123,7 @@ async def _run_full_scrape(spider, command: ScraperCommand, js, config: Config) 
                         break
 
                     for listing in listings:
-                        await _publish_listing(js, listing)
+                        await _publish_listing(broker, listing)
                         LISTINGS_SCRAPED.labels(
                             portal=spider.PORTAL,
                             country=spider.COUNTRY.lower(),
@@ -136,7 +133,7 @@ async def _run_full_scrape(spider, command: ScraperCommand, js, config: Config) 
         await quarantine_redis.aclose()
 
 
-async def _run_detect_new(spider, command: ScraperCommand, js, config: Config) -> None:
+async def _run_detect_new(spider, command: ScraperCommand, broker: KafkaBroker, config: Config) -> None:
     quarantine_redis = redis.from_url(config.redis_url, decode_responses=True)
     quarantine = QuarantineStore(quarantine_redis, config.quarantine_ttl_days)
     try:
@@ -168,7 +165,7 @@ async def _run_detect_new(spider, command: ScraperCommand, js, config: Config) -
                 if listing is None:
                     continue
 
-                await _publish_listing(js, listing)
+                await _publish_listing(broker, listing)
                 await spider._mark_seen(spider.redis, zone, {listing.external_id})
                 LISTINGS_SCRAPED.labels(
                     portal=spider.PORTAL,
@@ -178,9 +175,10 @@ async def _run_detect_new(spider, command: ScraperCommand, js, config: Config) -
         await quarantine_redis.aclose()
 
 
-async def _publish_listing(js, listing) -> None:
-    await js.publish(
-        f"raw.listings.{listing.country_code.lower()}",
+async def _publish_listing(broker: KafkaBroker, listing) -> None:
+    await broker.publish(
+        "raw-listings",
+        listing.country_code.upper(),
         listing.model_dump_json().encode(),
     )
 
@@ -194,10 +192,3 @@ def _error_type(error: Exception) -> str:
     if "403" in message or "429" in message or "captcha" in message:
         return "http_blocked"
     return "unknown"
-
-
-async def _safe_terminal_ack(message) -> None:
-    if hasattr(message, "term"):
-        await message.term()
-        return
-    await message.ack()

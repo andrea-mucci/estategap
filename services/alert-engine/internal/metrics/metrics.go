@@ -43,7 +43,7 @@ func New() *Registry {
 			}),
 			NotificationsPublished: prometheus.NewCounterVec(prometheus.CounterOpts{
 				Name: "alert_engine_notifications_published_total",
-				Help: "Number of notification events published to NATS.",
+				Help: "Number of notification events published to Kafka.",
 			}, []string{"channel", "frequency"}),
 			DigestBufferDepth: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Name: "alert_engine_digest_buffer_depth",

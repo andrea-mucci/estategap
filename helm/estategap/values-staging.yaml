@@ -2,17 +2,19 @@ cluster:
   environment: staging
   certIssuer: letsencrypt-staging
 
-nats:
-  replicas: 1
-  storage:
-    size: 2Gi
-  config:
-    cluster:
-      replicas: 1
-    jetstream:
-      fileStore:
-        pvc:
-          size: 2Gi
+kafka:
+  brokers: kafka-bootstrap.estategap-system.svc.cluster.local:9092
+  topicPrefix: estategap.
+  tls:
+    enabled: false
+  sasl:
+    enabled: false
+    username: ""
+    secretName: ""
+  consumer:
+    maxRetries: 3
+  initJob:
+    replicationFactor: 1
 
 postgresql:
   instances: 1

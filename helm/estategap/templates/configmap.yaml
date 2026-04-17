@@ -15,7 +15,6 @@ data:
   REDIS_PORT: "6379"
   REDIS_SENTINEL_HOST: redis.estategap-system.svc.cluster.local
   REDIS_SENTINEL_PORT: "26379"
-  NATS_URL: nats://nats.estategap-system.svc.cluster.local:4222
   MINIO_ENDPOINT: http://minio.estategap-system.svc.cluster.local:9000
   MINIO_BUCKET_ML_MODELS: {{ index .Values.minio.buckets 0 | quote }}
   MINIO_BUCKET_TRAINING_DATA: {{ index .Values.minio.buckets 1 | quote }}

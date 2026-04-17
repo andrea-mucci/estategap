@@ -95,13 +95,15 @@ async def redis_client(redis_container: Any) -> AsyncIterator[Any]:
 
 
 @pytest.fixture(scope="session")
-def nats_container() -> Iterator[Any]:
-    DockerContainer = _import_docker_container()
-    container = DockerContainer("nats:2.10-alpine").with_exposed_ports(4222).with_command("-js")
+def kafka_container() -> Iterator[Any]:
+    pytest.importorskip("testcontainers.kafka")
+    from testcontainers.kafka import KafkaContainer
+
+    container = KafkaContainer("confluentinc/cp-kafka:7.6.1")
     try:
         container.start()
     except Exception as exc:  # noqa: BLE001
-        pytest.skip(f"Docker is not available for NATS integration tests: {exc}")
+        pytest.skip(f"Docker is not available for Kafka integration tests: {exc}")
 
     try:
         yield container
@@ -110,17 +112,21 @@ def nats_container() -> Iterator[Any]:
 
 
 @pytest.fixture
-async def nats_client(nats_container: Any) -> AsyncIterator[Any]:
-    import nats
+async def kafka_client(kafka_container: Any) -> AsyncIterator[Any]:
+    pytest.importorskip("aiokafka")
+    from aiokafka import AIOKafkaConsumer
 
-    client = await nats.connect(
-        f"nats://{nats_container.get_container_host_ip()}:{nats_container.get_exposed_port(4222)}"
+    client = AIOKafkaConsumer(
+        bootstrap_servers=kafka_container.get_bootstrap_server(),
+        group_id="estategap-common-test-client",
+        enable_auto_commit=False,
+        auto_offset_reset="latest",
     )
+    await client.start()
     try:
         yield client
     finally:
-        await client.drain()
-        await client.close()
+        await client.stop()
 
 
 @pytest.fixture(scope="session")
@@ -215,10 +221,10 @@ async def _reset_database(pool: asyncpg.Pool) -> None:
 
 __all__ = [
     "db_pool",
+    "kafka_client",
+    "kafka_container",
     "minio_client",
     "minio_container",
-    "nats_client",
-    "nats_container",
     "postgres_container",
     "redis_client",
     "redis_container",

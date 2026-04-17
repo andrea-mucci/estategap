@@ -45,5 +45,7 @@ spec:
                     name: estategap-config
                 - secretRef:
                     name: ml-trainer-secrets
+              env:
+                {{- include "estategap.kafkaEnv" . | nindent 16 }}
               resources:
                 {{- toYaml .Values.mlTrainer.resources | nindent 16 }}

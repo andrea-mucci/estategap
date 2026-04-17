@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	sharedbroker "github.com/estategap/libs/broker"
 	sharedlogger "github.com/estategap/libs/logger"
 	"github.com/estategap/services/alert-dispatcher/internal/config"
 	"github.com/estategap/services/alert-dispatcher/internal/consumer"
@@ -22,8 +23,8 @@ import (
 	routerpkg "github.com/estategap/services/alert-dispatcher/internal/router"
 	senderpkg "github.com/estategap/services/alert-dispatcher/internal/sender"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -63,11 +64,14 @@ func run() error {
 	}
 	defer func() { _ = redisClient.Close() }()
 
-	natsConn, js, err := newNATS(cfg.NATSURL)
+	kafkaBroker, err := sharedbroker.NewKafkaBroker(sharedbroker.KafkaConfig{
+		Brokers:     splitCSV(cfg.KafkaBrokers),
+		TopicPrefix: cfg.KafkaTopicPrefix,
+	})
 	if err != nil {
 		return err
 	}
-	defer natsConn.Close()
+	defer func() { _ = kafkaBroker.Close() }()
 
 	registry := metrics.New()
 	userRepo := repository.NewUserRepo(primaryPool, replicaPool)
@@ -77,11 +81,14 @@ func run() error {
 		return err
 	}
 	dispatcherSvc := dispatcher.New(senders, historyRepo, userRepo, registry)
-	consumerSvc := consumer.New(js, dispatcherSvc, registry, cfg.NATSConsumerName, cfg.WorkerPoolSize)
+	consumerSvc := consumer.New(kafkaBroker, dispatcherSvc, registry, cfg.WorkerPoolSize)
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.HealthPort),
-		Handler:           routerpkg.New(primaryPool, redisClient, natsConn),
+		Handler: routerpkg.New(primaryPool, redisClient, &kafkaHealthChecker{
+			dialer:  kafkaBroker.Dialer(),
+			brokers: splitCSV(cfg.KafkaBrokers),
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -156,26 +163,33 @@ func newRedis(url string) (*redis.Client, error) {
 	return client, nil
 }
 
-func newNATS(url string) (*nats.Conn, nats.JetStreamContext, error) {
-	conn, err := nats.Connect(
-		url,
-		nats.Name("alert-dispatcher"),
-		nats.Timeout(5*time.Second),
-		nats.RetryOnFailedConnect(true),
-		nats.MaxReconnects(-1),
-		nats.ReconnectWait(2*time.Second),
-	)
-	if err != nil {
-		return nil, nil, err
+type kafkaHealthChecker struct {
+	dialer  *kafka.Dialer
+	brokers []string
+}
+
+func (k *kafkaHealthChecker) Ping(ctx context.Context) error {
+	if k == nil || k.dialer == nil || len(k.brokers) == 0 {
+		return errors.New("kafka broker not configured")
 	}
 
-	js, err := conn.JetStream()
+	conn, err := k.dialer.DialContext(ctx, "tcp", k.brokers[0])
 	if err != nil {
-		conn.Close()
-		return nil, nil, err
+		return err
 	}
+	return conn.Close()
+}
 
-	return conn, js, nil
+func splitCSV(raw string) []string {
+	parts := strings.Split(raw, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+	return values
 }
 
 func buildSenders(

@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import json
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -244,24 +243,6 @@ class ModelRegistry:
                         base_country=row.get("base_country"),
                     )
             await asyncio.sleep(self._poll_interval_seconds)
-
-    async def subscribe_training_completed(self, nc: Any) -> None:
-        """Subscribe to promotion events for immediate reloads."""
-
-        async def _on_model_promoted(msg: Any) -> None:
-            payload = json.loads(msg.data.decode("utf-8"))
-            country_code = str(payload["country_code"]).lower()
-            version_tag = str(payload["model_version_tag"])
-            artifact_path = str(payload.get("artifact_path") or f"s3://{self._bucket}/models/{version_tag}.onnx")
-            asyncio.create_task(
-                self.reload_country(
-                    country_code=country_code,
-                    version_tag=version_tag,
-                    artifact_path=artifact_path,
-                )
-            )
-
-        await nc.subscribe("ml.training.completed", cb=_on_model_promoted)
 
 
 __all__ = ["ModelBundle", "ModelRegistry", "download_bundle"]

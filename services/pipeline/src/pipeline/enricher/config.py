@@ -10,7 +10,9 @@ class EnricherSettings(BaseSettings):
     """Environment-backed configuration for the enricher service."""
 
     database_url: str = Field(validation_alias="DATABASE_URL")
-    nats_url: str = Field(validation_alias="NATS_URL")
+    kafka_brokers: str = Field(default="localhost:9092", validation_alias="KAFKA_BROKERS")
+    kafka_topic_prefix: str = Field(default="estategap.", validation_alias="KAFKA_TOPIC_PREFIX")
+    kafka_max_retries: int = Field(default=3, validation_alias="KAFKA_MAX_RETRIES")
     catastro_rate_limit: float = Field(
         default=1.0,
         validation_alias="ENRICHER_CATASTRO_RATE_LIMIT",
@@ -30,6 +32,8 @@ class EnricherSettings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_values(self) -> "EnricherSettings":
+        if self.kafka_max_retries < 1:
+            self.kafka_max_retries = 3
         if self.catastro_rate_limit <= 0:
             self.catastro_rate_limit = 1.0
         if self.overpass_cache_ttl < 1:

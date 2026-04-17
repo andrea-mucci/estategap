@@ -53,6 +53,7 @@ spec:
             - secretRef:
                 name: ml-scorer-secrets
           env:
+            {{- include "estategap.kafkaEnv" . | nindent 12 }}
             - name: SERVICE_MODE
               value: "scorer"
             - name: GRPC_PORT

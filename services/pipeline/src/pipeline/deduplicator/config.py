@@ -10,7 +10,9 @@ class DeduplicatorSettings(BaseSettings):
     """Environment-backed configuration for the deduplicator service."""
 
     database_url: str = Field(validation_alias="DATABASE_URL")
-    nats_url: str = Field(validation_alias="NATS_URL")
+    kafka_brokers: str = Field(default="localhost:9092", validation_alias="KAFKA_BROKERS")
+    kafka_topic_prefix: str = Field(default="estategap.", validation_alias="KAFKA_TOPIC_PREFIX")
+    kafka_max_retries: int = Field(default=3, validation_alias="KAFKA_MAX_RETRIES")
     proximity_meters: int = Field(default=50, validation_alias="DEDUPLICATOR_PROXIMITY_METERS")
     area_tolerance: float = Field(default=0.10, validation_alias="DEDUPLICATOR_AREA_TOLERANCE")
     address_threshold: int = Field(default=85, validation_alias="DEDUPLICATOR_ADDRESS_THRESHOLD")
@@ -21,6 +23,8 @@ class DeduplicatorSettings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_values(self) -> "DeduplicatorSettings":
+        if self.kafka_max_retries < 1:
+            self.kafka_max_retries = 3
         if self.proximity_meters < 1:
             self.proximity_meters = 50
         if self.area_tolerance <= 0:

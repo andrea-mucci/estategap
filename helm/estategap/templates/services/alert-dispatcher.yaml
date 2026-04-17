@@ -14,7 +14,6 @@ data:
   BASE_URL: {{ $service.config.baseUrl | quote }}
   WORKER_POOL_SIZE: {{ printf "%v" $service.config.workerPoolSize | quote }}
   BATCH_SIZE: {{ printf "%v" $service.config.batchSize | quote }}
-  NATS_CONSUMER_NAME: {{ $service.config.natsConsumerName | quote }}
   AWS_REGION: {{ $service.config.awsRegion | quote }}
   AWS_SES_FROM_ADDRESS: {{ $service.config.awsSesFromAddress | quote }}
   AWS_SES_FROM_NAME: {{ $service.config.awsSesFromName | quote }}

@@ -1,4 +1,4 @@
-"""NATS consumer for scrape-cycle completion events."""
+"""Kafka consumer for scrape-cycle completion events."""
 
 from __future__ import annotations
 
@@ -8,10 +8,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import asyncpg  # type: ignore[import-untyped]
-import nats
 import structlog
-from nats.aio.msg import Msg
-from nats.js.api import AckPolicy, ConsumerConfig
+from estategap_common.broker import KafkaBroker, KafkaConfig, Message
+from estategap_common.broker.kafka_lag import start_lag_poller
 from pydantic import ValidationError
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
@@ -23,7 +22,6 @@ from .detector import Detector
 
 
 LOGGER = structlog.get_logger(__name__)
-CYCLE_SUBJECT = "scraper.cycle.completed.*.*"
 
 
 class ChangeDetectorConsumer:
@@ -34,47 +32,49 @@ class ChangeDetectorConsumer:
         settings: ChangeDetectorSettings,
         *,
         pool: asyncpg.Pool | None = None,
-        jetstream: Any | None = None,
-        nats_client: Any | None = None,
+        broker: KafkaBroker | None = None,
         detector: Detector | None = None,
     ) -> None:
         self._settings = settings
         self._pool = pool
-        self._jetstream = jetstream
-        self._nats_client = nats_client
+        self._broker = broker
         self._detector = detector or Detector(settings)
         self._owns_pool = pool is None
-        self._owns_nats = nats_client is None
+        self._owns_broker = broker is None
         self._last_event_at = datetime.now(UTC)
         self._fallback_task: asyncio.Task[None] | None = None
 
     async def run(self) -> None:
         if self._pool is None:
             self._pool = await create_pool(self._settings.database_url)
-        if self._nats_client is None:
-            self._nats_client = await nats.connect(self._settings.nats_url)
-        if self._jetstream is None:
-            self._jetstream = self._nats_client.jetstream()
-        await self._jetstream.subscribe(
-            CYCLE_SUBJECT,
-            durable="change-detector",
-            manual_ack=True,
-            cb=self.handle_message,
-            config=ConsumerConfig(
-                ack_policy=AckPolicy.EXPLICIT,
-                max_deliver=3,
-                ack_wait=120,
-                max_ack_pending=10,
-            ),
+        if self._broker is None:
+            self._broker = KafkaBroker(
+                KafkaConfig(
+                    brokers=self._settings.kafka_brokers,
+                    topic_prefix=self._settings.kafka_topic_prefix,
+                    max_retries=self._settings.kafka_max_retries,
+                ),
+                service_name="pipeline-change-detector",
+            )
+        consumer = await self._broker.create_consumer(
+            ["scraper-cycle"],
+            "estategap.pipeline-change-detector",
         )
+        lag_task = asyncio.create_task(start_lag_poller(consumer, "estategap.pipeline-change-detector"))
         self._fallback_task = asyncio.create_task(self._fallback_loop())
-        LOGGER.info("change_detector_started", subject=CYCLE_SUBJECT, durable="change-detector")
+        LOGGER.info(
+            "change_detector_started",
+            topic=self._broker.full_topic_name("scraper-cycle"),
+            group="estategap.pipeline-change-detector",
+        )
         try:
-            await asyncio.Event().wait()
+            await self._broker.consume(consumer, "estategap.pipeline-change-detector", self.handle_message)
         except asyncio.CancelledError:
             LOGGER.info("change_detector_cancelled")
             raise
         finally:
+            lag_task.cancel()
+            await asyncio.gather(lag_task, return_exceptions=True)
             await self.close()
 
     async def close(self) -> None:
@@ -83,18 +83,17 @@ class ChangeDetectorConsumer:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._fallback_task
             self._fallback_task = None
-        if self._owns_nats and self._nats_client is not None:
-            await self._nats_client.close()
+        if self._owns_broker and self._broker is not None:
+            await self._broker.stop()
         if self._owns_pool and self._pool is not None:
             await self._pool.close()
 
-    async def handle_message(self, message: Msg) -> None:
+    async def handle_message(self, message: Message) -> None:
         clear_contextvars()
         try:
-            event = ScrapeCycleEvent.model_validate_json(message.data)
+            event = ScrapeCycleEvent.model_validate_json(message.value)
         except ValidationError as exc:
             LOGGER.error("invalid_scrape_cycle_event", error=str(exc))
-            await message.ack()
             return
 
         self._last_event_at = datetime.now(UTC)
@@ -104,15 +103,13 @@ class ChangeDetectorConsumer:
             source_id=event.cycle_id,
             trace_id=self._trace_id(message, event.cycle_id),
         )
-        if self._pool is None or self._jetstream is None:
+        if self._pool is None or self._broker is None:
             raise RuntimeError("ChangeDetectorConsumer is not fully initialised")
         try:
-            await self._detector.run_cycle(event, self._pool, self._jetstream)
+            await self._detector.run_cycle(event, self._pool, self._broker)
         except Exception as exc:  # noqa: BLE001
             LOGGER.error("change_detector_cycle_failed", error=str(exc), cycle_id=event.cycle_id)
-            await message.nak()
             raise
-        await message.ack()
 
     async def _fallback_loop(self) -> None:
         while True:
@@ -123,7 +120,7 @@ class ChangeDetectorConsumer:
             self._last_event_at = datetime.now(UTC)
 
     async def _run_fallback_cycles(self) -> None:
-        if self._pool is None or self._jetstream is None:
+        if self._pool is None or self._broker is None:
             return
         LOGGER.warning("change_detector_fallback_triggered", hours=self._settings.fallback_interval_h)
         async with self._pool.acquire() as conn:
@@ -145,12 +142,11 @@ class ChangeDetectorConsumer:
                 completed_at=now,
                 listing_ids=[],
             )
-            await self._detector.run_cycle(event, self._pool, self._jetstream)
+            await self._detector.run_cycle(event, self._pool, self._broker)
 
     @staticmethod
-    def _trace_id(message: Msg, fallback: str) -> str:
-        headers = getattr(message, "headers", None) or {}
-        return headers.get("trace_id") or headers.get("Trace-Id") or fallback
+    def _trace_id(message: Message, fallback: str) -> str:
+        return message.headers.get("trace_id") or message.headers.get("Trace-Id") or fallback
 
 
 __all__ = ["ChangeDetectorConsumer"]

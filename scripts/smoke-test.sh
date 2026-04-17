@@ -5,10 +5,11 @@ RELEASE_NAME="${RELEASE_NAME:-estategap}"
 SYSTEM_NAMESPACE="${SYSTEM_NAMESPACE:-estategap-system}"
 GATEWAY_NAMESPACE="${GATEWAY_NAMESPACE:-estategap-gateway}"
 DOMAIN="${DOMAIN:-estategap.com}"
-NATS_SERVER="${NATS_SERVER:-nats://nats.${SYSTEM_NAMESPACE}.svc.cluster.local:4222}"
+KAFKA_BROKERS="${KAFKA_BROKERS:-kafka-bootstrap.${SYSTEM_NAMESPACE}.svc.cluster.local:9092}"
+KAFKA_TOPIC_PREFIX="${KAFKA_TOPIC_PREFIX:-estategap.}"
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://minio.${SYSTEM_NAMESPACE}.svc.cluster.local:9000}"
 
-required_streams=(
+required_topics=(
   raw-listings
   normalized-listings
   enriched-listings
@@ -16,14 +17,16 @@ required_streams=(
   alerts-triggers
   alerts-notifications
   scraper-commands
+  scraper-cycle
   price-changes
+  dead-letter
 )
 
-echo "Checking NATS streams..."
-for stream in "${required_streams[@]}"; do
-  kubectl run nats-verify --rm -i --restart=Never \
-    --image=natsio/nats-box:latest \
-    --command -- /bin/sh -ec "nats stream info ${stream} --server ${NATS_SERVER} >/dev/null"
+echo "Checking Kafka topics..."
+for topic in "${required_topics[@]}"; do
+  kubectl run kafka-verify --rm -i --restart=Never -n "${SYSTEM_NAMESPACE}" \
+    --image=bitnami/kafka:latest \
+    --command -- /bin/sh -ec "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server ${KAFKA_BROKERS} --describe --topic ${KAFKA_TOPIC_PREFIX}${topic} >/dev/null"
 done
 
 echo "Checking PostGIS version..."

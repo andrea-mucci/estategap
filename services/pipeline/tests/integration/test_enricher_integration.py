@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import nats
 import pytest
 
 from pipeline.enricher import EnricherService, EnricherSettings, POIDistanceCalculator
@@ -44,10 +43,17 @@ GML_FIXTURE = """\
 """
 
 
+class FakeBroker:
+    def __init__(self) -> None:
+        self.published: list[tuple[str, str, bytes]] = []
+
+    async def publish(self, topic: str, key: str, payload: bytes) -> None:
+        self.published.append((topic, key, payload))
+
+
 @pytest.mark.asyncio
 async def test_enricher_updates_listing_and_publishes_message(
     asyncpg_pool,
-    nats_url,
     normalized_listing_factory,
     monkeypatch,
 ) -> None:
@@ -76,14 +82,12 @@ async def test_enricher_updates_listing_and_publishes_message(
 
     monkeypatch.setattr(SpainCatastroEnricher, "_fetch_features", _fake_fetch)
 
-    nc = await nats.connect(nats_url)
-    subscription = await nc.subscribe("listings.enriched.es")
-    settings = EnricherSettings(database_url="postgresql://unused", nats_url=nats_url)
+    broker = FakeBroker()
+    settings = EnricherSettings(database_url="postgresql://unused", kafka_brokers="localhost:9092")
     service = EnricherService(
         settings,
         pool=asyncpg_pool,
-        jetstream=nc,
-        nats_client=nc,
+        broker=broker,
         poi_calculator=POIDistanceCalculator(
             pool=asyncpg_pool,
             overpass_url="https://example.test",
@@ -93,7 +97,6 @@ async def test_enricher_updates_listing_and_publishes_message(
     message = FakeMsg(listing.model_dump_json().encode())
 
     await service.handle_message(message)
-    await nc.flush()
 
     row = await asyncpg_pool.fetchrow(
         """
@@ -104,15 +107,14 @@ async def test_enricher_updates_listing_and_publishes_message(
         listing.id,
         listing.country,
     )
-    published = await subscription.next_msg(timeout=1)
 
-    assert message.acked is True
     assert row is not None
     assert row["cadastral_ref"] == "3665603VK4736D0001UY"
     assert row["official_built_area_m2"] == Decimal("118.50")
     assert row["area_discrepancy_flag"] is False
     assert row["dist_metro_m"] is not None
     assert row["enrichment_status"] == "completed"
-    assert listing.source_id in published.data.decode()
+    assert broker.published
+    assert listing.source_id in broker.published[0][2].decode()
 
     await service.close()

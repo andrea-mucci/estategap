@@ -47,7 +47,7 @@ func (r *Router) RouteInstant(ctx context.Context, rule *model.CachedRule, listi
 			ListingSummary: &summary,
 			TriggeredAt:    time.Now().UTC(),
 		}
-		if err := r.publisher.PublishNotification(ctx, listing.CountryCode, event); err != nil {
+		if err := r.publisher.PublishNotification(ctx, event); err != nil {
 			return channels, fmt.Errorf("publish instant notification for rule %s: %w", rule.ID, err)
 		}
 		channels = append(channels, channel.Type)

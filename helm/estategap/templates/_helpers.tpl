@@ -93,8 +93,7 @@ imagePullSecrets:
   value: redis.estategap-system.svc.cluster.local
 - name: REDIS_SENTINEL_PORT
   value: "26379"
-- name: NATS_URL
-  value: nats://nats.estategap-system.svc.cluster.local:4222
+{{ include "estategap.kafkaEnv" . }}
 - name: MINIO_ENDPOINT
   value: http://minio.estategap-system.svc.cluster.local:9000
 - name: MINIO_BUCKET_ML_MODELS
@@ -133,6 +132,38 @@ imagePullSecrets:
     configMapKeyRef:
       name: estategap-config
       key: FIXTURE_MINIO_BUCKET
+{{- end }}
+{{- end -}}
+
+{{- define "estategap.kafkaEnv" -}}
+- name: KAFKA_BROKERS
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-kafka-config
+      key: KAFKA_BROKERS
+- name: KAFKA_TOPIC_PREFIX
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-kafka-config
+      key: KAFKA_TOPIC_PREFIX
+- name: KAFKA_TLS_ENABLED
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-kafka-config
+      key: KAFKA_TLS_ENABLED
+- name: KAFKA_MAX_RETRIES
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-kafka-config
+      key: KAFKA_MAX_RETRIES
+{{- if .Values.kafka.sasl.enabled }}
+- name: KAFKA_SASL_USERNAME
+  value: {{ .Values.kafka.sasl.username | quote }}
+- name: KAFKA_SASL_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.kafka.sasl.secretName | quote }}
+      key: KAFKA_SASL_PASSWORD
 {{- end }}
 {{- end -}}
 

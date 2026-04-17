@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -66,19 +65,8 @@ type CountryConfig struct {
 }
 
 type SystemHealth struct {
-	NATS     NATSHealth     `json:"nats"`
 	Database DatabaseHealth `json:"database"`
 	Redis    RedisHealth    `json:"redis"`
-}
-
-type NATSHealth struct {
-	Subjects []NATSSubjectStat `json:"subjects"`
-}
-
-type NATSSubjectStat struct {
-	Subject      string `json:"subject"`
-	ConsumerLag  int64  `json:"consumer_lag"`
-	MessageCount int64  `json:"message_count"`
 }
 
 type DatabaseHealth struct {
@@ -96,22 +84,16 @@ type RedisHealth struct {
 }
 
 type AdminRepo struct {
-	primary        *pgxpool.Pool
-	replica        *pgxpool.Pool
-	redisClient    *redis.Client
-	natsMonitorURL string
-	httpClient     *http.Client
+	primary     *pgxpool.Pool
+	replica     *pgxpool.Pool
+	redisClient *redis.Client
 }
 
-func NewAdminRepo(primary, replica *pgxpool.Pool, redisClient *redis.Client, natsMonitorURL string) *AdminRepo {
+func NewAdminRepo(primary, replica *pgxpool.Pool, redisClient *redis.Client) *AdminRepo {
 	return &AdminRepo{
-		primary:        primary,
-		replica:        replica,
-		redisClient:    redisClient,
-		natsMonitorURL: strings.TrimSpace(natsMonitorURL),
-		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
+		primary:     primary,
+		replica:     replica,
+		redisClient: redisClient,
 	}
 }
 
@@ -471,88 +453,7 @@ func (r *AdminRepo) GetSystemHealth(ctx context.Context) (SystemHealth, error) {
 		health.Redis.HitRate = float64(hits) / float64(total)
 	}
 
-	subjects, err := r.fetchNATSSubjects(ctx)
-	if err == nil {
-		health.NATS.Subjects = subjects
-	}
-
 	return health, nil
-}
-
-func (r *AdminRepo) fetchNATSSubjects(ctx context.Context) ([]NATSSubjectStat, error) {
-	if r.natsMonitorURL == "" {
-		return nil, fmt.Errorf("nats monitor url not configured")
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.natsMonitorURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var payload map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, err
-	}
-
-	subjects := []NATSSubjectStat{}
-	if streams, ok := payload["streams"].([]any); ok {
-		for _, stream := range streams {
-			item, ok := stream.(map[string]any)
-			if !ok {
-				continue
-			}
-			state, _ := item["state"].(map[string]any)
-			subjects = append(subjects, NATSSubjectStat{
-				Subject:      stringValue(item["name"]),
-				MessageCount: int64(floatValue(state["messages"])),
-				ConsumerLag:  int64(floatValue(item["consumer_count"])),
-			})
-		}
-	}
-	if len(subjects) > 0 {
-		return subjects, nil
-	}
-
-	if accounts, ok := payload["account_details"].([]any); ok {
-		for _, account := range accounts {
-			accountItem, ok := account.(map[string]any)
-			if !ok {
-				continue
-			}
-			if streams, ok := accountItem["stream_detail"].([]any); ok {
-				for _, stream := range streams {
-					streamItem, ok := stream.(map[string]any)
-					if !ok {
-						continue
-					}
-					state, _ := streamItem["state"].(map[string]any)
-					lag := int64(0)
-					if consumers, ok := streamItem["consumer_detail"].([]any); ok {
-						for _, consumer := range consumers {
-							consumerItem, ok := consumer.(map[string]any)
-							if !ok {
-								continue
-							}
-							lag += int64(floatValue(consumerItem["num_pending"]))
-						}
-					}
-					subjects = append(subjects, NATSSubjectStat{
-						Subject:      stringValue(streamItem["name"]),
-						MessageCount: int64(floatValue(state["messages"])),
-						ConsumerLag:  lag,
-					})
-				}
-			}
-		}
-	}
-
-	return subjects, nil
 }
 
 func parseRedisInfoInt(payload, key string) int64 {
@@ -590,15 +491,6 @@ func nullableJSON(raw []byte) any {
 	}
 
 	return raw
-}
-
-func stringValue(value any) string {
-	switch typed := value.(type) {
-	case string:
-		return typed
-	default:
-		return ""
-	}
 }
 
 func floatValue(value any) float64 {

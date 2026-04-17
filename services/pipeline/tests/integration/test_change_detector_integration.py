@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
-import nats
 import pytest
 
 from estategap_common.models import ScrapeCycleEvent
@@ -12,8 +11,16 @@ from pipeline.change_detector import ChangeDetectorConsumer, ChangeDetectorSetti
 from tests.conftest import FakeMsg
 
 
+class FakeBroker:
+    def __init__(self) -> None:
+        self.published: list[tuple[str, str, bytes]] = []
+
+    async def publish(self, topic: str, key: str, payload: bytes) -> None:
+        self.published.append((topic, key, payload))
+
+
 @pytest.mark.asyncio
-async def test_change_detector_records_drop_and_delisting(asyncpg_pool, nats_url) -> None:
+async def test_change_detector_records_drop_and_delisting(asyncpg_pool) -> None:
     dropped_id = uuid4()
     missing_id = uuid4()
     completed_at = datetime(2026, 4, 17, 13, 0, tzinfo=UTC)
@@ -99,13 +106,11 @@ async def test_change_detector_records_drop_and_delisting(asyncpg_pool, nats_url
             "idealista",
         )
 
-    nc = await nats.connect(nats_url)
-    subscription = await nc.subscribe("listings.price-change.es")
+    broker = FakeBroker()
     consumer = ChangeDetectorConsumer(
-        ChangeDetectorSettings(database_url="postgresql://unused", nats_url=nats_url),
+        ChangeDetectorSettings(database_url="postgresql://unused", kafka_brokers="localhost:9092"),
         pool=asyncpg_pool,
-        jetstream=nc,
-        nats_client=nc,
+        broker=broker,
     )
     event = ScrapeCycleEvent(
         cycle_id="cycle-1",
@@ -117,7 +122,6 @@ async def test_change_detector_records_drop_and_delisting(asyncpg_pool, nats_url
     message = FakeMsg(event.model_dump_json().encode())
 
     await consumer.handle_message(message)
-    await nc.flush()
 
     latest_price_row = await asyncpg_pool.fetchrow(
         """
@@ -139,13 +143,13 @@ async def test_change_detector_records_drop_and_delisting(asyncpg_pool, nats_url
         missing_id,
     )
 
-    assert message.acked is True
     assert latest_price_row is not None
     assert latest_price_row["old_price"] == Decimal("300000.00")
     assert latest_price_row["new_price"] == Decimal("290000.00")
     assert missing_status["status"] == "delisted"
     assert missing_status["delisted_at"] is not None
-    assert "290000" in published.data.decode()
+    assert broker.published
+    assert "290000" in broker.published[0][2].decode()
     assert count == 0
 
     await consumer.close()

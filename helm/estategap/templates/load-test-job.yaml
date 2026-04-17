@@ -141,17 +141,18 @@ data:
       },
     };
 
-    const publishUrl = __ENV.NATS_HTTP_PUBLISH_URL;
+    const publishUrl = __ENV.PIPELINE_HTTP_PUBLISH_URL;
 
     export default function () {
       if (!publishUrl) {
-        fail("NATS_HTTP_PUBLISH_URL is required for pipeline.js");
+        fail("PIPELINE_HTTP_PUBLISH_URL is required for pipeline.js");
       }
 
       const response = http.post(
         publishUrl,
         JSON.stringify({
-          subject: "listings.ingested",
+          topic: "estategap.raw-listings",
+          key: "ES",
           message: {
             id: `${__VU}-${__ITER}`,
             country: "ES",
@@ -215,8 +216,8 @@ spec:
               value: {{ .Values.loadTests.wsUrl | quote }}
             - name: ALERTS_TRIGGER_URL
               value: {{ .Values.loadTests.alertsTriggerUrl | quote }}
-            - name: NATS_HTTP_PUBLISH_URL
-              value: {{ .Values.loadTests.natsHttpPublishUrl | quote }}
+            - name: PIPELINE_HTTP_PUBLISH_URL
+              value: {{ .Values.loadTests.pipelineHttpPublishUrl | quote }}
             - name: K6_PROMETHEUS_RW_URL
               value: {{ .Values.loadTests.prometheusRemoteWriteUrl | quote }}
           volumeMounts:

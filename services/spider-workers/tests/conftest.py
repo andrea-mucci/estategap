@@ -109,7 +109,9 @@ class FixtureSpider(BaseSpider):
 @pytest.fixture
 def spider_config() -> Config:
     return Config(
-        nats_url="nats://localhost:4222",
+        kafka_brokers="localhost:9092",
+        kafka_topic_prefix="estategap.",
+        kafka_max_retries=3,
         redis_url="redis://localhost:6379/0",
         proxy_manager_addr="localhost:50051",
         idealista_api_token="token",

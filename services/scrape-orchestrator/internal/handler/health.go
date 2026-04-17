@@ -16,14 +16,14 @@ type pinger interface {
 
 type HealthHandler struct {
 	db    db.Querier
-	nats  pinger
+	kafka pinger
 	redis *redisclient.Client
 }
 
-func NewHealthHandler(dbClient db.Querier, natsClient pinger, redisClient *redisclient.Client) *HealthHandler {
+func NewHealthHandler(dbClient db.Querier, kafkaClient pinger, redisClient *redisclient.Client) *HealthHandler {
 	return &HealthHandler{
 		db:    dbClient,
-		nats:  natsClient,
+		kafka: kafkaClient,
 		redis: redisClient,
 	}
 }
@@ -35,7 +35,7 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 	response := map[string]string{
 		"status": "ok",
 		"db":     "ok",
-		"nats":   "ok",
+		"kafka":  "ok",
 		"redis":  "ok",
 	}
 	statusCode := http.StatusOK
@@ -45,8 +45,8 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 		response["status"] = "error"
 		statusCode = http.StatusServiceUnavailable
 	}
-	if err := h.nats.Ping(ctx); err != nil {
-		response["nats"] = "error"
+	if err := h.kafka.Ping(ctx); err != nil {
+		response["kafka"] = "error"
 		response["status"] = "error"
 		statusCode = http.StatusServiceUnavailable
 	}

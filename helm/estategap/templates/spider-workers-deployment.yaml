@@ -32,6 +32,7 @@ spec:
               containerPort: {{ $service.metricsPort }}
               protocol: TCP
           env:
+            {{- include "estategap.kafkaEnv" . | nindent 12 }}
             {{- range $envName, $envSpec := $service.env }}
             - name: {{ $envName }}
               {{- if hasKey $envSpec "value" }}

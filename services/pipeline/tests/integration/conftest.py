@@ -14,7 +14,6 @@ from alembic.config import Config
 from estategap_common.models import ListingStatus, NormalizedListing, PropertyCategory
 
 
-testcontainers_core = pytest.importorskip("testcontainers.core.container")
 testcontainers_postgres = pytest.importorskip("testcontainers.postgres")
 
 
@@ -35,25 +34,6 @@ def database_url() -> Iterator[str]:
         yield sqlalchemy_url.replace("+psycopg2", "")
     finally:
         container.stop()
-
-
-@pytest.fixture(scope="session")
-def nats_url() -> Iterator[str]:
-    container = (
-        testcontainers_core.DockerContainer("nats:2.10-alpine")
-        .with_exposed_ports(4222)
-        .with_command("-js")
-    )
-    try:
-        container.start()
-    except Exception as exc:  # noqa: BLE001
-        pytest.skip(f"Docker is not available for NATS integration tests: {exc}")
-    try:
-        port = container.get_exposed_port(4222)
-        yield f"nats://{container.get_container_host_ip()}:{port}"
-    finally:
-        container.stop()
-
 
 @pytest.fixture
 async def asyncpg_pool(database_url: str) -> Iterator[asyncpg.Pool]:

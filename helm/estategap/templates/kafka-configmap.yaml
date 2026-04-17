@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: estategap-kafka-config
+  namespace: estategap-system
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+data:
+  KAFKA_BROKERS: {{ .Values.kafka.brokers | quote }}
+  KAFKA_TOPIC_PREFIX: {{ .Values.kafka.topicPrefix | quote }}
+  KAFKA_TLS_ENABLED: {{ ternary "true" "false" .Values.kafka.tls.enabled | quote }}
+  KAFKA_MAX_RETRIES: {{ printf "%v" .Values.kafka.consumer.maxRetries | quote }}

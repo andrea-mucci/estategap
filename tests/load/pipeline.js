@@ -15,17 +15,18 @@ export const options = {
   },
 };
 
-const publishUrl = __ENV.NATS_HTTP_PUBLISH_URL;
+const publishUrl = __ENV.KAFKA_HTTP_PUBLISH_URL;
 
 export default function () {
   if (!publishUrl) {
-    fail("NATS_HTTP_PUBLISH_URL is required for pipeline.js");
+    fail("KAFKA_HTTP_PUBLISH_URL is required for pipeline.js");
   }
 
   const response = http.post(
     publishUrl,
     JSON.stringify({
-      subject: "listings.ingested",
+      topic: "estategap.raw-listings",
+      key: "ES",
       message: {
         id: `${__VU}-${__ITER}`,
         country: "ES",
@@ -44,4 +45,3 @@ export default function () {
     "pipeline publish accepted": (res) => res.status >= 200 && res.status < 300,
   });
 }
-

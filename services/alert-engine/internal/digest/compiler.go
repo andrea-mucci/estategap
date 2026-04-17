@@ -181,7 +181,7 @@ func (c *Compiler) compileKey(ctx context.Context, key, expectedFrequency string
 				Listings:     batch.listings,
 				TriggeredAt:  time.Now().UTC(),
 			}
-			if err := c.publisher.PublishNotification(ctx, batch.countryCode, event); err != nil {
+			if err := c.publisher.PublishNotification(ctx, event); err != nil {
 				return err
 			}
 			for _, digestListing := range batch.listings {

@@ -10,41 +10,46 @@ pytest.importorskip("asyncpg")
 pytest.importorskip("testcontainers")
 
 import asyncpg
+from estategap_common.broker import Message
 from testcontainers.postgres import PostgresContainer
 
-from estategap_ml.scorer.nats_consumer import NatsConsumer
+from estategap_ml.scorer.kafka_consumer import KafkaConsumer
 
 from tests.scorer_support import asyncpg_dsn, build_fake_bundle, make_listing, prepare_scorer_database
 
 
-class FakeMessage:
-    def __init__(self, payload: dict[str, object]) -> None:
-        self.data = json.dumps(payload).encode("utf-8")
-
-    async def ack(self) -> None:
-        return None
-
-    async def nak(self, delay: int | None = None) -> None:
-        return None
-
-    async def term(self) -> None:
+class FakeConsumer:
+    async def stop(self) -> None:
         return None
 
 
-class FakeJetStream:
+class FakeBroker:
     def __init__(self) -> None:
-        self._callback = None
+        self._messages: asyncio.Queue[dict[str, object]] = asyncio.Queue()
         self.published: list[dict[str, object]] = []
 
-    async def subscribe(self, subject: str, **kwargs: object) -> None:
-        self._callback = kwargs["cb"]
+    async def create_consumer(self, topics: list[str], group: str) -> FakeConsumer:
+        return FakeConsumer()
 
-    async def publish(self, subject: str, payload: bytes) -> None:
-        self.published.append({"subject": subject, "payload": json.loads(payload.decode("utf-8"))})
+    async def consume(self, consumer: FakeConsumer, group: str, handler) -> None:
+        while True:
+            payload = await self._messages.get()
+            try:
+                await handler(
+                    Message(
+                        key="ES",
+                        value=json.dumps(payload).encode("utf-8"),
+                        topic="estategap.enriched-listings",
+                    )
+                )
+            finally:
+                self._messages.task_done()
+
+    async def publish(self, topic: str, key: str, value: bytes) -> None:
+        self.published.append({"topic": topic, "key": key, "payload": json.loads(value.decode("utf-8"))})
 
     async def send(self, payload: dict[str, object]) -> None:
-        assert self._callback is not None
-        await self._callback(FakeMessage(payload))
+        await self._messages.put(payload)
 
 
 @pytest.mark.asyncio
@@ -67,17 +72,17 @@ async def test_scoring_e2e(asking_price: float, expected_score: float) -> None:
         await prepare_scorer_database(dsn, listings)
         db_pool = await asyncpg.create_pool(dsn)
         try:
-            jetstream = FakeJetStream()
+            broker = FakeBroker()
             registry = SimpleNamespace(get=lambda country: build_fake_bundle(country_code=country))
-            consumer = NatsConsumer(
+            consumer = KafkaConsumer(
                 config=SimpleNamespace(scorer_batch_size=50, scorer_batch_flush_seconds=0.1),
                 db_pool=db_pool,
                 registry=registry,
-                jetstream=jetstream,
+                broker=broker,
             )
             task = asyncio.create_task(consumer.consume_loop())
             await asyncio.sleep(0.05)
-            await jetstream.send({"id": str(listing_id)})
+            await broker.send({"id": str(listing_id)})
             score = None
             for _ in range(40):
                 async with db_pool.acquire() as conn:

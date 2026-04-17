@@ -9,7 +9,6 @@ import asyncpg
 from estategap_common.models._base import validate_country_code
 
 from estategap_ml import Config, logger
-from estategap_ml.nats_publisher import TrainingCompletedEvent, TrainingFailedEvent, publish_completed, publish_failed
 
 from .train import TrainingResult, get_active_countries, run_training, run_transfer_training
 
@@ -90,31 +89,6 @@ async def _list_country_counts(config: Config) -> list[tuple[str, int]]:
     return [(row["country"], row["listing_count"]) for row in rows]
 
 
-async def _publish_success(config: Config, result: TrainingResult) -> None:
-    await publish_completed(
-        TrainingCompletedEvent(
-            country_code=result.country,
-            model_version_tag=result.version_tag,
-            mape_national=result.metrics.mape_national,
-            promoted=result.promoted,
-            previous_champion_tag=result.previous_champion_tag,
-            artifact_path=str(result.onnx_path),
-        ),
-        config.nats_url,
-    )
-
-
-async def _publish_failure(config: Config, country: str | None, stage: str, exc: Exception) -> None:
-    await publish_failed(
-        TrainingFailedEvent(
-            country_code=country,
-            error=str(exc),
-            stage=stage,
-        ),
-        config.nats_url,
-    )
-
-
 async def main() -> int:
     parser = _build_parser()
     args = parser.parse_args()
@@ -147,11 +121,9 @@ async def main() -> int:
                 dry_run=args.dry_run,
                 spain_result=spain_result,
             )
-            await _publish_success(config, result)
             return 0
         except Exception as exc:  # pragma: no cover - operational path
             logger.exception("single_country_training_failed", country=country)
-            await _publish_failure(config, country, "training", exc)
             return 1
 
     spain_result: TrainingResult | None = None
@@ -166,10 +138,8 @@ async def main() -> int:
             )
             if country == config.transfer_base_country.lower():
                 spain_result = result
-            await _publish_success(config, result)
         except Exception as exc:  # pragma: no cover - operational path
             logger.exception("country_training_failed", country=country)
-            await _publish_failure(config, country, "training", exc)
             if country == config.transfer_base_country.lower():
                 spain_result = None
     return 0

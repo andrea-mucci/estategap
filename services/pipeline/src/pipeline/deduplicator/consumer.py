@@ -1,4 +1,4 @@
-"""NATS consumer that assigns canonical ids to normalized listings."""
+"""Kafka consumer that assigns canonical ids to normalized listings."""
 
 from __future__ import annotations
 
@@ -7,10 +7,9 @@ import re
 import time
 from typing import Any
 
-import nats
 import structlog
-from nats.aio.msg import Msg
-from nats.js.api import AckPolicy, ConsumerConfig
+from estategap_common.broker import KafkaBroker, KafkaConfig, Message
+from estategap_common.broker.kafka_lag import start_lag_poller
 from pydantic import ValidationError
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
@@ -39,21 +38,19 @@ _POINT_RE = re.compile(r"^POINT\((?P<lon>-?\d+(?:\.\d+)?) (?P<lat>-?\d+(?:\.\d+)
 class DeduplicatorService:
     """Resolve canonical ids for normalized listing messages."""
 
-    def __init__(self, settings: DeduplicatorSettings, pool: Any, jetstream: Any) -> None:
+    def __init__(self, settings: DeduplicatorSettings, pool: Any) -> None:
         self._settings = settings
         self._pool = pool
-        self._jetstream = jetstream
 
-    async def handle_message(self, message: Msg) -> None:
+    async def handle_message(self, message: Message) -> None:
         """Process a single normalized listing message."""
 
         started = time.perf_counter()
         clear_contextvars()
         try:
-            listing = NormalizedListing.model_validate_json(message.data)
+            listing = NormalizedListing.model_validate_json(message.value)
         except ValidationError as exc:
             LOGGER.error("invalid_normalized_listing", error=str(exc))
-            await message.ack()
             return
 
         bind_contextvars(
@@ -95,15 +92,8 @@ class DeduplicatorService:
                     matched_candidates,
                     country=listing.country,
                 )
-
-            await self._jetstream.publish(
-                f"deduplicated.listings.{listing.country.lower()}",
-                listing.model_dump_json().encode(),
-            )
-            await message.ack()
         except Exception as exc:  # noqa: BLE001
             LOGGER.error("deduplicator_message_failed", error=str(exc))
-            await message.nak()
             raise
 
         PIPELINE_MESSAGES_PROCESSED.labels(
@@ -124,9 +114,8 @@ class DeduplicatorService:
         ).observe(time.perf_counter() - started)
 
     @staticmethod
-    def _trace_id(message: Msg, fallback: str) -> str:
-        headers = getattr(message, "headers", None) or {}
-        return headers.get("trace_id") or headers.get("Trace-Id") or fallback
+    def _trace_id(message: Message, fallback: str) -> str:
+        return message.headers.get("trace_id") or message.headers.get("Trace-Id") or fallback
 
 
 async def run(settings: DeduplicatorSettings) -> None:
@@ -134,30 +123,31 @@ async def run(settings: DeduplicatorSettings) -> None:
 
     start_metrics_server(settings.metrics_port)
     pool = await create_pool(settings.database_url)
-    nc = await nats.connect(settings.nats_url)
-    js = nc.jetstream()
-    service = DeduplicatorService(settings=settings, pool=pool, jetstream=js)
-    await js.subscribe(
-        "normalized.listings.*",
-        durable="deduplicator",
-        stream="NORMALIZED_LISTINGS",
-        manual_ack=True,
-        cb=service.handle_message,
-        config=ConsumerConfig(
-            ack_policy=AckPolicy.EXPLICIT,
-            max_deliver=3,
-            ack_wait=60,
-            max_ack_pending=50,
+    broker = KafkaBroker(
+        KafkaConfig(
+            brokers=settings.kafka_brokers,
+            topic_prefix=settings.kafka_topic_prefix,
+            max_retries=settings.kafka_max_retries,
         ),
+        service_name="pipeline-deduplicator",
     )
-    LOGGER.info("deduplicator_started", subject="normalized.listings.*", durable="deduplicator")
+    consumer = await broker.create_consumer(["normalized-listings"], "estategap.pipeline-deduplicator")
+    lag_task = asyncio.create_task(start_lag_poller(consumer, "estategap.pipeline-deduplicator"))
+    service = DeduplicatorService(settings=settings, pool=pool)
+    LOGGER.info(
+        "deduplicator_started",
+        topic=broker.full_topic_name("normalized-listings"),
+        group="estategap.pipeline-deduplicator",
+    )
     try:
-        await asyncio.Event().wait()
+        await broker.consume(consumer, "estategap.pipeline-deduplicator", service.handle_message)
     except asyncio.CancelledError:
         LOGGER.info("deduplicator_cancelled")
         raise
     finally:
-        await nc.close()
+        lag_task.cancel()
+        await asyncio.gather(lag_task, return_exceptions=True)
+        await broker.stop()
         await pool.close()
 
 
