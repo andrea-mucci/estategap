@@ -1,0 +1,23 @@
+<wfs:FeatureCollection
+    xmlns:wfs="http://www.opengis.net/wfs/2.0"
+    xmlns:bag="http://bag.geonovum.nl"
+    xmlns:gml="http://www.opengis.net/gml/3.2">
+  <wfs:member>
+    <bag:pand>
+      <bag:identificatie>0363100012345678</bag:identificatie>
+      <bag:bouwjaar>1998</bag:bouwjaar>
+      <bag:oppervlakte>102</bag:oppervlakte>
+      <bag:geometrie>
+        <gml:Polygon>
+          <gml:exterior>
+            <gml:LinearRing>
+              <gml:posList>
+                4.9040 52.3675 4.9042 52.3675 4.9042 52.3677 4.9040 52.3677 4.9040 52.3675
+              </gml:posList>
+            </gml:LinearRing>
+          </gml:exterior>
+        </gml:Polygon>
+      </bag:geometrie>
+    </bag:pand>
+  </wfs:member>
+</wfs:FeatureCollection>

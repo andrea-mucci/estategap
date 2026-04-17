@@ -1,0 +1,33 @@
+INSERT INTO uk_price_paid (
+  transaction_uid,
+  price_gbp,
+  date_transfer,
+  postcode,
+  property_type,
+  old_new,
+  tenure,
+  paon,
+  saon,
+  street,
+  locality,
+  town_city,
+  district,
+  county,
+  address_normalized
+) VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  475000,
+  DATE '2024-09-20',
+  'NW1 6XE',
+  'D',
+  'N',
+  'F',
+  '21',
+  NULL,
+  'Baker Street',
+  NULL,
+  'London',
+  'Westminster',
+  'Greater London',
+  '21 baker st london nw1 6xe'
+);

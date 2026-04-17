@@ -1,0 +1,26 @@
+{
+  "elementList": [
+    {
+      "propertyCode": "IT-ID-1",
+      "price": 320000,
+      "size": 90,
+      "rooms": 4,
+      "bathrooms": 2,
+      "floor": "2",
+      "constructionYear": 2010,
+      "energyCertification": { "energyConsumption": { "rating": "B" } },
+      "propertyType": "appartamento",
+      "status": "buono",
+      "heatingType": "autonomo",
+      "latitude": 45.4642,
+      "longitude": 9.19,
+      "url": "/immobile/2001/",
+      "address": "Via Dante 5",
+      "municipality": "Milano",
+      "province": "MI",
+      "postalCode": "20121",
+      "multimedia": { "images": [{ "url": "https://img.example/5.jpg" }] },
+      "publicationDate": "2026-04-17T11:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_0": "France",
+        "NAME_1": "Île-de-France"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[2.0, 48.7], [2.6, 48.7], [2.6, 49.1], [2.0, 49.1], [2.0, 48.7]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_0": "France",
+        "NAME_1": "Normandie"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-0.8, 49.0], [0.2, 49.0], [0.2, 49.8], [-0.8, 49.8], [-0.8, 49.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_0": "France",
+        "NAME_1": "Bretagne"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-4.8, 47.8], [-1.2, 47.8], [-1.2, 48.9], [-4.8, 48.9], [-4.8, 47.8]]]
+      }
+    }
+  ]
+}

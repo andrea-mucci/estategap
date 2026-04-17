@@ -1,0 +1,65 @@
+portal: bienici
+country: FR
+
+fields:
+  bien.prixAffiche:
+    target: asking_price
+    transform: null
+  bien.nbPieces:
+    target: bedrooms
+    transform: null
+  bien.surfaceTotal:
+    target: built_area
+    transform: null
+  bien.typeBien:
+    target: property_type
+    transform: map_property_type
+  bien.dpe.classe:
+    target: energy_rating
+    transform: null
+  bien.adresse:
+    target: address
+    transform: null
+  bien.ville:
+    target: city
+    transform: null
+  bien.region:
+    target: region
+    transform: null
+  bien.codePostal:
+    target: postal_code
+    transform: null
+  bien.latitude:
+    target: _lat
+    transform: null
+  bien.longitude:
+    target: _lon
+    transform: null
+  url:
+    target: source_url
+    transform: null
+  description:
+    target: description_orig
+    transform: null
+
+property_type_map:
+  appartement: residential
+  maison: residential
+  loft: residential
+  bureau: commercial
+  localCommercial: commercial
+  terrain: land
+
+condition_map: {}
+
+currency_field: null
+area_unit_field: null
+country_uses_pieces: true
+expected_fields:
+  - asking_price
+  - built_area_m2
+  - bedrooms
+  - energy_rating
+  - property_type
+  - location_wkt
+  - source_url

@@ -1,0 +1,90 @@
+portal: idealista
+country: IT
+
+fields:
+  prezzo:
+    target: asking_price
+    transform: null
+  superficie:
+    target: built_area
+    transform: null
+  locali:
+    target: bedrooms
+    transform: null
+  bagni:
+    target: bathrooms
+    transform: null
+  piano:
+    target: floor_number
+    transform: null
+  annoCostruzione:
+    target: year_built
+    transform: null
+  classeEnergetica:
+    target: energy_rating
+    transform: null
+  tipologiaImmobile:
+    target: property_type
+    transform: map_property_type
+  statoImmobile:
+    target: condition
+    transform: map_condition
+  riscaldamento:
+    target: description_orig
+    transform: null
+  latitudine:
+    target: _lat
+    transform: null
+  longitudine:
+    target: _lon
+    transform: null
+  url:
+    target: source_url
+    transform: null
+  indirizzo:
+    target: address
+    transform: null
+  comune:
+    target: city
+    transform: null
+  provincia:
+    target: region
+    transform: null
+  codicePostale:
+    target: postal_code
+    transform: null
+  numFoto:
+    target: images_count
+    transform: null
+
+property_type_map:
+  appartamento: residential
+  attico: residential
+  villa: residential
+  studio: residential
+  loft: residential
+  ufficio: commercial
+  locale: commercial
+  capannone: industrial
+  terreno: land
+
+condition_map:
+  nuovo: new
+  buono: good
+  ristrutturato: good
+  da_riformare: needs_renovation
+  da_ristrutturare: needs_renovation
+
+currency_field: null
+area_unit_field: null
+country_uses_pieces: false
+expected_fields:
+  - asking_price
+  - built_area_m2
+  - bedrooms
+  - bathrooms
+  - energy_rating
+  - property_type
+  - location_wkt
+  - source_url
+  - images_count

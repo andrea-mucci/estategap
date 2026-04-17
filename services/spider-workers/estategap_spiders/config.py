@@ -15,6 +15,8 @@ class Config(BaseSettings):
     metrics_port: int = 9102
     log_level: str = "INFO"
     idealista_api_token: str = ""
+    idealista_it_api_token: str = ""
+    immobiliare_api_token: str = ""
     request_min_delay: float = 2.0
     request_max_delay: float = 5.0
     max_concurrent_per_portal: int = 3

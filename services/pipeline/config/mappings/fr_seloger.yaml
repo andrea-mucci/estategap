@@ -1,0 +1,63 @@
+portal: seloger
+country: FR
+
+fields:
+  json_ld.offers.price:
+    target: asking_price
+    transform: null
+  json_ld.numberOfRooms:
+    target: bedrooms
+    transform: null
+  json_ld.floorSize.value:
+    target: built_area
+    transform: null
+  json_ld.address.streetAddress:
+    target: address
+    transform: null
+  json_ld.address.addressLocality:
+    target: city
+    transform: null
+  json_ld.address.addressRegion:
+    target: region
+    transform: null
+  energyEfficiencyScaleMin:
+    target: energy_rating
+    transform: null
+  latitude:
+    target: _lat
+    transform: null
+  longitude:
+    target: _lon
+    transform: null
+  url:
+    target: source_url
+    transform: null
+  description:
+    target: description_orig
+    transform: null
+  images_count:
+    target: images_count
+    transform: null
+
+property_type_map:
+  apartment: residential
+  house: residential
+  loft: residential
+  office: commercial
+  retail: commercial
+  warehouse: industrial
+  land: land
+
+condition_map: {}
+
+currency_field: null
+area_unit_field: null
+country_uses_pieces: true
+expected_fields:
+  - asking_price
+  - built_area_m2
+  - bedrooms
+  - energy_rating
+  - property_type
+  - location_wkt
+  - source_url

@@ -26,6 +26,7 @@ DECIMAL_TARGETS = {
 INTEGER_TARGETS = {
     "bathrooms",
     "bedrooms",
+    "leasehold_years_remaining",
     "floor_number",
     "images_count",
     "parking_spaces",
@@ -55,6 +56,7 @@ class PortalMapping:
     currency_field: str | None
     area_unit_field: str | None
     country_uses_pieces: bool
+    expected_fields: tuple[str, ...]
 
 
 class PortalMapper:
@@ -65,14 +67,14 @@ class PortalMapper:
         "map_property_type": transforms.map_property_type,
     }
 
-    def __init__(self, mappings: dict[str, PortalMapping]) -> None:
+    def __init__(self, mappings: dict[tuple[str, str], PortalMapping]) -> None:
         self._mappings = mappings
 
     @classmethod
-    def load_all(cls, mappings_dir: Path) -> dict[str, PortalMapping]:
+    def load_all(cls, mappings_dir: Path) -> dict[tuple[str, str], PortalMapping]:
         """Load and validate every portal mapping from a directory."""
 
-        loaded: dict[str, PortalMapping] = {}
+        loaded: dict[tuple[str, str], PortalMapping] = {}
         for mapping_path in sorted(mappings_dir.glob("*.yaml")):
             with mapping_path.open("r", encoding="utf-8") as handle:
                 raw = yaml.safe_load(handle) or {}
@@ -101,14 +103,17 @@ class PortalMapper:
                 currency_field=raw.get("currency_field") if isinstance(raw.get("currency_field"), str) else None,
                 area_unit_field=raw.get("area_unit_field") if isinstance(raw.get("area_unit_field"), str) else None,
                 country_uses_pieces=bool(raw.get("country_uses_pieces", False)),
+                expected_fields=tuple(
+                    str(field) for field in raw.get("expected_fields", []) if isinstance(field, str)
+                ),
             )
-            loaded[mapping.portal] = mapping
+            loaded[(mapping.country, mapping.portal)] = mapping
         return loaded
 
-    def get(self, portal: str) -> PortalMapping | None:
+    def get(self, country: str, portal: str) -> PortalMapping | None:
         """Return the mapping for a portal, if one was loaded."""
 
-        return self._mappings.get(portal)
+        return self._mappings.get((country.upper(), portal))
 
     def apply(
         self,
