@@ -3,6 +3,7 @@ package repository
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +48,33 @@ func decodeTimeCursor(cursor string) (time.Time, uuid.UUID, error) {
 	}
 
 	return time.Unix(0, nanos).UTC(), id, nil
+}
+
+func encodeFloatCursor(val float64, id uuid.UUID) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf("%016x|%s", math.Float64bits(val), id.String())))
+}
+
+func decodeFloatCursor(cursor string) (float64, uuid.UUID, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		return 0, uuid.Nil, err
+	}
+
+	parts := strings.Split(string(raw), "|")
+	if len(parts) != 2 {
+		return 0, uuid.Nil, fmt.Errorf("invalid cursor")
+	}
+
+	bits, err := strconv.ParseUint(parts[0], 16, 64)
+	if err != nil {
+		return 0, uuid.Nil, err
+	}
+	id, err := uuid.Parse(parts[1])
+	if err != nil {
+		return 0, uuid.Nil, err
+	}
+
+	return math.Float64frombits(bits), id, nil
 }
 
 func encodeIDCursor(id uuid.UUID) string {

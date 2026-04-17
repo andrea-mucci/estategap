@@ -11,6 +11,7 @@ import (
 	"time"
 
 	sharedlogger "github.com/estategap/libs/logger"
+	cachepkg "github.com/estategap/services/api-gateway/internal/cache"
 	"github.com/estategap/services/api-gateway/internal/config"
 	"github.com/estategap/services/api-gateway/internal/db"
 	"github.com/estategap/services/api-gateway/internal/handler"
@@ -60,6 +61,7 @@ func run() error {
 		return err
 	}
 	defer func() { _ = redisClient.Close() }()
+	cacheClient := cachepkg.NewClient(redisClient)
 
 	natsConn, err := natsutil.Connect(cfg.NATSURL)
 	if err != nil {
@@ -69,7 +71,8 @@ func run() error {
 
 	usersRepo := repository.NewUsersRepo(primaryPool, replicaPool)
 	listingsRepo := repository.NewListingsRepo(replicaPool)
-	zonesRepo := repository.NewZonesRepo(replicaPool)
+	zonesRepo := repository.NewZonesRepo(replicaPool, cacheClient)
+	referenceRepo := repository.NewReferenceRepo(replicaPool, cacheClient)
 	alertsRepo := repository.NewAlertsRepo(primaryPool, replicaPool)
 
 	authService := service.NewAuthService(cfg.JWTSecret, redisClient)
@@ -89,8 +92,9 @@ func run() error {
 	healthHandler := handler.NewHealthHandler(primaryPool, redisClient, natsConn)
 	authHandler := handler.NewAuthHandler(authService, usersRepo)
 	googleOAuthHandler := handler.NewGoogleOAuthHandler(oauthService)
-	listingsHandler := handler.NewListingsHandler(listingsRepo)
+	listingsHandler := handler.NewListingsHandler(listingsRepo, usersRepo)
 	zonesHandler := handler.NewZonesHandler(zonesRepo)
+	referenceHandler := handler.NewReferenceHandler(referenceRepo)
 	alertsHandler := handler.NewAlertsHandler(alertsRepo)
 	subscriptionsHandler := handler.NewSubscriptionsHandler()
 
@@ -130,18 +134,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			r.Get("/listings", listingsHandler.List)
-			r.Get("/listings/{id}", listingsHandler.Get)
-			r.Get("/zones", zonesHandler.List)
-			r.Get("/zones/{id}", zonesHandler.Get)
-			r.Get("/zones/{id}/analytics", zonesHandler.Analytics)
-			r.Get("/alerts", alertsHandler.List)
-			r.Post("/alerts", alertsHandler.Create)
-			r.Get("/alerts/{id}", alertsHandler.Get)
-			r.Put("/alerts/{id}", alertsHandler.Update)
-			r.Delete("/alerts/{id}", alertsHandler.Delete)
-			r.Get("/alerts/{id}/history", alertsHandler.History)
-			r.Post("/subscriptions/checkout", subscriptionsHandler.Checkout)
+			mountAuthenticatedV1Routes(r, listingsHandler, zonesHandler, referenceHandler, alertsHandler, subscriptionsHandler)
 		})
 	})
 

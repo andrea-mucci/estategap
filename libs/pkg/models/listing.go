@@ -26,6 +26,7 @@ type Listing struct {
 	AskingPrice         *decimal.Decimal    `json:"asking_price" db:"asking_price"`
 	Currency            string              `json:"currency" db:"currency"`
 	AskingPriceEUR      *decimal.Decimal    `json:"asking_price_eur" db:"asking_price_eur"`
+	PriceConverted      *decimal.Decimal    `json:"price_converted,omitempty" db:"price_converted"`
 	PricePerM2EUR       *decimal.Decimal    `json:"price_per_m2_eur" db:"price_per_m2_eur"`
 	PropertyCategory    *PropertyCategory   `json:"property_category" db:"property_category"`
 	PropertyType        *string             `json:"property_type" db:"property_type"`
@@ -73,6 +74,7 @@ type Listing struct {
 	DescriptionLang     *string             `json:"description_lang,omitempty" db:"description_lang"`
 	ImagesCount         int16               `json:"images_count" db:"images_count"`
 	FirstSeenAt         pgtype.Timestamptz  `json:"first_seen_at" db:"first_seen_at"`
+	ExchangeRateDate    pgtype.Date         `json:"-" db:"exchange_rate_date"`
 	LastSeenAt          pgtype.Timestamptz  `json:"last_seen_at" db:"last_seen_at"`
 	PublishedAt         *pgtype.Timestamptz `json:"published_at" db:"published_at"`
 	DelistedAt          *pgtype.Timestamptz `json:"delisted_at" db:"delisted_at"`
