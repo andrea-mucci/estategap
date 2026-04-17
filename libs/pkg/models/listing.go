@@ -60,12 +60,13 @@ type Listing struct {
 	BuildabilityIndex   *decimal.Decimal    `json:"buildability_index,omitempty" db:"buildability_index"`
 	UrbanClassification *string             `json:"urban_classification,omitempty" db:"urban_classification"`
 	LandUse             *string             `json:"land_use,omitempty" db:"land_use"`
-	EstimatedPrice      *decimal.Decimal    `json:"estimated_price" db:"estimated_price"`
+	EstimatedPrice      *decimal.Decimal    `json:"estimated_price" db:"estimated_price_eur"`
 	DealScore           *decimal.Decimal    `json:"deal_score" db:"deal_score"`
 	DealTier            *DealTier           `json:"deal_tier" db:"deal_tier"`
-	ConfidenceLow       *decimal.Decimal    `json:"confidence_low" db:"confidence_low"`
-	ConfidenceHigh      *decimal.Decimal    `json:"confidence_high" db:"confidence_high"`
+	ConfidenceLow       *decimal.Decimal    `json:"confidence_low" db:"confidence_low_eur"`
+	ConfidenceHigh      *decimal.Decimal    `json:"confidence_high" db:"confidence_high_eur"`
 	ShapFeatures        json.RawMessage     `json:"shap_features" db:"shap_features"`
+	ComparableIDs       []pgtype.UUID       `json:"comparable_ids,omitempty" db:"comparable_ids"`
 	ModelVersion        *string             `json:"model_version" db:"model_version"`
 	ScoredAt            *pgtype.Timestamptz `json:"scored_at" db:"scored_at"`
 	DaysOnMarket        *int32              `json:"days_on_market" db:"days_on_market"`

@@ -26,7 +26,7 @@ from estategap.v1 import common_pb2 as estategap_dot_v1_dot_common__pb2
 from estategap.v1 import listings_pb2 as estategap_dot_v1_dot_listings__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1d\x65stategap/v1/ml_scoring.proto\x12\x0c\x65stategap.v1\x1a\x19\x65stategap/v1/common.proto\x1a\x1b\x65stategap/v1/listings.proto\"?\n\x13ScoreListingRequest\x12\x12\n\nlisting_id\x18\x01 \x01(\t\x12\x14\n\x0c\x63ountry_code\x18\x02 \x01(\t\"\x83\x01\n\x14ScoreListingResponse\x12\x12\n\nlisting_id\x18\x01 \x01(\t\x12\x12\n\ndeal_score\x18\x02 \x01(\x02\x12,\n\x0bshap_values\x18\x03 \x03(\x0b\x32\x17.estategap.v1.ShapValue\x12\x15\n\rmodel_version\x18\x04 \x01(\t\"F\n\tShapValue\x12\x14\n\x0c\x66\x65\x61ture_name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12\x14\n\x0c\x63ontribution\x18\x03 \x01(\x02\">\n\x11ScoreBatchRequest\x12\x13\n\x0blisting_ids\x18\x01 \x03(\t\x12\x14\n\x0c\x63ountry_code\x18\x02 \x01(\t\"H\n\x12ScoreBatchResponse\x12\x32\n\x06scores\x18\x01 \x03(\x0b\x32\".estategap.v1.ScoreListingResponse\"P\n\x15GetComparablesRequest\x12\x12\n\nlisting_id\x18\x01 \x01(\t\x12\x14\n\x0c\x63ountry_code\x18\x02 \x01(\t\x12\r\n\x05limit\x18\x03 \x01(\x05\"D\n\x16GetComparablesResponse\x12*\n\x0b\x63omparables\x18\x01 \x03(\x0b\x32\x15.estategap.v1.Listing2\x97\x02\n\x10MLScoringService\x12U\n\x0cScoreListing\x12!.estategap.v1.ScoreListingRequest\x1a\".estategap.v1.ScoreListingResponse\x12O\n\nScoreBatch\x12\x1f.estategap.v1.ScoreBatchRequest\x1a .estategap.v1.ScoreBatchResponse\x12[\n\x0eGetComparables\x12#.estategap.v1.GetComparablesRequest\x1a$.estategap.v1.GetComparablesResponseB:Z8github.com/estategap/libs/proto/estategap/v1;estategapv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1d\x65stategap/v1/ml_scoring.proto\x12\x0c\x65stategap.v1\x1a\x19\x65stategap/v1/common.proto\x1a\x1b\x65stategap/v1/listings.proto\"?\n\x13ScoreListingRequest\x12\x12\n\nlisting_id\x18\x01 \x01(\t\x12\x14\n\x0c\x63ountry_code\x18\x02 \x01(\t\"\x89\x02\n\x14ScoreListingResponse\x12\x12\n\nlisting_id\x18\x01 \x01(\t\x12\x12\n\ndeal_score\x18\x02 \x01(\x02\x12,\n\x0bshap_values\x18\x03 \x03(\x0b\x32\x17.estategap.v1.ShapValue\x12\x15\n\rmodel_version\x18\x04 \x01(\t\x12\x17\n\x0f\x65stimated_price\x18\x05 \x01(\x02\x12\x14\n\x0c\x61sking_price\x18\x06 \x01(\x02\x12\x16\n\x0e\x63onfidence_low\x18\x07 \x01(\x02\x12\x17\n\x0f\x63onfidence_high\x18\x08 \x01(\x02\x12\x11\n\tdeal_tier\x18\t \x01(\x05\x12\x11\n\tscored_at\x18\n \x01(\t\"U\n\tShapValue\x12\x14\n\x0c\x66\x65\x61ture_name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12\x14\n\x0c\x63ontribution\x18\x03 \x01(\x02\x12\r\n\x05label\x18\x04 \x01(\t\">\n\x11ScoreBatchRequest\x12\x13\n\x0blisting_ids\x18\x01 \x03(\t\x12\x14\n\x0c\x63ountry_code\x18\x02 \x01(\t\"H\n\x12ScoreBatchResponse\x12\x32\n\x06scores\x18\x01 \x03(\x0b\x32\".estategap.v1.ScoreListingResponse\"P\n\x15GetComparablesRequest\x12\x12\n\nlisting_id\x18\x01 \x01(\t\x12\x14\n\x0c\x63ountry_code\x18\x02 \x01(\t\x12\r\n\x05limit\x18\x03 \x01(\x05\"W\n\x16GetComparablesResponse\x12*\n\x0b\x63omparables\x18\x01 \x03(\x0b\x32\x15.estategap.v1.Listing\x12\x11\n\tdistances\x18\x02 \x03(\x02\x32\x97\x02\n\x10MLScoringService\x12U\n\x0cScoreListing\x12!.estategap.v1.ScoreListingRequest\x1a\".estategap.v1.ScoreListingResponse\x12O\n\nScoreBatch\x12\x1f.estategap.v1.ScoreBatchRequest\x1a .estategap.v1.ScoreBatchResponse\x12[\n\x0eGetComparables\x12#.estategap.v1.GetComparablesRequest\x1a$.estategap.v1.GetComparablesResponseB:Z8github.com/estategap/libs/proto/estategap/v1;estategapv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,17 +37,17 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SCORELISTINGREQUEST']._serialized_start=103
   _globals['_SCORELISTINGREQUEST']._serialized_end=166
   _globals['_SCORELISTINGRESPONSE']._serialized_start=169
-  _globals['_SCORELISTINGRESPONSE']._serialized_end=300
-  _globals['_SHAPVALUE']._serialized_start=302
-  _globals['_SHAPVALUE']._serialized_end=372
-  _globals['_SCOREBATCHREQUEST']._serialized_start=374
-  _globals['_SCOREBATCHREQUEST']._serialized_end=436
-  _globals['_SCOREBATCHRESPONSE']._serialized_start=438
-  _globals['_SCOREBATCHRESPONSE']._serialized_end=510
-  _globals['_GETCOMPARABLESREQUEST']._serialized_start=512
-  _globals['_GETCOMPARABLESREQUEST']._serialized_end=592
-  _globals['_GETCOMPARABLESRESPONSE']._serialized_start=594
-  _globals['_GETCOMPARABLESRESPONSE']._serialized_end=662
-  _globals['_MLSCORINGSERVICE']._serialized_start=665
-  _globals['_MLSCORINGSERVICE']._serialized_end=944
+  _globals['_SCORELISTINGRESPONSE']._serialized_end=434
+  _globals['_SHAPVALUE']._serialized_start=436
+  _globals['_SHAPVALUE']._serialized_end=521
+  _globals['_SCOREBATCHREQUEST']._serialized_start=523
+  _globals['_SCOREBATCHREQUEST']._serialized_end=585
+  _globals['_SCOREBATCHRESPONSE']._serialized_start=587
+  _globals['_SCOREBATCHRESPONSE']._serialized_end=659
+  _globals['_GETCOMPARABLESREQUEST']._serialized_start=661
+  _globals['_GETCOMPARABLESREQUEST']._serialized_end=741
+  _globals['_GETCOMPARABLESRESPONSE']._serialized_start=743
+  _globals['_GETCOMPARABLESRESPONSE']._serialized_end=830
+  _globals['_MLSCORINGSERVICE']._serialized_start=833
+  _globals['_MLSCORINGSERVICE']._serialized_end=1112
 # @@protoc_insertion_point(module_scope)

@@ -28,6 +28,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4 (`listings` partitioned table + new `pois` table); NATS JetStream (existing streams) (013-enrichment-change-detection)
 - Python 3.12 + LightGBM 4.3+, scikit-learn 1.5+, Optuna 3.x, skl2onnx 1.17+, onnxmltools 1.12+, onnxruntime 1.18+ (already present), MLflow 2.x, asyncpg 0.29+, nats-py 2.6+, structlog 24.x, pydantic-settings 2.2+, prometheus-client 0.20+, pandas 2.x, joblib, estategap-common (014-ml-training-pipeline)
 - PostgreSQL 16 + PostGIS 3.4 (`listings`, `model_versions`, `zones`); MinIO (ONNX artefacts + joblib dumps) (014-ml-training-pipeline)
+- Python 3.12 + onnxruntime 1.18+, shap 0.45+, scikit-learn 1.5+, lightgbm 4.3+, grpcio 1.63+, grpcio-tools 1.63+, nats-py 2.6+, asyncpg 0.29+, boto3 1.34+, pydantic-settings 2.2+, structlog 24.x, prometheus-client 0.20+, estategap-common (015-ml-inference-scoring)
+- PostgreSQL 16 + PostGIS 3.4 (`listings` table — write scoring columns); MinIO (ONNX + joblib + LGB artefacts read-only) (015-ml-inference-scoring)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -47,9 +49,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 015-ml-inference-scoring: Added Python 3.12 + onnxruntime 1.18+, shap 0.45+, scikit-learn 1.5+, lightgbm 4.3+, grpcio 1.63+, grpcio-tools 1.63+, nats-py 2.6+, asyncpg 0.29+, boto3 1.34+, pydantic-settings 2.2+, structlog 24.x, prometheus-client 0.20+, estategap-common
 - 014-ml-training-pipeline: Added Python 3.12 + LightGBM 4.3+, scikit-learn 1.5+, Optuna 3.x, skl2onnx 1.17+, onnxmltools 1.12+, onnxruntime 1.18+ (already present), MLflow 2.x, asyncpg 0.29+, nats-py 2.6+, structlog 24.x, pydantic-settings 2.2+, prometheus-client 0.20+, pandas 2.x, joblib, estategap-common
 - 013-enrichment-change-detection: Added Python 3.12 + nats-py 2.6+, asyncpg 0.29+, httpx 0.27+, lxml 5.x (GML parsing), shapely 2.x (WKT conversion), pyosmium 3.7+ (OSM PBF loading), cachetools 5.x (Overpass TTL cache), pydantic-settings 2.2+, pydantic v2, structlog 24.x, prometheus-client 0.20+, estategap-common (shared models)
-- 012-normalize-dedup-pipeline: Added Python 3.12 + nats-py (JetStream consumer), asyncpg (batch upsert), pydantic v2
 
 
 <!-- MANUAL ADDITIONS START -->

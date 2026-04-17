@@ -56,13 +56,13 @@ nats:
       replicas: 3
       storage: file
     - name: enriched-listings
-      subjects: ["listings.enriched.>"]
+      subjects: ["listings.enriched.>", "enriched.listings"]
       retention: limits
       maxAge: 720h
       replicas: 3
       storage: file
     - name: scored-listings
-      subjects: ["listings.scored.>"]
+      subjects: ["listings.scored.>", "scored.listings"]
       retention: limits
       maxAge: 720h
       replicas: 3
@@ -376,6 +376,12 @@ sealedSecrets:
     minioEndpoint: AgReplaceWithKubesealOutput
     minioAccessKey: AgReplaceWithKubesealOutput
     minioSecretKey: AgReplaceWithKubesealOutput
+  mlScorerSecrets:
+    databaseUrl: AgReplaceWithKubesealOutput
+    natsUrl: AgReplaceWithKubesealOutput
+    minioEndpoint: AgReplaceWithKubesealOutput
+    minioAccessKey: AgReplaceWithKubesealOutput
+    minioSecretKey: AgReplaceWithKubesealOutput
 
 stripe:
   successUrl: https://app.estategap.com/dashboard?checkout=success
@@ -403,6 +409,15 @@ mlTrainer:
     limits:
       memory: 8Gi
       cpu: "4"
+
+mlScorer:
+  grpcPort: 50051
+  prometheusPort: 9091
+  batchSize: 50
+  batchFlushSeconds: 5
+  modelPollIntervalSeconds: 60
+  comparablesRefreshIntervalSeconds: 3600
+  shapTimeoutSeconds: 2.0
 
 services:
   api-gateway:
@@ -792,14 +807,14 @@ services:
   ml-scorer:
     enabled: true
     namespace: estategap-intelligence
-    port: 8080
+    port: 50051
     image:
       repository: ghcr.io/andrea-mucci/estategap/ml-scorer
       tag: latest
     resources:
       requests:
         cpu: 500m
-        memory: 512Mi
+        memory: 2Gi
       limits:
         cpu: "2"
         memory: 4Gi

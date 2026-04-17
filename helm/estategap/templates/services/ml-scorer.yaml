@@ -1,9 +1,110 @@
 {{- $name := "ml-scorer" -}}
 {{- $service := index .Values.services $name -}}
 {{- if $service.enabled }}
-{{ include "estategap.serviceDeployment" (dict "root" . "name" $name "port" $service.port) }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-scorer
+  namespace: {{ include "estategap.namespace" (dict "root" . "name" $name) }}
+  labels:
+    {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 4 }}
 ---
-{{ include "estategap.serviceService" (dict "root" . "name" $name "port" $service.port) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "estategap.namespace" (dict "root" . "name" $name) }}
+  labels:
+    {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 4 }}
+spec:
+  replicas: {{ ternary (int $service.hpa.minReplicas) (default 1 $service.replicaCount) (and $service.hpa $service.hpa.enabled) }}
+  selector:
+    matchLabels:
+      {{- include "estategap.serviceSelectorLabels" (dict "root" . "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "estategap.serviceSelectorLabels" (dict "root" . "name" $name) | nindent 8 }}
+    spec:
+      {{- include "estategap.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: ml-scorer
+      initContainers:
+        - name: apply-listings-migration
+          image: {{ include "estategap.serviceImage" (dict "root" . "image" .Values.services.pipeline.image) }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              cd /app
+              alembic upgrade head
+          envFrom:
+            - configMapRef:
+                name: estategap-config
+            - secretRef:
+                name: ml-scorer-secrets
+      containers:
+        - name: ml-scorer
+          image: {{ include "estategap.serviceImage" (dict "root" . "image" $service.image) }}
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: estategap-config
+            - secretRef:
+                name: ml-scorer-secrets
+          env:
+            - name: SERVICE_MODE
+              value: "scorer"
+            - name: GRPC_PORT
+              value: {{ .Values.mlScorer.grpcPort | quote }}
+            - name: PROMETHEUS_PORT
+              value: {{ .Values.mlScorer.prometheusPort | quote }}
+            - name: SCORER_BATCH_SIZE
+              value: {{ .Values.mlScorer.batchSize | quote }}
+            - name: SCORER_BATCH_FLUSH_SECONDS
+              value: {{ .Values.mlScorer.batchFlushSeconds | quote }}
+            - name: MODEL_POLL_INTERVAL_SECONDS
+              value: {{ .Values.mlScorer.modelPollIntervalSeconds | quote }}
+            - name: COMPARABLES_REFRESH_INTERVAL_SECONDS
+              value: {{ .Values.mlScorer.comparablesRefreshIntervalSeconds | quote }}
+            - name: SHAP_TIMEOUT_SECONDS
+              value: {{ .Values.mlScorer.shapTimeoutSeconds | quote }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.mlScorer.grpcPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.mlScorer.prometheusPort }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            {{- toYaml $service.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "estategap.namespace" (dict "root" . "name" $name) }}
+  labels:
+    {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "estategap.serviceSelectorLabels" (dict "root" . "name" $name) | nindent 4 }}
+  ports:
+    - name: grpc
+      port: {{ .Values.mlScorer.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
 ---
 {{ include "estategap.serviceHPA" (dict "root" . "name" $name) }}
 {{- end }}

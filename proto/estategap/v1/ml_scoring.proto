@@ -23,12 +23,19 @@ message ScoreListingResponse {
   float deal_score = 2;
   repeated ShapValue shap_values = 3;
   string model_version = 4;
+  float estimated_price = 5;
+  float asking_price = 6;
+  float confidence_low = 7;
+  float confidence_high = 8;
+  int32 deal_tier = 9;
+  string scored_at = 10;
 }
 
 message ShapValue {
   string feature_name = 1;
   float value = 2;
   float contribution = 3;
+  string label = 4;
 }
 
 message ScoreBatchRequest {
@@ -48,4 +55,5 @@ message GetComparablesRequest {
 
 message GetComparablesResponse {
   repeated Listing comparables = 1;
+  repeated float distances = 2;
 }
