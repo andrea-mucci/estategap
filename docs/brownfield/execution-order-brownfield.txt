@@ -1,0 +1,8 @@
+# EstateGap — Brownfield Adaptation Feature Execution Order
+# Run AFTER the main codebase is built (epics 0-11)
+
+# Epic 12 — Brownfield Adaptation
+epic-12-brownfield/feature-01-kafka-migration
+epic-12-brownfield/feature-02-s3-migration
+epic-12-brownfield/feature-03-helm-external-services
+epic-12-brownfield/feature-04-helm-documentation
