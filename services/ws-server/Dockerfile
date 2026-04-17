@@ -1,16 +1,23 @@
 FROM golang:1.23-alpine AS builder
 
-WORKDIR /build
+WORKDIR /workspace
+
+RUN apk add --no-cache git
 
 COPY go.work go.work.sum ./
-COPY libs/pkg libs/pkg
-COPY services/ws-server services/ws-server
+COPY libs/pkg ./libs/pkg
+COPY services/ws-server ./services/ws-server
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app ./services/ws-server/cmd
+WORKDIR /workspace/services/ws-server
 
-FROM gcr.io/distroless/static:nonroot
+RUN go mod download
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-w -s" -o /out/ws-server ./cmd
 
-COPY --from=builder /app /app
+FROM gcr.io/distroless/static-debian12
+
+COPY --from=builder /out/ws-server /app/ws-server
+
+EXPOSE 8081
 
 USER nonroot:nonroot
-ENTRYPOINT ["/app"]
+ENTRYPOINT ["/app/ws-server"]
