@@ -4,46 +4,53 @@ import { useChatStore } from "./chatStore";
 
 describe("chatStore", () => {
   beforeEach(() => {
-    useChatStore.setState({
-      sessionId: null,
-      messages: [],
-      criteria: null,
-      wsStatus: "disconnected",
-    });
+    useChatStore.getState().reset();
   });
 
-  it("adds a message", () => {
-    useChatStore.getState().addMessage({
-      id: "msg-1",
-      role: "user",
-      type: "text",
-      content: "Hello",
-      timestamp: 1,
-    });
+  it("creates and loads chat sessions", () => {
+    const sessionId = useChatStore.getState().createSession("session-1");
 
-    expect(useChatStore.getState().messages).toHaveLength(1);
-    expect(useChatStore.getState().messages[0].content).toBe("Hello");
+    expect(sessionId).toBe("session-1");
+    expect(useChatStore.getState().activeSessionId).toBe("session-1");
+    expect(useChatStore.getState().sessions.has("session-1")).toBe(true);
   });
 
-  it("accumulates streaming chunks", () => {
-    useChatStore.getState().appendChunk("conv-1", "Hello", false);
-    useChatStore.getState().appendChunk("conv-1", " world", true);
+  it("appends streaming chunks into a single assistant message", () => {
+    const sessionId = useChatStore.getState().createSession("session-1");
 
-    expect(useChatStore.getState().messages).toHaveLength(1);
-    expect(useChatStore.getState().messages[0].content).toBe("Hello world");
-    expect(useChatStore.getState().messages[0].isStreaming).toBe(false);
+    useChatStore.getState().startStreaming(sessionId, "assistant-1");
+    useChatStore.getState().appendChunk(sessionId, "assistant-1", "Hello");
+    useChatStore.getState().appendChunk(sessionId, "assistant-1", " world");
+    useChatStore.getState().endStreaming(sessionId, "assistant-1");
+
+    const session = useChatStore.getState().sessions.get(sessionId);
+
+    expect(session?.messages).toHaveLength(1);
+    expect(session?.messages[0].content).toBe("Hello world");
+    expect(session?.messages[0].isStreaming).toBe(false);
+    expect(session?.streamingMessageId).toBeNull();
   });
 
-  it("stores criteria summaries", () => {
-    useChatStore.getState().setCriteria({
-      conversationId: "conv-2",
-      criteria: {
-        city: "Madrid",
+  it("hydrates criteria from attachments and marks the session as confirming", () => {
+    const sessionId = useChatStore.getState().createSession("session-1");
+
+    useChatStore.getState().setAttachments(sessionId, "assistant-1", [
+      {
+        type: "criteria",
+        fields: [
+          {
+            key: "city",
+            label: "City",
+            value: "Barcelona",
+            inputType: "text",
+          },
+        ],
       },
-      readyToSearch: true,
-    });
+    ]);
 
-    expect(useChatStore.getState().criteria?.conversationId).toBe("conv-2");
-    expect(useChatStore.getState().criteria?.readyToSearch).toBe(true);
+    const session = useChatStore.getState().sessions.get(sessionId);
+
+    expect(session?.criteria.city).toBe("Barcelona");
+    expect(session?.status).toBe("confirming");
   });
 });

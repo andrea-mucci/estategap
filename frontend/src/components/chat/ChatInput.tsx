@@ -1,71 +1,163 @@
 "use client";
 
-import { SendHorizontal } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { Loader2, Mic, SendHorizontal } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
+import { VoiceInput } from "@/components/chat/VoiceInput";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useWebSocket } from "@/providers/WSProvider";
-import { useChatStore } from "@/stores/chatStore";
+import { cn } from "@/lib/utils";
 
-export function ChatInput() {
+type ChatInputProps = {
+  autoFocus?: boolean;
+  className?: string;
+  hero?: boolean;
+  isStreaming?: boolean;
+  onSend: (value: string) => Promise<void> | void;
+};
+
+export function ChatInput({
+  autoFocus = false,
+  className,
+  hero = false,
+  isStreaming = false,
+  onSend,
+}: ChatInputProps) {
+  const locale = useLocale();
   const t = useTranslations("chat");
-  const manager = useWebSocket();
-  const sessionId = useChatStore((state) => state.sessionId);
-  const setSessionId = useChatStore((state) => state.setSessionId);
-  const addMessage = useChatStore((state) => state.addMessage);
-  const wsStatus = useChatStore((state) => state.wsStatus);
-  const [value, setValue] = useState("");
 
-  const disabled = wsStatus !== "connected" || !value.trim();
+  const [value, setValue] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceAvailable, setVoiceAvailable] = useState(true);
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const resizeTextarea = useEffectEvent(() => {
+    const textarea = textareaRef.current;
+
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, hero ? 220 : 180)}px`;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const speechWindow = window as Window & {
+      SpeechRecognition?: unknown;
+      webkitSpeechRecognition?: unknown;
+    };
+
+    const hasSpeechApi = Boolean(
+      speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition,
+    );
+    const hasFallback =
+      typeof MediaRecorder !== "undefined" &&
+      Boolean(navigator.mediaDevices?.getUserMedia);
+
+    setVoiceAvailable(hasSpeechApi || hasFallback);
+  }, []);
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [resizeTextarea, value]);
+
+  const submit = useEffectEvent(async () => {
+    const nextValue = value.trim();
+
+    if (!nextValue || submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+    setValue("");
+
+    try {
+      await onSend(nextValue);
+    } catch {
+      setValue(nextValue);
+    } finally {
+      setSubmitting(false);
+    }
+  });
 
   return (
-    <form
-      className="flex flex-col gap-3 rounded-[32px] border border-white/70 bg-white/95 p-4 shadow-xl sm:flex-row"
-      onSubmit={(event) => {
-        event.preventDefault();
+    <>
+      <form
+        className={cn(
+          "surface-glass flex w-full items-end gap-3 rounded-[32px] border border-white/70 p-4 shadow-[0_30px_90px_-55px_rgba(15,23,42,0.65)]",
+          hero ? "mx-auto max-w-4xl p-5" : "bg-white/90",
+          className,
+        )}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <div className="min-w-0 flex-1">
+          <textarea
+            aria-label={t("placeholder")}
+            autoFocus={autoFocus}
+            className={cn(
+              "max-h-56 min-h-[52px] w-full resize-none border-0 bg-transparent px-1 py-2 text-slate-950 outline-none placeholder:text-slate-400",
+              hero ? "text-lg leading-8" : "text-base leading-7",
+            )}
+            onChange={(event) => setValue(event.target.value)}
+            onInput={() => resizeTextarea()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void submit();
+              }
+            }}
+            placeholder={t("placeholder")}
+            ref={textareaRef}
+            rows={1}
+            value={value}
+          />
+        </div>
 
-        if (disabled) {
-          return;
-        }
+        {voiceAvailable ? (
+          <Button
+            aria-label={t("mic")}
+            className="shrink-0"
+            onClick={() => setVoiceOpen(true)}
+            size="icon"
+            type="button"
+            variant="outline"
+          >
+            <Mic className="h-5 w-5" />
+          </Button>
+        ) : null}
 
-        const nextSessionId =
-          sessionId ?? `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        <Button
+          aria-label={t("send")}
+          className="shrink-0 gap-2"
+          disabled={!value.trim() || submitting}
+          type="submit"
+        >
+          {submitting || isStreaming ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <SendHorizontal className="h-4 w-4" />
+          )}
+          {t("send")}
+        </Button>
+      </form>
 
-        if (!sessionId) {
-          setSessionId(nextSessionId);
-        }
-
-        addMessage({
-          id: `user-${Date.now()}`,
-          role: "user",
-          type: "text",
-          content: value,
-          timestamp: Date.now(),
-        });
-
-        manager.send({
-          type: "chat_message",
-          session_id: nextSessionId,
-          payload: {
-            user_message: value,
-            country_code: "ES",
-          },
-        });
-
-        setValue("");
-      }}
-    >
-      <Input
-        onChange={(event) => setValue(event.target.value)}
-        placeholder={t("placeholder")}
-        value={value}
+      <VoiceInput
+        locale={locale}
+        onDraftTranscript={setValue}
+        onOpenChange={setVoiceOpen}
+        onTranscript={setValue}
+        open={voiceOpen}
       />
-      <Button className="gap-2" disabled={disabled} type="submit">
-        <SendHorizontal className="h-4 w-4" />
-        {t("send")}
-      </Button>
-    </form>
+    </>
   );
 }

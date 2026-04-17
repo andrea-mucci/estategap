@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 :root {
   --background: #f5f7fb;
@@ -65,4 +66,38 @@ img {
 .surface-glass {
   background: var(--surface);
   backdrop-filter: blur(14px);
+}
+
+.chat-markdown {
+  color: #0f172a;
+}
+
+.chat-markdown :where(p, ul, ol, blockquote, pre, table) {
+  margin: 0 0 0.85rem;
+}
+
+.chat-markdown :where(ul, ol) {
+  padding-left: 1.2rem;
+}
+
+.chat-markdown :where(li + li) {
+  margin-top: 0.35rem;
+}
+
+.chat-markdown :where(strong) {
+  font-weight: 700;
+}
+
+.chat-markdown :where(code) {
+  border-radius: 0.5rem;
+  background: rgba(148, 163, 184, 0.18);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.9em;
+}
+
+.chat-markdown :where(pre) {
+  overflow-x: auto;
+  border-radius: 1rem;
+  background: #e2e8f0;
+  padding: 1rem;
 }
