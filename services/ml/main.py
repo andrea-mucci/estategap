@@ -1,9 +1,11 @@
 import asyncio
 
+from estategap_ml.trainer.__main__ import main as trainer_main
 
-async def main() -> None:
-    return None
+
+async def main() -> int:
+    return await trainer_main()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(asyncio.run(main()))

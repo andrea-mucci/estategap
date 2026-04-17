@@ -1,142 +1,104 @@
-# Implementation Plan: Enrichment & Change Detection Services
+# Implementation Plan: [FEATURE]
 
-**Branch**: `013-enrichment-change-detection` | **Date**: 2026-04-17 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `specs/013-enrichment-change-detection/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Add two Python services to the pipeline — an **Enricher** that attaches Catastro cadastral data and OpenStreetMap POI distances to deduplicated listings, and a **Change Detector** that compares portal scrape snapshots against DB state to detect price drops, delistings, and re-listings.
-
-Both services are packaged inside `services/pipeline` (same repo/image as the normalizer and deduplicator, deployed with different Kubernetes `command` overrides). A new Alembic migration adds enrichment columns to `listings` and creates the `pois` table.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Python 3.12  
-**Primary Dependencies**: nats-py 2.6+, asyncpg 0.29+, httpx 0.27+, lxml 5.x (GML parsing), shapely 2.x (WKT conversion), pyosmium 3.7+ (OSM PBF loading), cachetools 5.x (Overpass TTL cache), pydantic-settings 2.2+, pydantic v2, structlog 24.x, prometheus-client 0.20+, estategap-common (shared models)  
-**Storage**: PostgreSQL 16 + PostGIS 3.4 (`listings` partitioned table + new `pois` table); NATS JetStream (existing streams)  
-**Testing**: pytest + pytest-asyncio, testcontainers (PostgreSQL + NATS), unittest.mock for external API mocking  
-**Target Platform**: Linux container (Kubernetes, estategap-pipeline namespace)  
-**Project Type**: Async Python microservices (NATS consumers)  
-**Performance Goals**: Enrich 1,000 Madrid listings/hour sustained; change detection for 10,000 active listings in <30s per cycle  
-**Constraints**: Catastro API ≤1 req/s; Overpass API ≤1 req/2s; enrichment must be idempotent  
-**Scale/Scope**: Spain initial rollout; architecture supports adding FR, IT, PT enrichers via plugin registry
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
+
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|---|---|---|
-| I. Polyglot Architecture | ✅ PASS | Python services inside `services/pipeline` — correct workload profile for data pipeline |
-| II. Event-Driven Communication | ✅ PASS | Both services communicate exclusively via NATS JetStream; no direct HTTP between services |
-| III. Country-First Data Sovereignty | ✅ PASS | All NATS subjects include country suffix; DB queries filtered by country; EUR normalisation preserved |
-| IV. ML-Powered Intelligence | ✅ PASS | Enriched fields (POI distances, cadastral area) feed downstream ML scorer; no changes to ML layer |
-| V. Code Quality Discipline | ✅ PASS | Pydantic v2 models, asyncio+httpx, structlog, ruff+mypy strict, pytest+testcontainers |
-| VI. Security & Ethical Scraping | ✅ PASS | Catastro rate limit enforced (1 req/s Semaphore); Overpass is publicly accessible open data |
-| VII. Kubernetes-Native Deployment | ✅ PASS | New Helm service entries; same Dockerfile as pipeline; command override per Deployment |
-
-**Post-design re-check**: All gates still pass. No constitution violations introduced.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/013-enrichment-change-detection/
-├── plan.md              # This file
-├── spec.md              # Feature specification
-├── research.md          # Phase 0: technology decisions
-├── data-model.md        # Phase 1: entities, schema, configs
-├── quickstart.md        # Phase 1: dev setup and manual acceptance tests
-├── contracts/
-│   └── nats-subjects.md # NATS subject/stream contracts
-└── tasks.md             # Phase 2 output (/speckit.tasks — not yet created)
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code
-
-The enricher and change detector live inside the existing `services/pipeline` package, following the normalizer/deduplicator pattern:
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-services/pipeline/
-├── alembic/versions/
-│   └── 015_enrichment.py          # NEW: adds enrichment cols + pois table
-├── src/pipeline/
-│   ├── enricher/                  # NEW package
-│   │   ├── __init__.py
-│   │   ├── __main__.py            # Entry: python -m pipeline.enricher
-│   │   ├── config.py              # EnricherSettings (pydantic-settings)
-│   │   ├── service.py             # EnricherService (NATS consumer + orchestrator)
-│   │   ├── base.py                # BaseEnricher ABC + EnrichmentResult + registry
-│   │   ├── catastro.py            # SpainCatastroEnricher
-│   │   ├── poi.py                 # POIDistanceCalculator
-│   │   └── poi_loader.py          # CLI: loads OSM PBF into pois table
-│   └── change_detector/           # NEW package
-│       ├── __init__.py
-│       ├── __main__.py            # Entry: python -m pipeline.change_detector
-│       ├── config.py              # ChangeDetectorSettings
-│       ├── consumer.py            # NATS consumer for scraper.cycle.completed.*
-│       └── detector.py            # Core detection logic (price/delist/relist)
-├── tests/
-│   ├── unit/
-│   │   ├── test_catastro_enricher.py    # NEW
-│   │   ├── test_poi_calculator.py       # NEW
-│   │   └── test_change_detector.py      # NEW
-│   └── integration/
-│       ├── test_enricher_integration.py        # NEW
-│       └── test_change_detector_integration.py # NEW
-└── pyproject.toml                 # Add: lxml, shapely, pyosmium, cachetools
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
+
+tests/
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Shared model changes** (`libs/common/estategap_common/models/listing.py`):
-- Add `PriceChangeEvent` Pydantic model (extends existing `PriceChange`)
-- Add enrichment fields to `NormalizedListing` (all Optional, default None)
-
-**Helm changes** (`helm/estategap/values.yaml`):
-- Add `services.pipeline.enricher` deployment entry
-- Add `services.pipeline.change-detector` deployment entry
-- Add `scraper-cycle` NATS stream for `scraper.cycle.completed.>` subjects
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
-No constitution violations — table left intentionally empty.
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
----
-
-## Phase 0: Research
-
-✅ **Completed** — see [research.md](research.md)
-
-Key decisions:
-- Catastro WFS via `httpx` + `lxml` GML parsing; `shapely` for geometry WKT conversion
-- PostGIS `pois` table as primary POI source; Overpass API as fallback with `cachetools.TTLCache`
-- Change detection triggered by `scraper.cycle.completed.{country}.{portal}` NATS event
-- Plugin registry via `@register_enricher(country)` class decorator
-
----
-
-## Phase 1: Design & Contracts
-
-✅ **Completed**
-
-### Artifacts produced
-
-| Artifact | Path | Status |
-|---|---|---|
-| Data model & DB schema | [data-model.md](data-model.md) | ✅ Done |
-| NATS contracts | [contracts/nats-subjects.md](contracts/nats-subjects.md) | ✅ Done |
-| Dev quickstart | [quickstart.md](quickstart.md) | ✅ Done |
-
-### Key design decisions
-
-1. **Enricher lives inside `services/pipeline`** — same Dockerfile, same NATS/DB config; just a new `python -m pipeline.enricher` command. Avoids a new service image for what is functionally the next stage in the pipeline.
-
-2. **Change detector is event-triggered, not cron-based** — subscribes to `scraper.cycle.completed.*` so detection runs exactly once per scrape cycle, with backpressure from NATS JetStream. The fallback timer catches missed events.
-
-3. **Alembic migration 015 adds enrichment columns to the listings parent table** — PostGIS partitioned tables inherit columns added to the parent, so a single `ALTER TABLE listings ADD COLUMN` applies to all country partitions.
-
-4. **`pois` table is not partitioned by country** — POI queries always filter by `country` with a B-tree index; the table is expected to be <10M rows (country × category × feature density), well within non-partitioned PostGIS limits.
-
-5. **`PriceChangeEvent` is added to `estategap_common`** — alert engine and any future subscriber share the same model with no drift.
-
-6. **Enrichment is idempotent** — the DB `UPDATE` uses `enrichment_status = 'completed'` as a guard: already-completed listings are skipped by the consumer query unless re-enrichment is explicitly requested.
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

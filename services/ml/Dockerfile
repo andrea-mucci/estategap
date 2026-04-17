@@ -1,5 +1,9 @@
 FROM python:3.12-slim AS builder
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir uv
 
 WORKDIR /app
@@ -7,9 +11,13 @@ WORKDIR /app
 COPY libs/common /libs/common
 COPY services/ml /app
 
-RUN uv sync --no-dev
+RUN uv sync --frozen --no-dev || uv sync --no-dev
 
 FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

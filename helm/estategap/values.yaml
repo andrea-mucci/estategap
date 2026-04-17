@@ -369,6 +369,13 @@ sealedSecrets:
   grafanaCredentials:
     adminUser: AgReplaceWithKubesealOutput
     adminPassword: AgReplaceWithKubesealOutput
+  mlTrainerSecrets:
+    databaseUrl: AgReplaceWithKubesealOutput
+    mlflowTrackingUri: AgReplaceWithKubesealOutput
+    natsUrl: AgReplaceWithKubesealOutput
+    minioEndpoint: AgReplaceWithKubesealOutput
+    minioAccessKey: AgReplaceWithKubesealOutput
+    minioSecretKey: AgReplaceWithKubesealOutput
 
 stripe:
   successUrl: https://app.estategap.com/dashboard?checkout=success
@@ -382,6 +389,20 @@ stripe:
   priceGlobalAnnual: price_replace_global_annual
   priceApiMonthly: price_replace_api_monthly
   priceApiAnnual: price_replace_api_annual
+
+mlTrainer:
+  image:
+    repository: ghcr.io/andrea-mucci/estategap/ml-trainer
+    tag: latest
+  schedule: "0 3 * * 0"
+  prometheusPushgatewayUrl: ""
+  resources:
+    requests:
+      memory: 4Gi
+      cpu: "2"
+    limits:
+      memory: 8Gi
+      cpu: "4"
 
 services:
   api-gateway:

@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-trainer
+  namespace: estategap-system
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-trainer
+  namespace: estategap-system
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ml-trainer
+spec:
+  schedule: {{ .Values.mlTrainer.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            {{- include "estategap.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: ml-trainer
+        spec:
+          {{- include "estategap.imagePullSecrets" . | nindent 10 }}
+          serviceAccountName: ml-trainer
+          restartPolicy: Never
+          containers:
+            - name: ml-trainer
+              image: {{ include "estategap.serviceImage" (dict "root" . "image" .Values.mlTrainer.image) }}
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - estategap_ml.trainer
+                - --countries-all
+              envFrom:
+                - configMapRef:
+                    name: estategap-config
+                - secretRef:
+                    name: ml-trainer-secrets
+              resources:
+                {{- toYaml .Values.mlTrainer.resources | nindent 16 }}
