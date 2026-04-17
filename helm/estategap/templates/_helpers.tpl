@@ -20,11 +20,13 @@ app.kubernetes.io/name: {{ include "estategap.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/part-of: estategap
 {{- end -}}
 
 {{- define "estategap.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "estategap.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/part-of: estategap
 {{- end -}}
 
 {{- define "estategap.namespace" -}}
@@ -105,6 +107,33 @@ imagePullSecrets:
   value: {{ index .Values.minio.buckets 3 | quote }}
 - name: MINIO_BUCKET_BACKUPS
   value: {{ index .Values.minio.buckets 4 | quote }}
+{{- if and .Values.testMode .Values.testMode.enabled }}
+- name: ESTATEGAP_TEST_MODE
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: ESTATEGAP_TEST_MODE
+- name: NOW_OVERRIDE
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: NOW_OVERRIDE
+- name: FAKE_LLM_PROVIDER
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: FAKE_LLM_PROVIDER
+- name: TEST_SCHEDULE_OVERRIDE
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: TEST_SCHEDULE_OVERRIDE
+- name: FIXTURE_MINIO_BUCKET
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: FIXTURE_MINIO_BUCKET
+{{- end }}
 {{- end -}}
 
 {{- define "estategap.serviceDeployment" -}}
@@ -189,6 +218,7 @@ spec:
 {{- $root := .root -}}
 {{- $name := .name -}}
 {{- $service := index $root.Values.services $name -}}
+{{- if and $service.hpa $service.hpa.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -210,4 +240,5 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ $service.hpa.cpuTarget }}
+{{- end }}
 {{- end -}}

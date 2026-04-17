@@ -54,6 +54,10 @@ kubeconfig*
 
 # Tooling
 .codex/
+.make-cache/
+.buildx-cache/
+.kind-pids
+tests/fixtures/ml-models/*.onnx
 
 # IDE
 .vscode/

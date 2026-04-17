@@ -95,6 +95,53 @@ func TestSchedulerReloadAddsAndRemovesTickers(t *testing.T) {
 	}
 }
 
+func TestParseScheduleOverrideSupportsCronStep(t *testing.T) {
+	t.Parallel()
+
+	override, err := ParseScheduleOverride("*/30 * * * * *")
+	if err != nil {
+		t.Fatalf("ParseScheduleOverride() error = %v", err)
+	}
+	if override != 30*time.Second {
+		t.Fatalf("ParseScheduleOverride() = %s, want 30s", override)
+	}
+}
+
+func TestSchedulerAppliesFrequencyOverride(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{
+		portals: []db.Portal{
+			{
+				Name:            "idealista",
+				Country:         "ES",
+				ScrapeFrequency: 5 * time.Minute,
+				SearchURLs:      []string{"https://example.com/search"},
+			},
+		},
+	}
+	scheduler := New(time.Hour)
+	scheduler.publishNow = func(string, []byte) error { return nil }
+	scheduler.saveJobFn = func(context.Context, *job.ScrapeJob) error { return nil }
+	scheduler.SetFrequencyOverride(30 * time.Second)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := scheduler.Start(ctx, store, nil, nil); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	defer scheduler.Stop()
+
+	ticker := scheduler.tickers["idealista"]
+	if ticker == nil {
+		t.Fatal("expected ticker for idealista")
+	}
+	if ticker.portal.ScrapeFrequency != 30*time.Second {
+		t.Fatalf("ticker frequency = %s, want 30s", ticker.portal.ScrapeFrequency)
+	}
+}
+
 type stubStore struct {
 	mu      sync.Mutex
 	portals []db.Portal

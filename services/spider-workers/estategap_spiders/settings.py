@@ -11,6 +11,11 @@ class Config(BaseSettings):
 
     nats_url: str = "nats://localhost:4222"
     redis_url: str = "redis://localhost:6379/0"
+    estategap_test_mode: bool = Field(default=False, alias="ESTATEGAP_TEST_MODE")
+    fixture_minio_bucket: str = Field(default="fixtures", alias="FIXTURE_MINIO_BUCKET")
+    minio_endpoint: str = Field(default="http://localhost:9000", alias="MINIO_ENDPOINT")
+    minio_access_key: str = Field(default="minioadmin", alias="MINIO_ACCESS_KEY")
+    minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
     proxy_manager_addr: str = "localhost:50051"
     proxy_us_url: str = ""
     metrics_port: int = 9102

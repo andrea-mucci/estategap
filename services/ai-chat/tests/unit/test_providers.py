@@ -47,6 +47,11 @@ def test_provider_factory_returns_known_providers(config: SimpleNamespace) -> No
     assert get_provider("litellm", config).__class__.__name__ == "LiteLLMProvider"
 
 
+def test_provider_factory_uses_fake_provider_when_enabled(config: SimpleNamespace) -> None:
+    config.fake_llm_provider = True
+    assert get_provider("claude", config).__class__.__name__ == "FakeLLMProvider"
+
+
 @pytest.mark.asyncio
 async def test_chat_uses_fallback_provider_on_retryable_error(
     redis_client: Any,

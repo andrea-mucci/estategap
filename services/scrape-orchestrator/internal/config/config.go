@@ -15,6 +15,7 @@ type Config struct {
 	NATSURL              string
 	HTTPPort             string
 	LogLevel             string
+	TestScheduleOverride string
 	PortalReloadInterval time.Duration
 	JobTTL               time.Duration
 }
@@ -43,6 +44,7 @@ func Load() (*Config, error) {
 		NATSURL:              strings.TrimSpace(v.GetString("NATS_URL")),
 		HTTPPort:             strings.TrimSpace(v.GetString("HTTP_PORT")),
 		LogLevel:             strings.ToUpper(strings.TrimSpace(v.GetString("LOG_LEVEL"))),
+		TestScheduleOverride: strings.TrimSpace(v.GetString("TEST_SCHEDULE_OVERRIDE")),
 		PortalReloadInterval: reloadInterval,
 		JobTTL:               jobTTL,
 	}

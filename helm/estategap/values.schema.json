@@ -1,0 +1,534 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EstateGap Helm Values",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "registry": {
+      "type": "string",
+      "pattern": "^$|^(localhost(?::[0-9]+)?|[a-z][a-z0-9.-]*(?::[0-9]+)?)$"
+    },
+    "imageSpec": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "repository",
+        "tag"
+      ],
+      "additionalProperties": true
+    },
+    "storageSpec": {
+      "type": "object",
+      "properties": {
+        "size": {
+          "type": "string",
+          "minLength": 1
+        },
+        "storageClass": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "hpaSpec": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cpuTarget": {
+          "type": "number",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "serviceMonitorSpec": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "kedaServiceSpec": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "stream": {
+          "type": "string"
+        },
+        "consumer": {
+          "type": "string"
+        },
+        "lagThreshold": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "global": {
+      "type": "object",
+      "properties": {
+        "storageClass": {
+          "type": "string"
+        },
+        "imageRegistry": {
+          "$ref": "#/$defs/registry"
+        },
+        "imagePullSecrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "testMode": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "cluster": {
+      "type": "object",
+      "properties": {
+        "environment": {
+          "type": "string",
+          "enum": [
+            "test",
+            "staging",
+            "production"
+          ]
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "certIssuer": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "testMode": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "nowOverride": {
+          "type": "string"
+        },
+        "stripeWebhookSecret": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixtureMinIOBucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fakeLLMProvider": {
+          "type": "boolean"
+        },
+        "scheduleOverride": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "enabled",
+        "nowOverride",
+        "stripeWebhookSecret",
+        "fixtureMinIOBucket",
+        "fakeLLMProvider",
+        "scheduleOverride"
+      ],
+      "additionalProperties": false
+    },
+    "observabilityComponent": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "nats": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "storage": {
+          "$ref": "#/$defs/storageSpec"
+        },
+        "streams": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "subjects": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "replicas": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "config": {
+          "type": "object",
+          "properties": {
+            "cluster": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "replicas": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": true
+            },
+            "jetstream": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "fileStore": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "pvc": {
+                      "$ref": "#/$defs/storageSpec"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "postgresql": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "imageName": {
+          "type": "string"
+        },
+        "instances": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "database": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "storage": {
+          "$ref": "#/$defs/storageSpec"
+        },
+        "backup": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "redis": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "fullnameOverride": {
+          "type": "string"
+        },
+        "architecture": {
+          "type": "string",
+          "enum": [
+            "standalone",
+            "replication"
+          ]
+        },
+        "auth": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "sentinel": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "master": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "replica": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "minio": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "$ref": "#/$defs/imageSpec"
+        },
+        "setupImage": {
+          "$ref": "#/$defs/imageSpec"
+        },
+        "storage": {
+          "$ref": "#/$defs/storageSpec"
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "buckets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "serviceSpec": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "metricsPort": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "image": {
+          "$ref": "#/$defs/imageSpec"
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "serviceMonitor": {
+          "$ref": "#/$defs/serviceMonitorSpec"
+        },
+        "hpa": {
+          "$ref": "#/$defs/hpaSpec"
+        },
+        "keda": {
+          "$ref": "#/$defs/kedaServiceSpec"
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "livenessProbe": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "readinessProbe": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "services": {
+      "type": "object",
+      "patternProperties": {
+        ".*": {
+          "$ref": "#/$defs/serviceSpec"
+        }
+      },
+      "additionalProperties": false
+    },
+    "toggleBlock": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "properties": {
+    "global": {
+      "$ref": "#/$defs/global"
+    },
+    "cluster": {
+      "$ref": "#/$defs/cluster"
+    },
+    "cnpg": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "nats": {
+      "$ref": "#/$defs/nats"
+    },
+    "postgresql": {
+      "$ref": "#/$defs/postgresql"
+    },
+    "redis": {
+      "$ref": "#/$defs/redis"
+    },
+    "minio": {
+      "$ref": "#/$defs/minio"
+    },
+    "observability": {
+      "type": "object",
+      "properties": {
+        "prometheus": {
+          "$ref": "#/$defs/observabilityComponent"
+        },
+        "loki": {
+          "$ref": "#/$defs/observabilityComponent"
+        },
+        "tempo": {
+          "$ref": "#/$defs/observabilityComponent"
+        }
+      },
+      "additionalProperties": true
+    },
+    "prometheus": {
+      "$ref": "#/$defs/toggleBlock"
+    },
+    "loki": {
+      "$ref": "#/$defs/toggleBlock"
+    },
+    "tempo": {
+      "$ref": "#/$defs/toggleBlock"
+    },
+    "keda": {
+      "$ref": "#/$defs/toggleBlock"
+    },
+    "argocd": {
+      "$ref": "#/$defs/toggleBlock"
+    },
+    "sealedSecrets": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "stripe": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "mlTrainer": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "$ref": "#/$defs/imageSpec"
+        }
+      },
+      "additionalProperties": true
+    },
+    "mlScorer": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "gdpr": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "loadTests": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "services": {
+      "$ref": "#/$defs/services"
+    },
+    "testMode": {
+      "$ref": "#/$defs/testMode"
+    }
+  }
+}

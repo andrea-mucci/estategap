@@ -16,6 +16,7 @@ from .metrics import LISTINGS_SCRAPED, SCRAPE_DURATION, SCRAPE_ERRORS
 from .models import ScraperCommand
 from .quarantine import QuarantineStore
 from .spiders import get_spider
+from .spiders.fixture_spider import FixtureSpider
 
 
 LOGGER = structlog.get_logger(__name__)
@@ -65,17 +66,19 @@ async def process_message(message, js, config: Config) -> None:
         await _safe_terminal_ack(message)
         return
 
-    spider_cls = get_spider(command.country, command.portal)
-    if spider_cls is None:
-        SCRAPE_ERRORS.labels(
-            portal=command.portal,
-            country=command.country,
-            error_type="unknown_portal",
-        ).inc()
-        await message.nak()
-        return
-
-    spider = spider_cls(config)
+    if config.estategap_test_mode:
+        spider = FixtureSpider(config, country=command.country, portal=command.portal)
+    else:
+        spider_cls = get_spider(command.country, command.portal)
+        if spider_cls is None:
+            SCRAPE_ERRORS.labels(
+                portal=command.portal,
+                country=command.country,
+                error_type="unknown_portal",
+            ).inc()
+            await message.nak()
+            return
+        spider = spider_cls(config)
     spider.search_url = command.search_url
 
     try:

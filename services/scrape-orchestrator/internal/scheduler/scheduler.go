@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -28,9 +29,10 @@ type portalTicker struct {
 }
 
 type Scheduler struct {
-	mu      sync.Mutex
-	jobTTL  time.Duration
-	tickers map[string]*portalTicker
+	mu                sync.Mutex
+	jobTTL            time.Duration
+	tickers           map[string]*portalTicker
+	frequencyOverride *time.Duration
 
 	store      db.Querier
 	publisher  Publisher
@@ -44,6 +46,39 @@ func New(jobTTL time.Duration) *Scheduler {
 		jobTTL:  jobTTL,
 		tickers: make(map[string]*portalTicker),
 	}
+}
+
+func (s *Scheduler) SetFrequencyOverride(override time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.frequencyOverride = &override
+}
+
+func ParseScheduleOverride(raw string) (time.Duration, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, fmt.Errorf("TEST_SCHEDULE_OVERRIDE is empty")
+	}
+	if duration, err := time.ParseDuration(raw); err == nil {
+		if duration <= 0 {
+			return 0, fmt.Errorf("TEST_SCHEDULE_OVERRIDE must be greater than zero")
+		}
+		return duration, nil
+	}
+
+	fields := strings.Fields(raw)
+	switch len(fields) {
+	case 6:
+		if duration, ok := cronStepDuration(fields[0], time.Second); ok && fields[1] == "*" && fields[2] == "*" && fields[3] == "*" && fields[4] == "*" && fields[5] == "*" {
+			return duration, nil
+		}
+	case 5:
+		if duration, ok := cronStepDuration(fields[0], time.Minute); ok && fields[1] == "*" && fields[2] == "*" && fields[3] == "*" && fields[4] == "*" {
+			return duration, nil
+		}
+	}
+
+	return 0, fmt.Errorf("unsupported TEST_SCHEDULE_OVERRIDE format %q", raw)
 }
 
 func (s *Scheduler) Start(ctx context.Context, store db.Querier, publisher Publisher, redisClient *redisclient.Client) error {
@@ -79,6 +114,7 @@ func (s *Scheduler) Reload(ctx context.Context, store db.Querier) error {
 
 	next := make(map[string]db.Portal, len(portals))
 	for _, portal := range portals {
+		portal = s.applyFrequencyOverride(portal)
 		next[portal.Name] = portal
 		existing, ok := s.tickers[portal.Name]
 		if ok && existing.portal.ScrapeFrequency == portal.ScrapeFrequency {
@@ -193,6 +229,25 @@ func (s *Scheduler) publishPortalJobs(ctx context.Context, portal db.Portal) err
 		}
 	}
 	return nil
+}
+
+func (s *Scheduler) applyFrequencyOverride(portal db.Portal) db.Portal {
+	if s.frequencyOverride == nil {
+		return portal
+	}
+	portal.ScrapeFrequency = *s.frequencyOverride
+	return portal
+}
+
+func cronStepDuration(field string, unit time.Duration) (time.Duration, bool) {
+	if !strings.HasPrefix(field, "*/") {
+		return 0, false
+	}
+	value, err := strconv.Atoi(strings.TrimPrefix(field, "*/"))
+	if err != nil || value <= 0 {
+		return 0, false
+	}
+	return time.Duration(value) * unit, true
 }
 
 func (s *Scheduler) publishJob(ctx context.Context, portal db.Portal, mode string, zoneFilter []string, searchURL string) (string, error) {

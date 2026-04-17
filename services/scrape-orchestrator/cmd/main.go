@@ -58,6 +58,14 @@ func run() error {
 	defer natsClient.Close()
 
 	sched := scheduler.New(cfg.JobTTL)
+	if cfg.TestScheduleOverride != "" {
+		override, err := scheduler.ParseScheduleOverride(cfg.TestScheduleOverride)
+		if err != nil {
+			return err
+		}
+		slog.Info("[test-mode] Using schedule override: " + cfg.TestScheduleOverride)
+		sched.SetFrequencyOverride(override)
+	}
 	if err := sched.Start(ctx, dbClient, natsClient, redisClient); err != nil {
 		return err
 	}

@@ -1,0 +1,47 @@
+suite: api-gateway
+templates:
+  - templates/api-gateway-deployment.yaml
+tests:
+  - it: renders the local kind image from the test values profile
+    values:
+      - values-test.yaml
+    asserts:
+      - equal:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].image
+          value: localhost:5001/api-gateway:dev
+
+  - it: applies replicaCount overrides when autoscaling is disabled
+    values:
+      - values-test.yaml
+    set:
+      services.api-gateway.replicaCount: 2
+    asserts:
+      - equal:
+          documentIndex: 0
+          path: spec.replicas
+          value: 2
+
+  - it: keeps the primary database URL secret reference in the deployment env
+    values:
+      - values-test.yaml
+    asserts:
+      - contains:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DB_PRIMARY_URL
+
+  - it: injects test mode through the shared config map
+    values:
+      - values-test.yaml
+    asserts:
+      - contains:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ESTATEGAP_TEST_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: estategap-config
+                key: ESTATEGAP_TEST_MODE
