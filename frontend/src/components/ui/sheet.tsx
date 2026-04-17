@@ -76,7 +76,7 @@ export function SheetContent({
   className,
   children,
 }: {
-  side?: "left" | "right";
+  side?: "left" | "right" | "bottom";
   className?: string;
   children: React.ReactNode;
 }) {
@@ -96,8 +96,11 @@ export function SheetContent({
       />
       <div
         className={cn(
-          "absolute top-0 h-full w-[85vw] max-w-sm bg-white p-6 shadow-2xl",
-          side === "left" ? "left-0" : "right-0",
+          side === "bottom"
+            ? "absolute bottom-0 left-0 right-0 rounded-t-[32px] bg-white p-6 shadow-2xl"
+            : "absolute top-0 h-full w-[85vw] max-w-sm bg-white p-6 shadow-2xl",
+          side === "left" ? "left-0" : "",
+          side === "right" ? "right-0" : "",
           className,
         )}
       >

@@ -1,14 +1,16 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+import { SearchPage } from "@/components/search/SearchPage";
 
-export default async function SearchPage() {
-  const t = await getTranslations("nav");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
 
-  return (
-    <section className="space-y-6">
-      <h1 className="text-3xl font-semibold text-slate-950">{t("search")}</h1>
-      <LoadingSkeleton rows={3} />
-    </section>
-  );
+  return {
+    title: t("searchTitle"),
+  };
+}
+
+export default async function SearchRoutePage() {
+  return <SearchPage />;
 }

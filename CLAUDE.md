@@ -44,6 +44,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - sessionStorage (Zustand persist middleware) — no direct DB access (021-ai-chat-search-ui)
 - TypeScript 5.5 (strict) / Node.js 22 (frontend); Go 1.23 (API gateway) (022-dashboard-analytics-map)
 - PostgreSQL 16 + PostGIS 3.4 (listings.location POINT, zones.geometry MULTIPOLYGON); Redis 7 (dashboard summary cache 60s, zone geometry cache 5min) (022-dashboard-analytics-map)
+- TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router, RSC), TanStack Query v5, nuqs (new — URL state), shadcn/ui, Recharts 2.x, MapLibre GL JS 4.x, yet-another-react-lightbox (new), Zustand 5, react-hook-form + Zod, next-intl (023-listing-search-detail)
+- No direct DB access — TanStack Query cache (server state), Zustand (UI state), localStorage (saved searches fallback) (023-listing-search-detail)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -63,9 +65,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 023-listing-search-detail: Added TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router, RSC), TanStack Query v5, nuqs (new — URL state), shadcn/ui, Recharts 2.x, MapLibre GL JS 4.x, yet-another-react-lightbox (new), Zustand 5, react-hook-form + Zod, next-intl
 - 022-dashboard-analytics-map: Added TypeScript 5.5 (strict) / Node.js 22 (frontend); Go 1.23 (API gateway)
 - 021-ai-chat-search-ui: Added TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router), Tailwind CSS 4, shadcn/ui, Zustand 5, TanStack Query v5, next-intl, react-markdown + remark-gfm, @tailwindcss/typography, MapLibre GL JS
-- 020-nextjs-frontend-foundation: Added TypeScript 5.5 (strict mode), Node.js 22 + Next.js 15 (App Router, RSC), Tailwind CSS 4, shadcn/ui, next-intl, NextAuth v5, @tanstack/react-query v5, Zustand 5, openapi-typescript (already in devDeps)
 
 
 <!-- MANUAL ADDITIONS START -->

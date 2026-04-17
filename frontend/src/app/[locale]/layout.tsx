@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -35,9 +36,11 @@ export default async function LocaleLayout({
     <html lang={locale} suppressHydrationWarning>
       <body className="app-shell">
         <NextIntlClientProvider messages={messages}>
-          <AuthProvider>
-            <QueryProvider>{children}</QueryProvider>
-          </AuthProvider>
+          <NuqsAdapter>
+            <AuthProvider>
+              <QueryProvider>{children}</QueryProvider>
+            </AuthProvider>
+          </NuqsAdapter>
         </NextIntlClientProvider>
       </body>
     </html>
