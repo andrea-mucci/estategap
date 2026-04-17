@@ -3,6 +3,7 @@
 import { LogOut, Settings, UserCircle2 } from "lucide-react";
 import { useLocale } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
+import { useState, useTransition } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +16,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select } from "@/components/ui/select";
+import { updateCurrentUser } from "@/lib/api";
+import { SUPPORTED_CURRENCIES } from "@/lib/currency";
+import { useNotificationStore } from "@/stores/notificationStore";
 
 export function UserMenu() {
   const locale = useLocale();
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
+  const [optimisticCurrency, setOptimisticCurrency] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const pushToast = useNotificationStore((state) => state.pushToast);
 
   if (!session?.user) {
     return null;
@@ -30,6 +38,43 @@ export function UserMenu() {
       .map((chunk) => chunk[0])
       .join("")
       .slice(0, 2) || session.user.email.slice(0, 2);
+  const preferredCurrency = optimisticCurrency ?? session.user.preferredCurrency;
+
+  function handleCurrencyChange(currency: string) {
+    if (!session.accessToken || currency === preferredCurrency) {
+      return;
+    }
+
+    setOptimisticCurrency(currency);
+    startTransition(() => {
+      void (async () => {
+        try {
+          await updateCurrentUser(session.accessToken, {
+            preferred_currency: currency,
+          });
+          await update({
+            preferredCurrency: currency,
+          });
+          pushToast({
+            type: "success",
+            title: "Currency updated",
+            description: `All money values will use ${currency} in the current session.`,
+            durationMs: 3000,
+          });
+          setOptimisticCurrency(null);
+        } catch (error) {
+          setOptimisticCurrency(null);
+          pushToast({
+            type: "error",
+            title: "Currency update failed",
+            description:
+              error instanceof Error ? error.message : "Unable to update preferred currency.",
+            durationMs: 4000,
+          });
+        }
+      })();
+    });
+  }
 
   return (
     <DropdownMenu>
@@ -70,6 +115,23 @@ export function UserMenu() {
           <Settings className="h-4 w-4" />
           Settings
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <div className="px-3 py-2">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Currency
+          </label>
+          <Select
+            disabled={isPending}
+            onChange={(event) => handleCurrencyChange(event.target.value)}
+            value={preferredCurrency}
+          >
+            {SUPPORTED_CURRENCIES.map((currency) => (
+              <option key={currency} value={currency}>
+                {currency}
+              </option>
+            ))}
+          </Select>
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => signOut({ callbackUrl: `/${locale}/login` })}>
           <LogOut className="h-4 w-4" />

@@ -13,6 +13,10 @@ function getApiUrl(path: string) {
 }
 
 function toRole(profile?: UserProfile): "user" | "admin" {
+  if (profile?.role === "admin" || profile?.role === "user") {
+    return profile.role;
+  }
+
   if (profile?.email?.endsWith("@estategap.com")) {
     return "admin";
   }
@@ -29,6 +33,7 @@ function mapAuthPayload(payload: TokenPair) {
     name: profile?.display_name ?? profile?.email ?? null,
     image: profile?.avatar_url ?? null,
     subscriptionTier: profile?.subscription_tier ?? "free",
+    preferredCurrency: profile?.preferred_currency ?? "EUR",
     role: toRole(profile),
     accessToken: payload.access_token,
     accessTokenExpires: Date.now() + payload.expires_in * 1000,
@@ -63,6 +68,7 @@ async function refreshAccessToken(token: {
       accessTokenExpires: mapped.accessTokenExpires,
       refreshToken: mapped.refreshToken,
       subscriptionTier: mapped.subscriptionTier,
+      preferredCurrency: mapped.preferredCurrency,
       role: mapped.role,
       error: undefined,
     };
@@ -123,7 +129,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
+      if (trigger === "update" && session?.preferredCurrency) {
+        token.preferredCurrency = session.preferredCurrency;
+      }
+
       if (user) {
         token.sub = user.id;
         token.email = user.email;
@@ -133,6 +143,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.accessTokenExpires = user.accessTokenExpires;
         token.refreshToken = user.refreshToken;
         token.subscriptionTier = user.subscriptionTier;
+        token.preferredCurrency = user.preferredCurrency;
         token.role = user.role;
       }
 
@@ -143,6 +154,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           : Date.now() + 60 * 60 * 1000;
         token.refreshToken = account.refresh_token ?? token.refreshToken ?? "";
         token.subscriptionTier = token.subscriptionTier ?? "free";
+        token.preferredCurrency = token.preferredCurrency ?? "EUR";
         token.role = token.role ?? "user";
       }
 
@@ -172,6 +184,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.name = token.name ?? null;
       session.user.image = typeof token.picture === "string" ? token.picture : null;
       session.user.subscriptionTier = token.subscriptionTier ?? "free";
+      session.user.preferredCurrency = token.preferredCurrency ?? "EUR";
       session.user.role = token.role ?? "user";
       session.accessToken = token.accessToken;
       session.accessTokenExpires = token.accessTokenExpires;

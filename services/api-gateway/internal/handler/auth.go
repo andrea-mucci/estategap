@@ -18,6 +18,17 @@ type AuthHandler struct {
 	usersRepo   *repository.UsersRepo
 }
 
+var supportedPreferredCurrencies = map[string]struct{}{
+	"EUR": {},
+	"USD": {},
+	"GBP": {},
+	"CHF": {},
+	"SEK": {},
+	"NOK": {},
+	"DKK": {},
+	"PLN": {},
+}
+
 func NewAuthHandler(authService *service.AuthService, usersRepo *repository.UsersRepo) *AuthHandler {
 	return &AuthHandler{authService: authService, usersRepo: usersRepo}
 }
@@ -178,6 +189,49 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	user, err := h.usersRepo.GetUserByID(r.Context(), userID)
 	if err != nil {
 		writeError(w, r, http.StatusNotFound, "user not found")
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, userPayload(user))
+}
+
+func (h *AuthHandler) PatchMe(w http.ResponseWriter, r *http.Request) {
+	userID, err := parseUserID(r.Context())
+	if err != nil {
+		writeError(w, r, http.StatusUnauthorized, "missing user")
+		return
+	}
+
+	var req struct {
+		PreferredCurrency string `json:"preferred_currency"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	currency := strings.ToUpper(strings.TrimSpace(req.PreferredCurrency))
+	if _, ok := supportedPreferredCurrencies[currency]; !ok {
+		writeError(w, r, http.StatusBadRequest, "preferred_currency must be a supported ISO 4217 code")
+		return
+	}
+
+	if err := h.usersRepo.UpdatePreferredCurrency(r.Context(), userID, currency); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "user not found")
+			return
+		}
+		writeError(w, r, http.StatusServiceUnavailable, "failed to update user profile")
+		return
+	}
+
+	user, err := h.usersRepo.GetUserByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "user not found")
+			return
+		}
+		writeError(w, r, http.StatusServiceUnavailable, "failed to load user profile")
 		return
 	}
 

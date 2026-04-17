@@ -33,6 +33,12 @@ export default auth((request) => {
   }
 
   if (request.auth) {
+    if (firstSegment === "admin" && request.auth.user?.role !== "admin") {
+      const dashboardUrl = new URL(`/${locale}/dashboard`, request.url);
+      dashboardUrl.searchParams.set("error", "forbidden");
+      return NextResponse.redirect(dashboardUrl);
+    }
+
     return response;
   }
 

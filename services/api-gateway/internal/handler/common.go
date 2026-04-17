@@ -169,14 +169,16 @@ type tokenPairResponse struct {
 }
 
 type userProfilePayload struct {
-	ID               string                  `json:"id"`
-	Email            string                  `json:"email"`
-	DisplayName      *string                 `json:"display_name,omitempty"`
-	AvatarURL        *string                 `json:"avatar_url,omitempty"`
-	SubscriptionTier models.SubscriptionTier `json:"subscription_tier"`
-	AlertLimit       int16                   `json:"alert_limit"`
-	EmailVerified    bool                    `json:"email_verified"`
-	CreatedAt        string                  `json:"created_at"`
+	ID                string                  `json:"id"`
+	Email             string                  `json:"email"`
+	DisplayName       *string                 `json:"display_name,omitempty"`
+	AvatarURL         *string                 `json:"avatar_url,omitempty"`
+	SubscriptionTier  models.SubscriptionTier `json:"subscription_tier"`
+	PreferredCurrency string                  `json:"preferred_currency"`
+	Role              string                  `json:"role"`
+	AlertLimit        int16                   `json:"alert_limit"`
+	EmailVerified     bool                    `json:"email_verified"`
+	CreatedAt         string                  `json:"created_at"`
 }
 
 type listingSummaryPayload struct {
@@ -264,11 +266,18 @@ type zoneMonthlyStatPayload struct {
 	MedianPriceM2EUR float64 `json:"median_price_m2_eur"`
 	ListingCount     int64   `json:"listing_count"`
 	DealCount        int64   `json:"deal_count"`
+	AvgDaysOnMarket  float64 `json:"avg_days_on_market"`
 }
 
 type zoneAnalyticsResponse struct {
 	ZoneID string                   `json:"zone_id"`
 	Months []zoneMonthlyStatPayload `json:"months"`
+}
+
+type zonePriceDistributionPayload struct {
+	ZoneID       string    `json:"zone_id"`
+	PricesEUR    []float64 `json:"prices_eur"`
+	ListingCount int64     `json:"listing_count"`
 }
 
 type zoneComparePayload struct {
@@ -330,14 +339,16 @@ func userPayload(user *models.User) *userProfilePayload {
 		return nil
 	}
 	return &userProfilePayload{
-		ID:               uuidString(user.ID),
-		Email:            user.Email,
-		DisplayName:      user.DisplayName,
-		AvatarURL:        user.AvatarURL,
-		SubscriptionTier: user.SubscriptionTier,
-		AlertLimit:       user.AlertLimit,
-		EmailVerified:    user.EmailVerified,
-		CreatedAt:        timeString(user.CreatedAt),
+		ID:                uuidString(user.ID),
+		Email:             user.Email,
+		DisplayName:       user.DisplayName,
+		AvatarURL:         user.AvatarURL,
+		SubscriptionTier:  user.SubscriptionTier,
+		PreferredCurrency: strings.ToUpper(strings.TrimSpace(defaultString(user.PreferredCurrency, "EUR"))),
+		Role:              userRoleFromEmail(user.Email),
+		AlertLimit:        user.AlertLimit,
+		EmailVerified:     user.EmailVerified,
+		CreatedAt:         timeString(user.CreatedAt),
 	}
 }
 
@@ -451,12 +462,25 @@ func zoneAnalyticsFromMonths(zoneID uuid.UUID, months []repository.ZoneMonthStat
 			MedianPriceM2EUR: month.MedianPriceM2EUR,
 			ListingCount:     month.ListingVolume,
 			DealCount:        month.DealCount,
+			AvgDaysOnMarket:  month.AvgDaysOnMarket,
 		})
 	}
 
 	return zoneAnalyticsResponse{
 		ZoneID: zoneID.String(),
 		Months: payload,
+	}
+}
+
+func zonePriceDistributionFromModel(item *repository.ZonePriceDistribution) zonePriceDistributionPayload {
+	if item == nil {
+		return zonePriceDistributionPayload{}
+	}
+
+	return zonePriceDistributionPayload{
+		ZoneID:       item.ZoneID.String(),
+		PricesEUR:    item.PricesEUR,
+		ListingCount: item.ListingCount,
 	}
 }
 
@@ -632,4 +656,20 @@ func portalLastScrapeAt(value json.RawMessage) *string {
 	}
 
 	return &lastScrapeAt
+}
+
+func userRoleFromEmail(email string) string {
+	if strings.HasSuffix(strings.ToLower(strings.TrimSpace(email)), "@estategap.com") {
+		return "admin"
+	}
+
+	return "user"
+}
+
+func defaultString(value string, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+
+	return value
 }

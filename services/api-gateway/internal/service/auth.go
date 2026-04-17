@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/estategap/libs/models"
@@ -28,6 +29,7 @@ type TokenPair struct {
 type AccessTokenClaims struct {
 	Email string `json:"email"`
 	Tier  string `json:"tier"`
+	Role  string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -65,6 +67,7 @@ func (s *AuthService) IssueAccessToken(user *models.User) (string, error) {
 	claims := AccessTokenClaims{
 		Email: user.Email,
 		Tier:  string(user.SubscriptionTier),
+		Role:  userRole(user.Email),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID.String(),
 			ID:        uuid.NewString(),
@@ -192,4 +195,12 @@ func userUUID(user *models.User) (uuid.UUID, error) {
 		return uuid.Nil, errors.New("user has invalid id")
 	}
 	return uuid.UUID(user.ID.Bytes), nil
+}
+
+func userRole(email string) string {
+	if strings.HasSuffix(strings.ToLower(strings.TrimSpace(email)), "@estategap.com") {
+		return "admin"
+	}
+
+	return "user"
 }

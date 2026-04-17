@@ -5,8 +5,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -78,6 +80,8 @@ func run() error {
 	referenceRepo := repository.NewReferenceRepo(replicaPool, cacheClient)
 	alertRulesRepo := repository.NewAlertRulesRepo(primaryPool, replicaPool)
 	subsRepo := repository.NewSubscriptionsRepo(primaryPool, replicaPool)
+	portfolioRepo := repository.NewPortfolioRepo(primaryPool, replicaPool)
+	adminRepo := repository.NewAdminRepo(primaryPool, replicaPool, redisClient, deriveNATSMonitorURL(cfg.NATSURL))
 
 	authService := service.NewAuthService(cfg.JWTSecret, redisClient)
 	stripeService := service.NewStripeService(cfg)
@@ -127,6 +131,8 @@ func run() error {
 	mlHandler := handler.NewMLHandler(mlClient, listingsRepo, grpcTimeout)
 	alertRulesHandler := handler.NewAlertRulesHandler(alertRulesRepo)
 	subscriptionsHandler := handler.NewSubscriptionsHandler(stripeService, subsRepo, usersRepo, redisClient)
+	portfolioHandler := handler.NewPortfolioHandler(portfolioRepo)
+	adminHandler := handler.NewAdminHandler(adminRepo, natsConn, redisClient)
 
 	go worker.StartDowngradeWorker(ctx, redisClient, usersRepo)
 
@@ -161,7 +167,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler)
+			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler)
 		})
 	})
 
@@ -173,7 +179,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler)
+			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler, portfolioHandler, adminHandler)
 		})
 	})
 
@@ -204,4 +210,26 @@ func run() error {
 	defer cancel()
 
 	return server.Shutdown(shutdownCtx)
+}
+
+func deriveNATSMonitorURL(natsURL string) string {
+	trimmed := strings.TrimSpace(natsURL)
+	if trimmed == "" {
+		return "http://nats:8222/jsz?streams=true&consumers=true"
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "http://nats:8222/jsz?streams=true&consumers=true"
+	}
+
+	host := parsed.Hostname()
+	if host == "" {
+		host = parsed.Path
+	}
+	if host == "" {
+		host = "nats"
+	}
+
+	return "http://" + host + ":8222/jsz?streams=true&consumers=true"
 }

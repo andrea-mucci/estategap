@@ -8,6 +8,7 @@ var (
 	UserID    = key("user_id")
 	UserEmail = key("user_email")
 	UserTier  = key("user_tier")
+	UserRole  = key("user_role")
 	RequestID = key("request_id")
 	JTI       = key("jwt_id")
 )

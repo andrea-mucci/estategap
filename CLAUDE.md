@@ -46,6 +46,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4 (listings.location POINT, zones.geometry MULTIPOLYGON); Redis 7 (dashboard summary cache 60s, zone geometry cache 5min) (022-dashboard-analytics-map)
 - TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router, RSC), TanStack Query v5, nuqs (new — URL state), shadcn/ui, Recharts 2.x, MapLibre GL JS 4.x, yet-another-react-lightbox (new), Zustand 5, react-hook-form + Zod, next-intl (023-listing-search-detail)
 - No direct DB access — TanStack Query cache (server state), Zustand (UI state), localStorage (saved searches fallback) (023-listing-search-detail)
+- TypeScript 5.5 strict / Node.js 22 (frontend); Go 1.23 (API Gateway) (024-zones-portfolio-admin)
+- PostgreSQL 16 + PostGIS 3.4 (new `portfolio_properties` table; zone analytics query extended); Redis 7 (zone analytics cache extended; exchange rate cache 24h) (024-zones-portfolio-admin)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -65,9 +67,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 024-zones-portfolio-admin: Added TypeScript 5.5 strict / Node.js 22 (frontend); Go 1.23 (API Gateway)
 - 023-listing-search-detail: Added TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router, RSC), TanStack Query v5, nuqs (new — URL state), shadcn/ui, Recharts 2.x, MapLibre GL JS 4.x, yet-another-react-lightbox (new), Zustand 5, react-hook-form + Zod, next-intl
 - 022-dashboard-analytics-map: Added TypeScript 5.5 (strict) / Node.js 22 (frontend); Go 1.23 (API gateway)
-- 021-ai-chat-search-ui: Added TypeScript 5.5 (strict mode) / Node.js 22 + Next.js 15 (App Router), Tailwind CSS 4, shadcn/ui, Zustand 5, TanStack Query v5, next-intl, react-markdown + remark-gfm, @tailwindcss/typography, MapLibre GL JS
 
 
 <!-- MANUAL ADDITIONS START -->

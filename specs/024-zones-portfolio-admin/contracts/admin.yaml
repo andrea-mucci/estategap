@@ -1,0 +1,458 @@
+openapi: "3.1.0"
+info:
+  title: EstateGap Admin API
+  version: "1.0.0"
+  description: >
+    Admin-only endpoints for operational monitoring and control.
+    All routes require a valid Bearer JWT with role="admin".
+    Non-admin requests receive HTTP 403.
+
+paths:
+  /api/v1/admin/scraping/stats:
+    get:
+      summary: Get scraping health per portal/country
+      operationId: getScrapingStats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Scraping health statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [portals]
+                properties:
+                  portals:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ScrapingPortalStat"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/ml/models:
+    get:
+      summary: Get ML model versions and status per country
+      operationId: getMLModels
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: ML model list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [models]
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MLModelVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/ml/retrain:
+    post:
+      summary: Trigger manual model retrain for a country
+      operationId: triggerMLRetrain
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [country]
+              properties:
+                country:
+                  type: string
+                  minLength: 2
+                  maxLength: 2
+                  description: ISO 3166-1 alpha-2 country code
+      responses:
+        "202":
+          description: Retrain job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job_id, status]
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [queued]
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Retrain already in progress for this country
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admin/users:
+    get:
+      summary: Paginated user list with optional search and tier filter
+      operationId: listAdminUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: q
+          in: query
+          description: Search by email or name
+          schema:
+            type: string
+        - name: tier
+          in: query
+          description: Filter by subscription tier
+          schema:
+            type: string
+            enum: [free, pro, enterprise]
+      responses:
+        "200":
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users, total, page, limit]
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminUser"
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/countries:
+    get:
+      summary: List countries with enabled status and portal config
+      operationId: listAdminCountries
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Country list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [countries]
+                properties:
+                  countries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CountryConfig"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/countries/{code}:
+    put:
+      summary: Update country enabled status or portal config
+      operationId: updateAdminCountry
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                portals:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, enabled]
+                    properties:
+                      id:
+                        type: string
+                      enabled:
+                        type: boolean
+                      config:
+                        type: object
+                        additionalProperties: true
+      responses:
+        "200":
+          description: Country config updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CountryConfig"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/system/health:
+    get:
+      summary: Get aggregated system health metrics (NATS, DB, Redis)
+      operationId: getSystemHealth
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: System health snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemHealth"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ScrapingPortalStat:
+      type: object
+      required: [portal_id, portal_name, country, status, listings_24h, success_rate, blocks_24h]
+      properties:
+        portal_id:
+          type: string
+        portal_name:
+          type: string
+        country:
+          type: string
+        status:
+          type: string
+          enum: [active, error, paused]
+        last_scrape_at:
+          type: string
+          format: date-time
+          nullable: true
+        listings_24h:
+          type: integer
+          format: int64
+        success_rate:
+          type: number
+          format: double
+          description: 0.0–1.0
+        blocks_24h:
+          type: integer
+          format: int64
+
+    MLModelVersion:
+      type: object
+      required: [id, country, version, mape, mae, r2, trained_at, is_active, train_status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        country:
+          type: string
+        version:
+          type: string
+        mape:
+          type: number
+          format: double
+        mae:
+          type: number
+          format: double
+        r2:
+          type: number
+          format: double
+        trained_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+        train_status:
+          type: string
+          enum: [idle, training, failed]
+
+    AdminUser:
+      type: object
+      required: [id, email, role, subscription_tier, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, admin]
+        subscription_tier:
+          type: string
+          enum: [free, pro, enterprise]
+        last_active_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CountryConfig:
+      type: object
+      required: [code, name, enabled, portals]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        enabled:
+          type: boolean
+        portals:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortalConfig"
+
+    PortalConfig:
+      type: object
+      required: [id, name, enabled]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        enabled:
+          type: boolean
+        config:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    SystemHealth:
+      type: object
+      required: [nats, database, redis]
+      properties:
+        nats:
+          type: object
+          required: [subjects]
+          properties:
+            subjects:
+              type: array
+              items:
+                type: object
+                required: [subject, consumer_lag, message_count]
+                properties:
+                  subject:
+                    type: string
+                  consumer_lag:
+                    type: integer
+                    format: int64
+                  message_count:
+                    type: integer
+                    format: int64
+        database:
+          type: object
+          required: [size_bytes, active_connections, max_connections, waiting_connections]
+          properties:
+            size_bytes:
+              type: integer
+              format: int64
+            active_connections:
+              type: integer
+            max_connections:
+              type: integer
+            waiting_connections:
+              type: integer
+        redis:
+          type: object
+          required: [used_memory_bytes, max_memory_bytes, hit_rate, connected_clients]
+          properties:
+            used_memory_bytes:
+              type: integer
+              format: int64
+            max_memory_bytes:
+              type: integer
+              format: int64
+            hit_rate:
+              type: number
+              format: double
+            connected_clients:
+              type: integer
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Insufficient permissions (role != admin)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

@@ -12,6 +12,8 @@ export interface components {
       display_name?: string | null;
       avatar_url?: string | null;
       subscription_tier: "free" | "basic" | "pro" | "global" | "api";
+      preferred_currency: string;
+      role: "user" | "admin";
       alert_limit: number;
       email_verified: boolean;
       created_at: string;
@@ -166,6 +168,7 @@ export interface components {
         listing_count: number;
         median_price_m2_eur: number;
         deal_count: number;
+        avg_days_on_market: number;
       }>;
     };
     ZoneGeometry: {

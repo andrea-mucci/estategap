@@ -39,6 +39,7 @@ func (h *ZonesHandler) List(w http.ResponseWriter, r *http.Request) {
 		parentID,
 		r.URL.Query().Get("cursor"),
 		parseLimit(r.URL.Query().Get("limit")),
+		r.URL.Query().Get("q"),
 	)
 	if err != nil {
 		if errors.Is(err, repository.ErrInvalidInput) {
@@ -95,6 +96,26 @@ func (h *ZonesHandler) Analytics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusOK, zoneAnalyticsFromMonths(id, months))
+}
+
+func (h *ZonesHandler) PriceDistribution(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid zone id")
+		return
+	}
+
+	item, err := h.repo.GetZonePriceDistribution(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeError(w, r, http.StatusNotFound, "zone not found")
+			return
+		}
+		writeError(w, r, http.StatusServiceUnavailable, "failed to load price distribution")
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, zonePriceDistributionFromModel(item))
 }
 
 func (h *ZonesHandler) Geometry(w http.ResponseWriter, r *http.Request) {
