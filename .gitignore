@@ -26,6 +26,7 @@ node_modules/
 out/
 build/
 coverage/
+frontend/coverage/
 *.tsbuildinfo
 
 # Proto stubs
@@ -71,3 +72,7 @@ Thumbs.db
 
 # Logs
 *.log
+coverage.out
+coverage.xml
+htmlcov/
+.coverage

@@ -11,6 +11,10 @@ linters:
     - gofmt
     - goimports
     - misspell
+    - gosec
+    - revive
+    - ineffassign
+    - typecheck
 
 issues:
   exclude-files:

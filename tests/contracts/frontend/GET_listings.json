@@ -1,0 +1,39 @@
+{
+  "data": [
+    {
+      "id": "6c07c38e-0d03-4c46-96db-74e9f4d1d45d",
+      "source": "idealista",
+      "country": "ES",
+      "city": "Madrid",
+      "address": "Calle de Alcala 10",
+      "latitude": 40.4168,
+      "longitude": -3.7038,
+      "asking_price": 490000,
+      "asking_price_eur": 490000,
+      "price_converted": 490000,
+      "currency": "EUR",
+      "price_per_m2_eur": 5120.5,
+      "area_m2": 95,
+      "bedrooms": 3,
+      "bathrooms": 2,
+      "property_category": "residential",
+      "property_type": "apartment",
+      "deal_score": 91,
+      "deal_tier": 1,
+      "status": "active",
+      "days_on_market": 12,
+      "photo_url": "https://cdn.estategap.test/listings/6c07c38e.jpg",
+      "first_seen_at": "2026-04-17T12:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 20,
+    "total": 1,
+    "total_pages": 1
+  },
+  "meta": {
+    "total_count": 1,
+    "currency": "EUR"
+  }
+}

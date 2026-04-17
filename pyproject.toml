@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: Tests that require real backing services or containers.",
+    "cross_service: Tests that validate behavior across multiple services.",
+    "slow: Tests whose runtime exceeds the fast unit-test budget.",
+]

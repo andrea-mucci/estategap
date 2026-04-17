@@ -20,6 +20,23 @@ dev = [
     "mypy-protobuf",
 ]
 
+[dependency-groups]
+dev = [
+    "alembic>=1.13",
+    "boto3>=1.34",
+    "mypy",
+    "mypy-protobuf",
+    "psycopg2-binary>=2.9",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov>=5.0",
+    "pytest-mock>=3.14",
+    "redis>=5.0",
+    "respx>=0.21",
+    "ruff",
+    "testcontainers[postgres,redis]>=4.8",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -34,3 +51,9 @@ python_version = "3.12"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--strict-markers --cov=estategap_common --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=80"
+markers = [
+    "unit: Unit tests that run without external services.",
+    "integration: Tests that require real backing services or containers.",
+    "slow: Tests whose runtime is expected to exceed the fast unit-test path.",
+]

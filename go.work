@@ -2,6 +2,7 @@ go 1.23
 
 use (
 	./libs/pkg
+	./libs/testhelpers
 	./services/api-gateway
 	./services/ws-server
 	./services/scrape-orchestrator

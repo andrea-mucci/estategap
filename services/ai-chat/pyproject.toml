@@ -23,6 +23,9 @@ dev = [
     "mypy",
     "pytest",
     "pytest-asyncio",
+    "pytest-cov>=5.0",
+    "pytest-mock>=3.14",
+    "respx>=0.21",
     "ruff",
     "testcontainers>=4.4",
 ]
@@ -40,6 +43,12 @@ estategap-common = { path = "../../libs/common", editable = true }
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--strict-markers --cov=estategap_ai_chat --cov-branch --cov-report=xml --cov-report=term-missing --cov-fail-under=80"
+markers = [
+    "unit: Unit tests that run without external services.",
+    "integration: Tests that require real backing services or containers.",
+    "slow: Tests whose runtime is expected to exceed the fast unit-test path.",
+]
 
 [tool.ruff]
 target-version = "py312"
