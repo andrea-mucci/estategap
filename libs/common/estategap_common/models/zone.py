@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
 from enum import IntEnum
 from uuid import UUID
 
-from ._base import EstateGapModel
+from pydantic import field_validator
+
+from ._base import AwareDatetime, EstateGapModel, validate_country_code
 
 
 class ZoneLevel(IntEnum):
@@ -31,5 +32,13 @@ class Zone(EstateGapModel):
     area_km2: Decimal | None = None
     slug: str | None = None
     osm_id: int | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    created_at: AwareDatetime | None = None
+    updated_at: AwareDatetime | None = None
+
+    @field_validator("country_code")
+    @classmethod
+    def _validate_country_code(cls, value: str) -> str:
+        return validate_country_code(value)
+
+
+__all__ = ["Zone", "ZoneLevel"]
