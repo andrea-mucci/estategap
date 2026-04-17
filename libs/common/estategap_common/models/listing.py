@@ -72,7 +72,18 @@ class NormalizedListing(EstateGapModel):
     plot_area_m2: Decimal | None = None
     bedrooms: int | None = None
     bathrooms: int | None = None
+    floor_number: int | None = None
+    total_floors: int | None = None
+    parking_spaces: int | None = None
+    has_lift: bool | None = None
+    has_pool: bool | None = None
+    year_built: int | None = None
+    condition: str | None = None
+    energy_rating: str | None = None
     status: ListingStatus = ListingStatus.ACTIVE
+    description_orig: str | None = None
+    images_count: int = 0
+    data_completeness: float | None = None
     first_seen_at: AwareDatetime
     last_seen_at: AwareDatetime
     published_at: AwareDatetime | None = None
@@ -102,18 +113,10 @@ class Listing(NormalizedListing):
     neighborhood: str | None = None
     district: str | None = None
     toilets: int | None = None
-    floor_number: int | None = None
-    total_floors: int | None = None
-    parking_spaces: int | None = None
-    has_lift: bool | None = None
-    has_pool: bool | None = None
     has_garden: bool | None = None
     terrace_area_m2: Decimal | None = None
     garage_area_m2: Decimal | None = None
-    year_built: int | None = None
     last_renovated: int | None = None
-    condition: str | None = None
-    energy_rating: str | None = None
     energy_rating_kwh: Decimal | None = None
     co2_rating: str | None = None
     co2_kg_m2: Decimal | None = None
@@ -135,9 +138,7 @@ class Listing(NormalizedListing):
     model_version: str | None = None
     scored_at: AwareDatetime | None = None
     days_on_market: int | None = None
-    description_orig: str | None = None
     description_lang: str | None = None
-    images_count: int = 0
     delisted_at: AwareDatetime | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime

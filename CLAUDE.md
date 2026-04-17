@@ -22,6 +22,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4 (new tables: alert_rules, alert_history); Redis 7 (existing; not used by this feature directly) (009-openapi-grpc-alerts)
 - Python 3.12 + nats-py, httpx, parsel, playwright, playwright-stealth, grpcio, redis, prometheus_client, pydantic-settings, structlog, uv (011-spider-worker-framework)
 - Redis 7 (seen listing IDs, quarantine records) — no PostgreSQL writes in this service (011-spider-worker-framework)
+- Python 3.12 + nats-py (JetStream consumer), asyncpg (batch upsert), pydantic v2 (012-normalize-dedup-pipeline)
+- PostgreSQL 16 + PostGIS 3.4 (`listings` partitioned table + new `quarantine` table + (012-normalize-dedup-pipeline)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -41,9 +43,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 012-normalize-dedup-pipeline: Added Python 3.12 + nats-py (JetStream consumer), asyncpg (batch upsert), pydantic v2
 - 011-spider-worker-framework: Added Python 3.12 + nats-py, httpx, parsel, playwright, playwright-stealth, grpcio, redis, prometheus_client, pydantic-settings, structlog, uv
 - 010-scrape-orchestrator-proxy: Added Go 1.23
-- 009-openapi-grpc-alerts: Added Go 1.23 + chi v5.2.1, pgx v5.7.2, go-redis v9.7.0, google.golang.org/grpc (existing), gopkg.in/yaml.v3 (for YAML→JSON conversion), embed (stdlib)
 
 
 <!-- MANUAL ADDITIONS START -->
