@@ -73,7 +73,8 @@ func run() error {
 
 	usersRepo := repository.NewUsersRepo(primaryPool, replicaPool)
 	listingsRepo := repository.NewListingsRepo(replicaPool)
-	zonesRepo := repository.NewZonesRepo(replicaPool, cacheClient)
+	dashboardRepo := repository.NewDashboardRepo(replicaPool, cacheClient)
+	zonesRepo := repository.NewZonesRepo(primaryPool, replicaPool, cacheClient)
 	referenceRepo := repository.NewReferenceRepo(replicaPool, cacheClient)
 	alertRulesRepo := repository.NewAlertRulesRepo(primaryPool, replicaPool)
 	subsRepo := repository.NewSubscriptionsRepo(primaryPool, replicaPool)
@@ -118,6 +119,7 @@ func run() error {
 	healthHandler := handler.NewHealthHandler(primaryPool, redisClient, natsConn)
 	authHandler := handler.NewAuthHandler(authService, usersRepo)
 	googleOAuthHandler := handler.NewGoogleOAuthHandler(oauthService)
+	dashboardHandler := handler.NewDashboardHandler(dashboardRepo, usersRepo)
 	listingsHandler := handler.NewListingsHandler(listingsRepo, usersRepo)
 	zonesHandler := handler.NewZonesHandler(zonesRepo)
 	referenceHandler := handler.NewReferenceHandler(referenceRepo)
@@ -159,7 +161,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler)
+			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler)
 		})
 	})
 
@@ -171,7 +173,7 @@ func run() error {
 			r.Use(gatewaymw.RequireAuth)
 			r.Use(rateLimiter)
 
-			mountAuthenticatedV1Routes(r, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler)
+			mountAuthenticatedV1Routes(r, dashboardHandler, listingsHandler, zonesHandler, referenceHandler, mlHandler, alertRulesHandler, subscriptionsHandler)
 		})
 	})
 

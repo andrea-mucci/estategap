@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -94,6 +95,102 @@ func (h *ZonesHandler) Analytics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond.JSON(w, http.StatusOK, zoneAnalyticsFromMonths(id, months))
+}
+
+func (h *ZonesHandler) Geometry(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid zone id")
+		return
+	}
+
+	item, err := h.repo.GetZoneGeometry(r.Context(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, repository.ErrNotFound):
+			writeError(w, r, http.StatusNotFound, "zone not found")
+		default:
+			writeError(w, r, http.StatusServiceUnavailable, "failed to load zone geometry")
+		}
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, item)
+}
+
+func (h *ZonesHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name     string          `json:"name"`
+		Type     string          `json:"type"`
+		Country  string          `json:"country"`
+		Geometry json.RawMessage `json:"geometry"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.Country = strings.ToUpper(strings.TrimSpace(req.Country))
+	if req.Name == "" || len(req.Name) > 100 {
+		writeError(w, r, http.StatusBadRequest, "name must be between 1 and 100 characters")
+		return
+	}
+	if req.Type != "custom" {
+		writeError(w, r, http.StatusBadRequest, "type must be custom")
+		return
+	}
+	if len(req.Country) != 2 {
+		writeError(w, r, http.StatusBadRequest, "country must be a valid ISO code")
+		return
+	}
+
+	var polygon struct {
+		Type        string        `json:"type"`
+		Coordinates [][][]float64 `json:"coordinates"`
+	}
+	if err := json.Unmarshal(req.Geometry, &polygon); err != nil {
+		writeError(w, r, http.StatusBadRequest, "geometry must be valid GeoJSON")
+		return
+	}
+	if polygon.Type != "Polygon" || len(polygon.Coordinates) == 0 || len(polygon.Coordinates[0]) < 4 {
+		writeError(w, r, http.StatusBadRequest, "geometry must be a polygon with at least four points")
+		return
+	}
+
+	ring := polygon.Coordinates[0]
+	first := ring[0]
+	last := ring[len(ring)-1]
+	if len(first) != 2 || len(last) != 2 || first[0] != last[0] || first[1] != last[1] {
+		writeError(w, r, http.StatusBadRequest, "polygon must be closed")
+		return
+	}
+
+	userID, err := parseUserID(r.Context())
+	if err != nil {
+		writeError(w, r, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
+	item, err := h.repo.CreateCustomZone(r.Context(), repository.CreateCustomZoneRequest{
+		Name:     req.Name,
+		Type:     req.Type,
+		Country:  req.Country,
+		Geometry: req.Geometry,
+	}, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, repository.ErrValidation):
+			writeError(w, r, http.StatusUnprocessableEntity, "geometry is invalid")
+		case errors.Is(err, repository.ErrLimitReached):
+			writeError(w, r, http.StatusTooManyRequests, "custom zone limit reached")
+		default:
+			writeError(w, r, http.StatusServiceUnavailable, "failed to create custom zone")
+		}
+		return
+	}
+
+	respond.JSON(w, http.StatusCreated, zoneDetailFromModel(item))
 }
 
 func (h *ZonesHandler) Compare(w http.ResponseWriter, r *http.Request) {

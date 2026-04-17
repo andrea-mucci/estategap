@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
@@ -57,12 +58,28 @@ type ZoneCompareItem struct {
 }
 
 type ZonesRepo struct {
+	primary *pgxpool.Pool
 	replica *pgxpool.Pool
 	cache   *cache.Client
 }
 
-func NewZonesRepo(replica *pgxpool.Pool, cacheClient *cache.Client) *ZonesRepo {
+type ZoneGeometry struct {
+	ZoneID   uuid.UUID       `json:"zone_id"`
+	ZoneName string          `json:"zone_name"`
+	Geometry json.RawMessage `json:"geometry"`
+	BBox     [4]float64      `json:"bbox"`
+}
+
+type CreateCustomZoneRequest struct {
+	Name     string
+	Type     string
+	Country  string
+	Geometry json.RawMessage
+}
+
+func NewZonesRepo(primary, replica *pgxpool.Pool, cacheClient *cache.Client) *ZonesRepo {
 	return &ZonesRepo{
+		primary: primary,
 		replica: replica,
 		cache:   cacheClient,
 	}
@@ -234,6 +251,132 @@ func (r *ZonesRepo) GetZoneAnalytics(ctx context.Context, zoneID uuid.UUID) ([]Z
 			return item, err
 		})
 	})
+}
+
+func (r *ZonesRepo) GetZoneGeometry(ctx context.Context, zoneID uuid.UUID) (*ZoneGeometry, error) {
+	return cache.GetOrSet(ctx, r.cache, "zone:geometry:"+zoneID.String(), 5*time.Minute, func() (*ZoneGeometry, error) {
+		row := r.replica.QueryRow(ctx, `
+			SELECT
+				z.id,
+				z.name,
+				ST_AsGeoJSON(z.geometry)::json AS geometry,
+				ARRAY[
+					ST_XMin(z.bbox),
+					ST_YMin(z.bbox),
+					ST_XMax(z.bbox),
+					ST_YMax(z.bbox)
+				]::double precision[] AS bbox
+			FROM zones z
+			WHERE z.id = $1
+			LIMIT 1`, pgUUID(zoneID))
+
+		var (
+			rawID    pgtype.UUID
+			geometry json.RawMessage
+			bbox     []float64
+			item     ZoneGeometry
+		)
+		if err := row.Scan(&rawID, &item.ZoneName, &geometry, &bbox); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrNotFound
+			}
+			return nil, err
+		}
+
+		parsedID, err := uuidFromPG(rawID)
+		if err != nil {
+			return nil, err
+		}
+		item.ZoneID = parsedID
+		item.Geometry = geometry
+		if len(bbox) == 4 {
+			copy(item.BBox[:], bbox)
+		}
+
+		return &item, nil
+	})
+}
+
+func (r *ZonesRepo) CreateCustomZone(ctx context.Context, req CreateCustomZoneRequest, userID uuid.UUID) (*ZoneWithStats, error) {
+	if r.primary == nil {
+		return nil, ErrInvalidInput
+	}
+
+	var isValid bool
+	if err := r.primary.QueryRow(ctx, `
+		SELECT ST_IsValid(ST_SetSRID(ST_GeomFromGeoJSON($1), 4326))`,
+		string(req.Geometry),
+	).Scan(&isValid); err != nil {
+		return nil, err
+	}
+	if !isValid {
+		return nil, ErrValidation
+	}
+
+	var count int64
+	if err := r.primary.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM zones
+		WHERE user_id = $1
+			AND level = 5`,
+		pgUUID(userID),
+	).Scan(&count); err != nil {
+		return nil, err
+	}
+	if count >= 20 {
+		return nil, ErrLimitReached
+	}
+
+	rows, err := r.primary.Query(ctx, `
+		INSERT INTO zones (
+			name,
+			country_code,
+			level,
+			parent_id,
+			geometry,
+			bbox,
+			user_id,
+			created_at,
+			updated_at
+		)
+		VALUES (
+			$1,
+			$2,
+			5,
+			NULL,
+			ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON($3), 4326)),
+			ST_Envelope(ST_SetSRID(ST_GeomFromGeoJSON($3), 4326)),
+			$4,
+			NOW(),
+			NOW()
+		)
+		RETURNING
+			id,
+			name,
+			name_local,
+			country_code,
+			level,
+			parent_id,
+			NULL::double precision AS area_km2,
+			slug,
+			0::bigint AS listing_count,
+			0::double precision AS median_price_m2_eur,
+			0::bigint AS deal_count,
+			NULL::double precision AS price_trend_pct`,
+		req.Name,
+		req.Country,
+		string(req.Geometry),
+		pgUUID(userID),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := pgx.CollectOneRow(rows, scanZoneWithStats)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return &item, err
 }
 
 func (r *ZonesRepo) CompareZones(ctx context.Context, ids []uuid.UUID) ([]ZoneCompareItem, error) {

@@ -1,0 +1,14 @@
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.git/
+.gitignore
+.idea/
+.vscode/
+*.secret.yaml
+secrets/
+.kube/
+kubeconfig*
+*.key
+*.crt

@@ -1,7 +1,5 @@
 "use client";
 
-import "maplibre-gl/dist/maplibre-gl.css";
-
 import { useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import maplibregl from "maplibre-gl";

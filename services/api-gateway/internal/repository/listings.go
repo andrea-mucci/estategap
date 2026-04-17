@@ -17,29 +17,32 @@ import (
 )
 
 type ListingFilter struct {
-	Country          string
-	City             string
-	ZoneID           *uuid.UUID
-	PropertyType     string
-	MinPriceEUR      *float64
-	MaxPriceEUR      *float64
-	MinAreaM2        *float64
-	MaxAreaM2        *float64
-	PropertyCategory *models.PropertyCategory
-	MinBedrooms      *int
-	MinBathrooms     *int
-	DealTier         *models.DealTier
-	Status           *models.ListingStatus
-	PortalID         *uuid.UUID
-	MinDaysOnMarket  *int
-	MaxDaysOnMarket  *int
-	SortBy           string
-	SortDir          string
-	Currency         string
-	FreeTierGate     bool
-	AllowedCountries []string
-	Cursor           string
-	Limit            int
+	Country           string
+	City              string
+	Bounds            *[4]float64
+	ZoneID            *uuid.UUID
+	PropertyType      string
+	MinPriceEUR       *float64
+	MaxPriceEUR       *float64
+	MinAreaM2         *float64
+	MaxAreaM2         *float64
+	PropertyCategory  *models.PropertyCategory
+	MinBedrooms       *int
+	MinBathrooms      *int
+	DealTier          *models.DealTier
+	Status            *models.ListingStatus
+	PortalID          *uuid.UUID
+	MinDaysOnMarket   *int
+	MaxDaysOnMarket   *int
+	SortBy            string
+	SortDir           string
+	Currency          string
+	FreeTierGate      bool
+	AllowedCountries  []string
+	Format            string
+	DisablePagination bool
+	Cursor            string
+	Limit             int
 }
 
 type ListingDetail struct {
@@ -86,6 +89,19 @@ func (r *ListingsRepo) SearchListings(ctx context.Context, filter ListingFilter)
 	if filter.City != "" {
 		baseArgs = append(baseArgs, filter.City)
 		baseConditions = append(baseConditions, fmt.Sprintf("l.city = $%d", len(baseArgs)))
+	}
+	if filter.Bounds != nil {
+		baseArgs = append(baseArgs, filter.Bounds[0], filter.Bounds[1], filter.Bounds[2], filter.Bounds[3])
+		baseConditions = append(baseConditions,
+			"l.location IS NOT NULL",
+			fmt.Sprintf(
+				"ST_Intersects(l.location, ST_MakeEnvelope($%d, $%d, $%d, $%d, 4326))",
+				len(baseArgs)-3,
+				len(baseArgs)-2,
+				len(baseArgs)-1,
+				len(baseArgs),
+			),
+		)
 	}
 	if filter.ZoneID != nil {
 		baseArgs = append(baseArgs, pgUUID(*filter.ZoneID))
@@ -178,7 +194,10 @@ func (r *ListingsRepo) SearchListings(ctx context.Context, filter ListingFilter)
 		}
 	}
 
-	selectColumns := "l.*"
+	selectColumns := `
+		l.*,
+		ST_Y(l.location)::double precision AS latitude,
+		ST_X(l.location)::double precision AS longitude`
 	joins := ""
 	if targetCurrency != "EUR" {
 		args = append(args, targetCurrency)
@@ -198,14 +217,18 @@ func (r *ListingsRepo) SearchListings(ctx context.Context, filter ListingFilter)
 			er.date AS exchange_rate_date`
 	}
 
-	args = append(args, limit+1)
 	query := `
 		SELECT ` + selectColumns + `
 		FROM listings l
 	` + joins + `
 		WHERE ` + strings.Join(conditions, " AND ") + `
-		ORDER BY ` + listingSortColumn(sortBy) + ` ` + sortDir + `, l.id ` + sortDir + `
+		ORDER BY ` + listingSortColumn(sortBy) + ` ` + sortDir + `, l.id ` + sortDir
+
+	if !filter.DisablePagination {
+		args = append(args, limit+1)
+		query += `
 		LIMIT $` + fmt.Sprintf("%d", len(args))
+	}
 
 	rows, err := r.replica.Query(ctx, query, args...)
 	if err != nil {
@@ -216,16 +239,20 @@ func (r *ListingsRepo) SearchListings(ctx context.Context, filter ListingFilter)
 		return nil, "", 0, "", err
 	}
 
-	countCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
-	defer cancel()
-
 	var totalCount int64
-	countQuery := `
-		SELECT COUNT(*)
-		FROM listings l
-		WHERE ` + strings.Join(baseConditions, " AND ")
-	if err := r.replica.QueryRow(countCtx, countQuery, baseArgs...).Scan(&totalCount); err != nil {
-		return nil, "", 0, "", err
+	if filter.DisablePagination {
+		totalCount = int64(len(items))
+	} else {
+		countCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+		defer cancel()
+
+		countQuery := `
+			SELECT COUNT(*)
+			FROM listings l
+			WHERE ` + strings.Join(baseConditions, " AND ")
+		if err := r.replica.QueryRow(countCtx, countQuery, baseArgs...).Scan(&totalCount); err != nil {
+			return nil, "", 0, "", err
+		}
 	}
 
 	var rateDate string
@@ -234,7 +261,7 @@ func (r *ListingsRepo) SearchListings(ctx context.Context, filter ListingFilter)
 	}
 
 	var nextCursor string
-	if len(items) > limit {
+	if !filter.DisablePagination && len(items) > limit {
 		last := items[limit-1]
 		listingID, err := uuidFromPG(last.ID)
 		if err != nil {

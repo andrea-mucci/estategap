@@ -25,6 +25,8 @@ tags:
     description: Listing search and detail
   - name: Zones
     description: Zone search, analytics, and comparison
+  - name: Dashboard
+    description: Dashboard summary metrics
   - name: Reference
     description: Country and portal reference data
   - name: ML
@@ -65,6 +67,12 @@ components:
       description: Maximum number of items per page.
 
   responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     Unauthorized:
       description: Missing or invalid JWT
       content:
@@ -189,6 +197,16 @@ components:
           type: string
           nullable: true
           example: Calle de Alcalá 10
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          example: 40.4168
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          example: -3.7038
         asking_price:
           type: number
           nullable: true
@@ -270,6 +288,71 @@ components:
           type: string
           nullable: true
           example: MjAyNi0wNC0xN1QxMjowMDowMFo...
+
+    ListingsGeoJSON:
+      type: object
+      required: [type, features]
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingGeoFeature"
+
+    ListingGeoFeature:
+      type: object
+      required: [type, geometry, properties]
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        geometry:
+          type: object
+          required: [type, coordinates]
+          properties:
+            type:
+              type: string
+              enum: [Point]
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+        properties:
+          type: object
+          required: [id]
+          properties:
+            id:
+              type: string
+              format: uuid
+            deal_tier:
+              type: integer
+              nullable: true
+              enum: [1, 2, 3, 4]
+            deal_score:
+              type: number
+              nullable: true
+            asking_price_eur:
+              type: number
+              nullable: true
+            area_m2:
+              type: number
+              nullable: true
+            address:
+              type: string
+              nullable: true
+            photo_url:
+              type: string
+              nullable: true
+            city:
+              type: string
+              nullable: true
+            property_type:
+              type: string
+              nullable: true
 
     PriceHistoryItem:
       type: object
@@ -515,6 +598,91 @@ components:
         portal_count:
           type: integer
           example: 3
+
+    DashboardSummary:
+      type: object
+      required: [country, total_listings, new_today, tier1_deals_today, price_drops_7d, last_refreshed_at]
+      properties:
+        country:
+          type: string
+          example: ES
+        total_listings:
+          type: integer
+          example: 12847
+        new_today:
+          type: integer
+          example: 342
+        tier1_deals_today:
+          type: integer
+          example: 18
+        price_drops_7d:
+          type: integer
+          example: 204
+        last_refreshed_at:
+          type: string
+          format: date-time
+
+    ZoneGeometry:
+      type: object
+      required: [zone_id, zone_name, geometry, bbox]
+      properties:
+        zone_id:
+          type: string
+          format: uuid
+        zone_name:
+          type: string
+          example: Salamanca
+        geometry:
+          type: object
+          required: [type, coordinates]
+          properties:
+            type:
+              type: string
+              enum: [MultiPolygon]
+            coordinates:
+              type: array
+        bbox:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            type: number
+          example: [-3.89, 40.31, -3.52, 40.64]
+
+    CreateCustomZoneRequest:
+      type: object
+      required: [name, type, country, geometry]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: My Investment Area
+        type:
+          type: string
+          enum: [custom]
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: ES
+        geometry:
+          type: object
+          required: [type, coordinates]
+          properties:
+            type:
+              type: string
+              enum: [Polygon]
+            coordinates:
+              type: array
+              items:
+                type: array
+                items:
+                  type: array
+                  items:
+                    type: number
+                  minItems: 2
+                  maxItems: 2
 
     PortalSummary:
       type: object
@@ -1091,6 +1259,20 @@ paths:
           schema:
             type: string
             example: EUR
+        - name: bounds
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$"
+            example: "-3.9,40.2,-3.5,40.6"
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json, geojson]
+            default: json
         - name: cursor
           in: query
           schema:
@@ -1108,9 +1290,42 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ListingsPage"
+                oneOf:
+                  - $ref: "#/components/schemas/ListingsPage"
+                  - $ref: "#/components/schemas/ListingsGeoJSON"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard summary metrics
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            example: ES
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Country not accessible under current subscription tier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/listings/{id}:
     get:
@@ -1175,6 +1390,38 @@ paths:
                 $ref: "#/components/schemas/ZoneListResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Zones]
+      summary: Create a custom zone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomZoneRequest"
+      responses:
+        "201":
+          description: Custom zone created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZoneDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Invalid polygon geometry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Custom zone limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/zones/{id}:
     get:
@@ -1217,6 +1464,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ZoneAnalytics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/zones/{id}/geometry:
+    get:
+      tags: [Zones]
+      summary: Get zone geometry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Zone geometry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZoneGeometry"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
