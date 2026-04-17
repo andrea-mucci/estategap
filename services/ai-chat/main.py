@@ -1,9 +1,11 @@
 import asyncio
 
+from estategap_ai_chat.__main__ import main as package_main
 
-async def main() -> None:
-    return None
+
+async def main() -> int:
+    return await package_main()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(asyncio.run(main()))
