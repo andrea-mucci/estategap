@@ -13,7 +13,7 @@ import (
 
 const userColumns = `
 id, email, password_hash, oauth_provider, oauth_subject, display_name, avatar_url,
-subscription_tier, stripe_customer_id, stripe_sub_id, subscription_ends_at, alert_limit,
+subscription_tier, allowed_countries, stripe_customer_id, stripe_sub_id, subscription_ends_at, alert_limit,
 email_verified, email_verified_at, last_login_at, deleted_at, created_at, updated_at
 `
 

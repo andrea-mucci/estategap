@@ -213,6 +213,11 @@ class User(Base):
         nullable=False,
         server_default=sa.text("'free'"),
     )
+    allowed_countries: Mapped[StringList] = mapped_column(
+        postgresql.ARRAY(sa.CHAR(2)),
+        nullable=False,
+        server_default=sa.text("'{}'"),
+    )
     stripe_customer_id: Mapped[str | None] = mapped_column(sa.String(30), unique=True)
     stripe_sub_id: Mapped[str | None] = mapped_column(sa.String(30), unique=True)
     subscription_ends_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))

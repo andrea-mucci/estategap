@@ -11,6 +11,7 @@ type User struct {
 	DisplayName        *string             `json:"display_name" db:"display_name"`
 	AvatarURL          *string             `json:"avatar_url" db:"avatar_url"`
 	SubscriptionTier   SubscriptionTier    `json:"subscription_tier" db:"subscription_tier"`
+	AllowedCountries   []string            `json:"allowed_countries" db:"allowed_countries"`
 	StripeCustomerID   *string             `json:"stripe_customer_id" db:"stripe_customer_id"`
 	StripeSubID        *string             `json:"stripe_sub_id" db:"stripe_sub_id"`
 	SubscriptionEndsAt *pgtype.Timestamptz `json:"subscription_ends_at" db:"subscription_ends_at"`
