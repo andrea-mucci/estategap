@@ -1,101 +1,104 @@
-# Implementation Plan: Shared Data Models
+# Implementation Plan: [FEATURE]
 
-**Branch**: `005-shared-data-models` | **Date**: 2026-04-17 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/005-shared-data-models/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Bring existing stub models in `libs/common/estategap_common/models/` up to full specification (validators, corrected enums, missing models) and introduce a new `libs/pkg/models/` Go package with pgx-compatible structs and `shopspring/decimal` for prices. The two libraries share a JSON contract guaranteed by cross-language round-trip fixtures in `tests/cross_language/`.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Python 3.12 (Pydantic v2), Go 1.23
-**Primary Dependencies**:
-- Python — `pydantic>=2`, `uv` (package manager)
-- Go — `github.com/jackc/pgx/v5` (pgtype), `github.com/shopspring/decimal`, `github.com/google/uuid`
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
 
-**Storage**: PostgreSQL 16 + PostGIS 3.4 (models mirror existing schema; no migrations in this feature)
-**Testing**: Python — `pytest` + `mypy --strict`; Go — `go test` (table-driven)
-**Target Platform**: Linux (Kubernetes), consumed by all Go and Python services
-**Project Type**: Shared library (two packages — one per language)
-**Performance Goals**: Model construction and validation < 1 ms per instance (not a hot path)
-**Constraints**: JSON field names must be identical between Python `model_dump(mode="json")` and Go `json.Marshal`; no ORM in Go
-**Scale/Scope**: ~15 Python models, ~6 Go structs; consumed by ~9 services
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I — Polyglot: shared code in `libs/` | ✅ Pass | Python → `libs/common`, Go → `libs/pkg` |
-| II — Event-Driven: no direct HTTP between services | ✅ Pass | This feature adds no inter-service calls |
-| III — Country-First: country partitioned, prices in EUR | ✅ Pass | All listing models carry `country`/`country_code`; prices stored in original and EUR |
-| IV — ML: SHAP values + deal score included | ✅ Pass | `ScoringResult` and `ShapValue` models included |
-| V — Code Quality: Pydantic v2, ruff+mypy strict, pgx, table-driven tests | ✅ Pass | `ConfigDict(strict=True)`, mypy strict, `pgtype` used throughout |
-| VI — Security: no secrets, GDPR soft-delete field | ✅ Pass | `User.deleted_at` soft-delete field present; no secrets stored in models |
-| VII — K8s native | ✅ Pass | Library only; no deployment manifests needed |
-
-**Post-Design Re-check**: No violations introduced. Models are passive data containers.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/005-shared-data-models/
-├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/
-│   └── json-contract.md
-└── tasks.md             # Phase 2 output (/speckit.tasks — NOT created here)
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
 ### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-libs/
-├── common/                                    # Python shared library (exists)
-│   ├── pyproject.toml                         # UPDATE: add pydantic-settings, strict mypy config
-│   └── estategap_common/
-│       └── models/
-│           ├── __init__.py                    # UPDATE: export new/renamed symbols
-│           ├── _base.py                       # UPDATE: strict=True, AwareDatetime, ISO validators
-│           ├── listing.py                     # UPDATE: PropertyCategory, NormalizedListing, validators
-│           ├── alert.py                       # UPDATE: typed AlertFilters
-│           ├── conversation.py                # UPDATE: pending_dimensions field
-│           ├── ml.py                          # no change
-│           ├── reference.py                   # UPDATE: country/currency validators
-│           ├── scoring.py                     # UPDATE: EstateGapModel base, DealTier, full fields
-│           ├── user.py                        # UPDATE: SubscriptionTier values, add Subscription
-│           └── zone.py                        # no change
-└── pkg/                                       # Go shared library (exists)
-    ├── go.mod                                 # UPDATE: add pgx/v5, decimal, uuid deps
-    ├── go.sum                                 # auto-generated
-    └── models/                                # NEW package
-        ├── enums.go                           # PropertyCategory, DealTier, ListingStatus, SubscriptionTier
-        ├── listing.go                         # Listing, PriceHistory structs
-        ├── alert.go                           # AlertRule struct
-        ├── scoring.go                         # ScoringResult, ShapValue structs
-        ├── user.go                            # User, Subscription structs
-        ├── zone.go                            # Zone struct
-        ├── reference.go                       # Country, Portal structs
-        └── models_test.go                     # Table-driven JSON round-trip + pgx scan tests
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
 tests/
-└── cross_language/
-    ├── fixtures/
-    │   ├── listing.json                       # Canonical JSON fixture
-    │   ├── alert_rule.json
-    │   ├── scoring_result.json
-    │   └── user.json
-    └── test_roundtrip.py                      # Python round-trip assertions
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: Monorepo multi-package layout. Python package extends `libs/common/estategap_common/models/` in-place. Go package is a new `libs/pkg/models/` directory inside the existing `github.com/estategap/libs` module. Cross-language fixtures live at `tests/cross_language/`.
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
-No constitution violations — table not required.
+> **Fill ONLY if Constitution Check has violations that must be justified**
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

@@ -1,16 +1,21 @@
 FROM golang:1.23-alpine AS builder
 
-WORKDIR /build
+WORKDIR /workspace
 
-COPY go.work go.work.sum ./
-COPY libs/pkg libs/pkg
-COPY services/api-gateway services/api-gateway
+RUN apk add --no-cache git
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app ./services/api-gateway/cmd
+COPY go.work ./
+COPY libs/pkg ./libs/pkg
+COPY services/api-gateway ./services/api-gateway
 
-FROM gcr.io/distroless/static:nonroot
+WORKDIR /workspace/services/api-gateway
 
-COPY --from=builder /app /app
+RUN go mod download
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-w -s" -o /out/api-gateway ./cmd
+
+FROM gcr.io/distroless/static-debian12
+
+COPY --from=builder /out/api-gateway /app/api-gateway
 
 USER nonroot:nonroot
-ENTRYPOINT ["/app"]
+ENTRYPOINT ["/app/api-gateway"]

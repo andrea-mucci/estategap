@@ -1,0 +1,1009 @@
+openapi: "3.1.0"
+info:
+  title: EstateGap API Gateway
+  version: "1.0.0"
+  description: |
+    Single public HTTP entry point for all EstateGap REST API calls.
+    Handles authentication, rate limiting, CORS, logging, and metrics.
+
+servers:
+  - url: https://api.estategap.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: health
+    description: Liveness and readiness probes
+  - name: auth
+    description: JWT authentication and session management
+  - name: oauth
+    description: Google OAuth2 social login
+  - name: listings
+    description: Property listings (read-only from gateway)
+  - name: zones
+    description: Geographic zones and analytics
+  - name: alerts
+    description: Alert rules and notification history
+  - name: subscriptions
+    description: Stripe billing and webhook
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required: [error, request_id]
+      properties:
+        error:
+          type: string
+          example: "invalid credentials"
+        request_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, expires_in]
+      properties:
+        access_token:
+          type: string
+          description: HS256 JWT, valid 15 minutes
+        refresh_token:
+          type: string
+          format: uuid
+          description: Opaque UUID, valid 7 days
+        expires_in:
+          type: integer
+          example: 900
+          description: Access token TTL in seconds
+
+    UserProfile:
+      type: object
+      required: [id, email, subscription_tier, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        subscription_tier:
+          $ref: "#/components/schemas/SubscriptionTier"
+        alert_limit:
+          type: integer
+        email_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    SubscriptionTier:
+      type: string
+      enum: [free, basic, pro, global, api]
+
+    ListingSummary:
+      type: object
+      required: [id, country, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        country:
+          type: string
+          example: "ES"
+        city:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        asking_price:
+          type: number
+          nullable: true
+        asking_price_eur:
+          type: number
+          nullable: true
+        price_per_m2_eur:
+          type: number
+          nullable: true
+        property_category:
+          type: string
+          nullable: true
+          enum: [residential, commercial, industrial, land]
+        built_area_m2:
+          type: number
+          nullable: true
+        bedrooms:
+          type: integer
+          nullable: true
+        bathrooms:
+          type: integer
+          nullable: true
+        deal_score:
+          type: number
+          nullable: true
+          description: ML deal score 0-100
+        deal_tier:
+          type: integer
+          nullable: true
+          enum: [1, 2, 3, 4]
+          description: "1=great, 2=good, 3=fair, 4=overpriced"
+        status:
+          type: string
+          enum: [active, delisted, sold]
+        images_count:
+          type: integer
+        first_seen_at:
+          type: string
+          format: date-time
+
+    ListingsPage:
+      type: object
+      required: [items, total, cursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingSummary"
+        total:
+          type: integer
+          description: Total matching records (approximate for large result sets)
+        cursor:
+          type: string
+          nullable: true
+          description: Opaque cursor for next page; null if last page
+
+    Zone:
+      type: object
+      required: [id, name, country]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        country:
+          type: string
+          example: "ES"
+        region:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        listing_count:
+          type: integer
+        avg_price_per_m2_eur:
+          type: number
+          nullable: true
+
+    ZoneAnalytics:
+      type: object
+      required: [zone_id, period_days]
+      properties:
+        zone_id:
+          type: string
+          format: uuid
+        period_days:
+          type: integer
+          example: 30
+        avg_price_per_m2_eur:
+          type: number
+        median_price_eur:
+          type: number
+        listing_count:
+          type: integer
+        price_change_pct:
+          type: number
+          description: Percentage change in average price over the period
+
+    AlertRule:
+      type: object
+      required: [id, name, filters, channels, active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        filters:
+          type: object
+          description: Search criteria (country, city, price range, deal_tier, etc.)
+          additionalProperties: true
+        channels:
+          type: object
+          description: Delivery config (email, push notifications)
+          additionalProperties: true
+        active:
+          type: boolean
+        last_triggered_at:
+          type: string
+          format: date-time
+          nullable: true
+        trigger_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    AlertRuleInput:
+      type: object
+      required: [name, filters, channels]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        filters:
+          type: object
+          additionalProperties: true
+        channels:
+          type: object
+          additionalProperties: true
+        active:
+          type: boolean
+          default: true
+
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    ReadinessStatus:
+      type: object
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        checks:
+          type: object
+          properties:
+            postgres:
+              type: string
+              enum: [ok, error]
+            redis:
+              type: string
+              enum: [ok, error]
+            nats:
+              type: string
+              enum: [ok, error]
+
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+      description: Pagination cursor from previous response
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Valid JWT but insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until rate limit window resets
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+paths:
+  # ─── Health ──────────────────────────────────────────────────────────────────
+
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      description: Returns 200 immediately. No dependency checks.
+      security: []
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /readyz:
+    get:
+      tags: [health]
+      summary: Readiness probe
+      description: Checks PostgreSQL, Redis, and NATS connectivity.
+      security: []
+      responses:
+        "200":
+          description: All dependencies reachable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
+        "503":
+          description: One or more dependencies unreachable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
+
+  /metrics:
+    get:
+      tags: [health]
+      summary: Prometheus metrics
+      description: Exposes http_requests_total, http_request_duration_seconds, active_connections.
+      security: []
+      responses:
+        "200":
+          description: Prometheus text exposition format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ─── Auth ────────────────────────────────────────────────────────────────────
+
+  /v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Register with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                display_name:
+                  type: string
+      responses:
+        "201":
+          description: Account created; tokens issued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/TokenPair"
+                  - type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/UserProfile"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Validation error (weak password, invalid email)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Login with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful; tokens issued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/TokenPair"
+                  - type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: New token pair issued; previous refresh token invalidated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          description: Refresh token invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Logout; invalidate current session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+                  format: uuid
+      responses:
+        "204":
+          description: Session invalidated
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/auth/me:
+    get:
+      tags: [auth]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  # ─── OAuth2 ──────────────────────────────────────────────────────────────────
+
+  /v1/auth/google:
+    get:
+      tags: [oauth]
+      summary: Initiate Google OAuth2 flow
+      description: Redirects the user to Google's authorization page with a CSRF-safe state nonce.
+      security: []
+      responses:
+        "302":
+          description: Redirect to Google authorization URL
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+
+  /v1/auth/google/callback:
+    get:
+      tags: [oauth]
+      summary: Google OAuth2 callback
+      description: |
+        Receives authorization code from Google. Validates state nonce.
+        Creates or links user account. Returns tokens.
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OAuth2 login successful; tokens issued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/TokenPair"
+                  - type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid or expired state nonce (CSRF protection)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ─── Listings ────────────────────────────────────────────────────────────────
+
+  /v1/listings:
+    get:
+      tags: [listings]
+      summary: Search property listings
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "ES"
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: min_price_eur
+          in: query
+          schema:
+            type: number
+        - name: max_price_eur
+          in: query
+          schema:
+            type: number
+        - name: min_area_m2
+          in: query
+          schema:
+            type: number
+        - name: max_area_m2
+          in: query
+          schema:
+            type: number
+        - name: property_category
+          in: query
+          schema:
+            type: string
+            enum: [residential, commercial, industrial, land]
+        - name: deal_tier
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2, 3, 4]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, delisted, sold]
+            default: active
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Listings page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingsPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/listings/{id}:
+    get:
+      tags: [listings]
+      summary: Get listing by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Full listing detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  # ─── Zones ───────────────────────────────────────────────────────────────────
+
+  /v1/zones:
+    get:
+      tags: [zones]
+      summary: List zones
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Zones page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Zone"
+                  cursor:
+                    type: string
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/zones/{id}:
+    get:
+      tags: [zones]
+      summary: Get zone by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Zone detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/zones/{id}/analytics:
+    get:
+      tags: [zones]
+      summary: Get zone price analytics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: period_days
+          in: query
+          schema:
+            type: integer
+            enum: [7, 30, 90, 365]
+            default: 30
+      responses:
+        "200":
+          description: Zone analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZoneAnalytics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  # ─── Alerts ──────────────────────────────────────────────────────────────────
+
+  /v1/alerts:
+    get:
+      tags: [alerts]
+      summary: List user's alert rules
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Alert rules page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertRule"
+                  cursor:
+                    type: string
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+    post:
+      tags: [alerts]
+      summary: Create alert rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertRuleInput"
+      responses:
+        "201":
+          description: Alert rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Validation error or alert limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/alerts/{id}:
+    get:
+      tags: [alerts]
+      summary: Get alert rule by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Alert rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+    put:
+      tags: [alerts]
+      summary: Update alert rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertRuleInput"
+      responses:
+        "200":
+          description: Updated alert rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+    delete:
+      tags: [alerts]
+      summary: Delete alert rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/alerts/{id}/history:
+    get:
+      tags: [alerts]
+      summary: Get alert trigger history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Alert history events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        triggered_at:
+                          type: string
+                          format: date-time
+                        listing_count:
+                          type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  # ─── Subscriptions ───────────────────────────────────────────────────────────
+
+  /v1/subscriptions/checkout:
+    post:
+      tags: [subscriptions]
+      summary: Create Stripe checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier:
+                  $ref: "#/components/schemas/SubscriptionTier"
+                success_url:
+                  type: string
+                  format: uri
+                cancel_url:
+                  type: string
+                  format: uri
+      responses:
+        "200":
+          description: Stripe checkout session URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkout_url:
+                    type: string
+                    format: uri
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/webhooks/stripe:
+    post:
+      tags: [subscriptions]
+      summary: Stripe webhook receiver
+      description: |
+        Receives Stripe events (checkout.session.completed, customer.subscription.updated,
+        customer.subscription.deleted). Validates Stripe-Signature header.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Event processed
+        "400":
+          description: Invalid signature or unrecognized event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
