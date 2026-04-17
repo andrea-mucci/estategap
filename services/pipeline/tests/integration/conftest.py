@@ -131,7 +131,7 @@ async def _reset_database(pool: asyncpg.Pool) -> None:
     async with pool.acquire() as conn:
         await conn.execute(
             """
-            TRUNCATE TABLE quarantine, price_history, listings RESTART IDENTITY CASCADE
+            TRUNCATE TABLE quarantine, price_history, pois, listings RESTART IDENTITY CASCADE
             """
         )
         await conn.execute("DELETE FROM exchange_rates")

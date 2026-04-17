@@ -1,125 +1,104 @@
-# Implementation Plan: Normalize & Deduplicate Pipeline
+# Implementation Plan: [FEATURE]
 
-**Branch**: `012-normalize-dedup-pipeline` | **Date**: 2026-04-17 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `specs/012-normalize-dedup-pipeline/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Add two long-lived async Python consumers to `services/pipeline/` that transform raw scraped
-listings into normalized, deduplicated database rows. The **Normalizer** consumes `raw.listings.*`
-from NATS JetStream, maps portal-specific fields via YAML configs, converts currencies and units,
-validates with Pydantic, batch-upserts to PostgreSQL, and re-publishes to `normalized.listings.*`.
-The **Deduplicator** consumes `normalized.listings.*`, runs a three-stage PostGIS + feature +
-Levenshtein matching pipeline, stamps matching records with a shared `canonical_id`, and publishes
-to `deduplicated.listings.*`.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Python 3.12
-**Primary Dependencies**: nats-py (JetStream consumer), asyncpg (batch upsert), pydantic v2
-(validation), rapidfuzz (Levenshtein), pydantic-settings (config), structlog (logging),
-prometheus-client (metrics), PyYAML (mapping configs), unicodedata (stdlib accent stripping)
-**Storage**: PostgreSQL 16 + PostGIS 3.4 (`listings` partitioned table + new `quarantine` table +
-`data_completeness` column); `exchange_rates` table (read-only)
-**Testing**: pytest + pytest-asyncio; testcontainers (PostgreSQL + PostGIS); NATS test server
-**Target Platform**: Linux container (Kubernetes)
-**Project Type**: Microservice sub-modules within existing `services/pipeline/` Python package
-**Performance Goals**: 100 listings/second sustained at DB write layer; batch size 50
-**Constraints**: Manual NATS ack — only ack after successful DB write; NAK on failure for
-redelivery. Dedup query must complete in < 50 ms per listing (PostGIS index coverage).
-**Scale/Scope**: Initial scope: Idealista ES + Fotocasa ES; architecture supports all portals
-via YAML mapping config files.
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
+
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Polyglot — Python for data pipeline | PASS | Both services are Python 3.12 |
-| I. Service isolation — no cross-service imports | PASS | Only `libs/common` (`estategap_common`) used |
-| II. NATS JetStream for async events | PASS | Consuming `raw.listings.*`, publishing `normalized.listings.*` and `deduplicated.listings.*` |
-| II. No direct HTTP between services | PASS | Pipeline reads DB directly; no REST calls to other services |
-| III. Country-partitioned tables | PASS | Inserting into existing `listings` table (already partitioned by `country`) |
-| III. Prices in original + EUR | PASS | `asking_price` + `asking_price_eur` both written |
-| III. Areas in source unit + m² | PASS | `built_area` + `built_area_m2` both written |
-| V. Pydantic v2 for all data models | PASS | `NormalizedListing` from `libs/common`, `QuarantineRecord` new |
-| V. asyncio + asyncpg | PASS | No ORM; raw asyncpg with batch inserts |
-| V. structlog for logging | PASS | JSON structured logs with correlation fields |
-| V. ruff + mypy strict | PASS | Inherited from pipeline service `pyproject.toml` |
-| V. pytest + pytest-asyncio + testcontainers | PASS | Integration tests use real PostgreSQL |
-| VI. No secrets in code | PASS | All credentials via pydantic-settings env vars |
-| VII. Dockerfile per service | PASS | Extending existing `services/pipeline/Dockerfile` |
-
-**Gate result**: ALL PASS — proceed to Phase 0.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/012-normalize-dedup-pipeline/
-├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output
-│   ├── nats-subjects.md
-│   └── portal-mapping-schema.md
-├── checklists/
-│   └── requirements.md
-└── tasks.md             # Phase 2 output (/speckit.tasks — NOT created here)
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
 ### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-services/pipeline/
-├── src/pipeline/
-│   ├── normalizer/
-│   │   ├── __init__.py
-│   │   ├── config.py          # NormalizerSettings (pydantic-settings)
-│   │   ├── consumer.py        # NATS JetStream consumer loop + batch logic
-│   │   ├── mapper.py          # PortalMapper: load YAML config, apply field mappings
-│   │   ├── transforms.py      # currency_convert, area_to_m2, map_property_type,
-│   │   │                      #   map_condition, pieces_to_bedrooms
-│   │   └── writer.py          # asyncpg batch upsert to listings + quarantine
-│   ├── deduplicator/
-│   │   ├── __init__.py
-│   │   ├── config.py          # DeduplicatorSettings (pydantic-settings)
-│   │   ├── consumer.py        # NATS JetStream consumer loop
-│   │   ├── matcher.py         # three-stage match: PostGIS → feature → Levenshtein
-│   │   └── address.py         # normalize_address(): lowercase, strip accents, stopwords
-│   ├── metrics.py             # shared Prometheus counter/histogram definitions
-│   └── db/
-│       ├── models.py          # existing; add data_completeness column mapping
-│       └── types.py           # existing
-├── config/
-│   └── mappings/
-│       ├── es_idealista.yaml  # Idealista ES field mapping config
-│       └── es_fotocasa.yaml   # Fotocasa ES field mapping config
-├── alembic/versions/
-│   └── 014_pipeline_quarantine.py  # ADD: quarantine table + data_completeness column
-├── tests/
-│   ├── unit/
-│   │   ├── test_transforms.py
-│   │   ├── test_mapper.py
-│   │   └── test_address.py
-│   └── integration/
-│       ├── conftest.py        # testcontainers postgres+postgis fixture
-│       ├── test_normalizer_writer.py
-│       └── test_deduplicator_matcher.py
-├── pyproject.toml             # add: rapidfuzz, pyyaml, nats-py, prometheus-client
-└── Dockerfile                 # existing; update CMD for normalizer/deduplicator entrypoints
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
+
+tests/
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: Sub-modules within the existing `services/pipeline/` service. This avoids
-creating a fourth Python service (constitution Principle I warns against service proliferation) and
-reuses the existing Alembic infra, asyncpg pool setup, and Docker build context. Each sub-module
-(`normalizer/`, `deduplicator/`) is a separate Python entry point (`python -m pipeline.normalizer`,
-`python -m pipeline.deduplicator`) launched as independent Kubernetes Deployments from the same
-container image.
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
-> No constitution violations requiring justification.
+> **Fill ONLY if Constitution Check has violations that must be justified**
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

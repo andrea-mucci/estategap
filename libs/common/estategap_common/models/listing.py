@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import Field, field_validator
 
 from ._base import AwareDatetime, EstateGapModel, validate_country_code, validate_currency_code
 from .scoring import DealTier, ShapValue
+
+EnrichmentState = Literal["pending", "completed", "partial", "no_match", "failed"]
 
 
 class PropertyCategory(str, Enum):
@@ -78,6 +80,17 @@ class NormalizedListing(EstateGapModel):
     has_lift: bool | None = None
     has_pool: bool | None = None
     year_built: int | None = None
+    cadastral_ref: str | None = None
+    official_built_area_m2: Decimal | None = None
+    area_discrepancy_flag: bool | None = None
+    building_geometry_wkt: str | None = None
+    enrichment_status: EnrichmentState | None = None
+    enrichment_attempted_at: AwareDatetime | None = None
+    dist_metro_m: int | None = None
+    dist_train_m: int | None = None
+    dist_airport_m: int | None = None
+    dist_park_m: int | None = None
+    dist_beach_m: int | None = None
     condition: str | None = None
     energy_rating: str | None = None
     status: ListingStatus = ListingStatus.ACTIVE
@@ -175,12 +188,55 @@ class PriceHistory(EstateGapModel):
 PriceChange = PriceHistory
 
 
+class PriceChangeEvent(EstateGapModel):
+    """Price-drop event emitted for downstream consumers."""
+
+    listing_id: UUID
+    country: str
+    portal: str
+    old_price: Decimal
+    new_price: Decimal
+    currency: str
+    old_price_eur: Decimal | None = None
+    new_price_eur: Decimal | None = None
+    drop_percentage: Decimal
+    recorded_at: AwareDatetime
+
+    @field_validator("country")
+    @classmethod
+    def _validate_country(cls, value: str) -> str:
+        return validate_country_code(value)
+
+    @field_validator("currency")
+    @classmethod
+    def _validate_currency(cls, value: str) -> str:
+        return validate_currency_code(value)
+
+
+class ScrapeCycleEvent(EstateGapModel):
+    """Cycle-completion event emitted by the scrape orchestrator."""
+
+    cycle_id: str
+    portal: str
+    country: str
+    completed_at: AwareDatetime
+    listing_ids: list[str] = Field(default_factory=list)
+
+    @field_validator("country")
+    @classmethod
+    def _validate_country(cls, value: str) -> str:
+        return validate_country_code(value)
+
+
 __all__ = [
+    "EnrichmentState",
     "Listing",
     "ListingStatus",
     "NormalizedListing",
     "PriceChange",
+    "PriceChangeEvent",
     "PriceHistory",
     "PropertyCategory",
     "RawListing",
+    "ScrapeCycleEvent",
 ]
