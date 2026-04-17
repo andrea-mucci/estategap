@@ -349,6 +349,8 @@ sealedSecrets:
     googleClientId: AgReplaceWithKubesealOutput
     googleClientSecret: AgReplaceWithKubesealOutput
     googleRedirectUrl: AgReplaceWithKubesealOutput
+    stripeSecretKey: AgReplaceWithKubesealOutput
+    stripeWebhookSecret: AgReplaceWithKubesealOutput
   postgresqlBackupCredentials:
     accessKeyId: AgReplaceWithKubesealOutput
     secretAccessKey: AgReplaceWithKubesealOutput
@@ -360,6 +362,19 @@ sealedSecrets:
   grafanaCredentials:
     adminUser: AgReplaceWithKubesealOutput
     adminPassword: AgReplaceWithKubesealOutput
+
+stripe:
+  successUrl: https://app.estategap.com/dashboard?checkout=success
+  cancelUrl: https://app.estategap.com/pricing?checkout=cancelled
+  portalReturnUrl: https://app.estategap.com/dashboard
+  priceBasicMonthly: price_replace_basic_monthly
+  priceBasicAnnual: price_replace_basic_annual
+  priceProMonthly: price_replace_pro_monthly
+  priceProAnnual: price_replace_pro_annual
+  priceGlobalMonthly: price_replace_global_monthly
+  priceGlobalAnnual: price_replace_global_annual
+  priceApiMonthly: price_replace_api_monthly
+  priceApiAnnual: price_replace_api_annual
 
 services:
   api-gateway:
@@ -419,6 +434,71 @@ services:
           secretKeyRef:
             name: api-gateway-secrets
             key: GOOGLE_REDIRECT_URL
+      STRIPE_SECRET_KEY:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: STRIPE_SECRET_KEY
+      STRIPE_WEBHOOK_SECRET:
+        valueFrom:
+          secretKeyRef:
+            name: api-gateway-secrets
+            key: STRIPE_WEBHOOK_SECRET
+      STRIPE_SUCCESS_URL:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_SUCCESS_URL
+      STRIPE_CANCEL_URL:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_CANCEL_URL
+      STRIPE_PORTAL_RETURN_URL:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PORTAL_RETURN_URL
+      STRIPE_PRICE_BASIC_MONTHLY:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PRICE_BASIC_MONTHLY
+      STRIPE_PRICE_BASIC_ANNUAL:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PRICE_BASIC_ANNUAL
+      STRIPE_PRICE_PRO_MONTHLY:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PRICE_PRO_MONTHLY
+      STRIPE_PRICE_PRO_ANNUAL:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PRICE_PRO_ANNUAL
+      STRIPE_PRICE_GLOBAL_MONTHLY:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PRICE_GLOBAL_MONTHLY
+      STRIPE_PRICE_GLOBAL_ANNUAL:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PRICE_GLOBAL_ANNUAL
+      STRIPE_PRICE_API_MONTHLY:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PRICE_API_MONTHLY
+      STRIPE_PRICE_API_ANNUAL:
+        valueFrom:
+          configMapKeyRef:
+            name: estategap-config
+            key: STRIPE_PRICE_API_ANNUAL
     livenessProbe:
       httpGet:
         path: /healthz

@@ -32,4 +32,6 @@ func mountAuthenticatedV1Routes(
 	r.Delete("/alerts/{id}", alertsHandler.Delete)
 	r.Get("/alerts/{id}/history", alertsHandler.History)
 	r.Post("/subscriptions/checkout", subscriptionsHandler.Checkout)
+	r.Post("/subscriptions/portal", subscriptionsHandler.Portal)
+	r.Get("/subscriptions/me", subscriptionsHandler.Me)
 }

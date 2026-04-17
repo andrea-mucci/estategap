@@ -12,6 +12,7 @@ require (
 	github.com/prometheus/client_golang v1.20.5
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/spf13/viper v1.19.0
+	github.com/stripe/stripe-go/v81 v81.4.0
 	golang.org/x/crypto v0.26.0
 	golang.org/x/oauth2 v0.22.0
 	google.golang.org/grpc v1.67.1
