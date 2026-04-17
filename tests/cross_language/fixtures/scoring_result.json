@@ -1,0 +1,25 @@
+{
+  "listing_id": "550e8400-e29b-41d4-a716-446655440000",
+  "country": "ES",
+  "estimated_price": 420000.00,
+  "deal_score": 72.50,
+  "deal_tier": 2,
+  "confidence_low": 395000.00,
+  "confidence_high": 445000.00,
+  "shap_features": [
+    {
+      "feature_name": "zone_price_median",
+      "value": 15234.5
+    },
+    {
+      "feature_name": "area_m2",
+      "value": 8102.3
+    },
+    {
+      "feature_name": "floor_number",
+      "value": -1203.7
+    }
+  ],
+  "model_version": "es-lgbm-v2.1.0",
+  "scored_at": "2026-04-17T08:00:00Z"
+}

@@ -2,11 +2,19 @@
 
 from .alert import AlertLog, AlertRule
 from .conversation import ChatMessage, ConversationState
-from .listing import Listing, ListingStatus, ListingType, PriceChange, RawListing
+from .listing import (
+    Listing,
+    ListingStatus,
+    NormalizedListing,
+    PriceChange,
+    PriceHistory,
+    PropertyCategory,
+    RawListing,
+)
 from .ml import MlModelVersion, ModelStatus
 from .reference import Country, ExchangeRate, Portal
-from .scoring import ScoringResult, ShapValue
-from .user import SubscriptionTier, User
+from .scoring import DealTier, ScoringResult, ShapValue
+from .user import Subscription, SubscriptionTier, User
 from .zone import Zone, ZoneLevel
 
 __all__ = [
@@ -15,17 +23,21 @@ __all__ = [
     "ChatMessage",
     "ConversationState",
     "Country",
+    "DealTier",
     "ExchangeRate",
     "Listing",
     "ListingStatus",
-    "ListingType",
     "MlModelVersion",
     "ModelStatus",
+    "NormalizedListing",
     "Portal",
     "PriceChange",
+    "PriceHistory",
+    "PropertyCategory",
     "RawListing",
     "ScoringResult",
     "ShapValue",
+    "Subscription",
     "SubscriptionTier",
     "User",
     "Zone",

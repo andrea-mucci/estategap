@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
 from uuid import UUID
 
-from ._base import EstateGapModel
-from .scoring import ShapValue
+from pydantic import Field, field_validator
+
+from ._base import AwareDatetime, EstateGapModel, validate_country_code, validate_currency_code
+from .scoring import DealTier, ShapValue
 
 
-class ListingType(str, Enum):
+class PropertyCategory(str, Enum):
+    """Supported listing category values shared across services."""
+
     RESIDENTIAL = "residential"
     COMMERCIAL = "commercial"
     INDUSTRIAL = "industrial"
@@ -20,13 +23,31 @@ class ListingType(str, Enum):
 
 
 class ListingStatus(str, Enum):
+    """Persisted listing lifecycle states."""
+
     ACTIVE = "active"
+    DELISTED = "delisted"
     SOLD = "sold"
-    WITHDRAWN = "withdrawn"
-    EXPIRED = "expired"
 
 
-class Listing(EstateGapModel):
+class RawListing(EstateGapModel):
+    """Raw listing payload emitted by a scraper before normalization."""
+
+    external_id: str
+    portal: str
+    country_code: str
+    raw_json: dict[str, Any]
+    scraped_at: AwareDatetime
+
+    @field_validator("country_code")
+    @classmethod
+    def _validate_country_code(cls, value: str) -> str:
+        return validate_country_code(value)
+
+
+class NormalizedListing(EstateGapModel):
+    """Validated listing data ready for database insertion."""
+
     id: UUID
     canonical_id: UUID | None = None
     country: str
@@ -35,26 +56,51 @@ class Listing(EstateGapModel):
     source_url: str
     portal_id: UUID | None = None
     address: str | None = None
-    neighborhood: str | None = None
-    district: str | None = None
     city: str | None = None
     region: str | None = None
     postal_code: str | None = None
     location_wkt: str | None = None
     zone_id: UUID | None = None
-    asking_price: Decimal | None = None
-    currency: str = "EUR"
-    asking_price_eur: Decimal | None = None
+    asking_price: Decimal
+    currency: str
+    asking_price_eur: Decimal
     price_per_m2_eur: Decimal | None = None
-    property_category: ListingType | None = None
+    property_category: PropertyCategory | None = None
     property_type: str | None = None
-    built_area: Decimal | None = None
-    area_unit: str = "m2"
-    built_area_m2: Decimal | None = None
+    built_area_m2: Decimal
     usable_area_m2: Decimal | None = None
     plot_area_m2: Decimal | None = None
     bedrooms: int | None = None
     bathrooms: int | None = None
+    status: ListingStatus = ListingStatus.ACTIVE
+    first_seen_at: AwareDatetime
+    last_seen_at: AwareDatetime
+    published_at: AwareDatetime | None = None
+    raw_hash: str | None = None
+
+    @field_validator("country")
+    @classmethod
+    def _validate_country(cls, value: str) -> str:
+        return validate_country_code(value)
+
+    @field_validator("currency")
+    @classmethod
+    def _validate_currency(cls, value: str) -> str:
+        return validate_currency_code(value)
+
+    @field_validator("asking_price", "built_area_m2")
+    @classmethod
+    def _validate_positive_decimals(cls, value: Decimal, info: Any) -> Decimal:
+        if value <= 0:
+            raise ValueError(f"{info.field_name} must be greater than zero")
+        return value
+
+
+class Listing(NormalizedListing):
+    """Full persisted listing record shared by the API, pipeline, and ML layers."""
+
+    neighborhood: str | None = None
+    district: str | None = None
     toilets: int | None = None
     floor_number: int | None = None
     total_floors: int | None = None
@@ -82,27 +128,24 @@ class Listing(EstateGapModel):
     land_use: str | None = None
     estimated_price: Decimal | None = None
     deal_score: Decimal | None = None
-    deal_tier: int | None = None
+    deal_tier: DealTier | None = None
     confidence_low: Decimal | None = None
     confidence_high: Decimal | None = None
     shap_features: list[ShapValue] | None = None
     model_version: str | None = None
-    scored_at: datetime | None = None
+    scored_at: AwareDatetime | None = None
     days_on_market: int | None = None
-    status: ListingStatus
     description_orig: str | None = None
     description_lang: str | None = None
     images_count: int = 0
-    first_seen_at: datetime
-    last_seen_at: datetime
-    published_at: datetime | None = None
-    delisted_at: datetime | None = None
-    raw_hash: str | None = None
-    created_at: datetime
-    updated_at: datetime
+    delisted_at: AwareDatetime | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
 
-class PriceChange(EstateGapModel):
+class PriceHistory(EstateGapModel):
+    """A single listing price-change event."""
+
     id: int
     listing_id: UUID
     country: str
@@ -114,13 +157,29 @@ class PriceChange(EstateGapModel):
     change_type: str = "price_change"
     old_status: ListingStatus | None = None
     new_status: ListingStatus | None = None
-    recorded_at: datetime
+    recorded_at: AwareDatetime
     source: str | None = None
 
+    @field_validator("country")
+    @classmethod
+    def _validate_country(cls, value: str) -> str:
+        return validate_country_code(value)
 
-class RawListing(EstateGapModel):
-    external_id: str
-    portal: str
-    country_code: str
-    raw_json: str | dict[str, Any]
-    scraped_at: datetime
+    @field_validator("currency")
+    @classmethod
+    def _validate_currency(cls, value: str) -> str:
+        return validate_currency_code(value)
+
+
+PriceChange = PriceHistory
+
+
+__all__ = [
+    "Listing",
+    "ListingStatus",
+    "NormalizedListing",
+    "PriceChange",
+    "PriceHistory",
+    "PropertyCategory",
+    "RawListing",
+]
