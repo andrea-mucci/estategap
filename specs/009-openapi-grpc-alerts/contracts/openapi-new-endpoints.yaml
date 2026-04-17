@@ -1,0 +1,628 @@
+openapi: 3.1.0
+info:
+  title: EstateGap API – New Endpoints (009-openapi-grpc-alerts)
+  version: 0.9.0
+  description: |
+    Incremental OpenAPI contract for endpoints introduced in feature 009.
+    The full specification lives at services/api-gateway/openapi.yaml and
+    combines these endpoints with all existing routes from prior features.
+
+servers:
+  - url: https://api.estategap.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from POST /api/v1/auth/login or POST /api/v1/auth/refresh
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-based)
+    PageSizeParam:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Items per page
+
+  schemas:
+    PaginationMeta:
+      type: object
+      required: [page, page_size, total, total_pages]
+      properties:
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 87
+        total_pages:
+          type: integer
+          example: 5
+
+    ErrorResponse:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: "zone_ids contains invalid or inactive zones: [uuid1, uuid2]"
+        code:
+          type: string
+          example: "INVALID_ZONE_IDS"
+        details:
+          type: object
+          additionalProperties: true
+
+    AlertFilter:
+      type: object
+      description: |
+        Filter criteria for matching property listings.
+        Allowed fields depend on the rule's category:
+        - residential: price_eur, area_m2, bedrooms, bathrooms, floor, has_parking, has_elevator, property_type, listing_age_days
+        - commercial:  price_eur, area_m2, floor, has_parking, property_type, listing_age_days
+        - industrial:  price_eur, area_m2, property_type, listing_age_days
+        - land:        price_eur, area_m2, listing_age_days
+      additionalProperties:
+        type: object
+        properties:
+          eq:  {}
+          lt:  {type: number}
+          lte: {type: number}
+          gt:  {type: number}
+          gte: {type: number}
+          in:
+            type: array
+            items: {}
+      example:
+        price_eur:
+          lte: 500000
+        bedrooms:
+          gte: 3
+        has_parking:
+          eq: true
+
+    NotificationChannel:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [email, push, webhook]
+          example: email
+        webhook_url:
+          type: string
+          format: uri
+          description: Required when type = webhook
+
+    AlertRule:
+      type: object
+      required: [id, name, zone_ids, category, filter, channels, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        name:
+          type: string
+          maxLength: 255
+          example: "Berlin Apartments Under 500k"
+        zone_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          example: ["550e8400-e29b-41d4-a716-446655440000"]
+        category:
+          type: string
+          enum: [residential, commercial, industrial, land]
+          example: residential
+        filter:
+          $ref: '#/components/schemas/AlertFilter'
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannel'
+          minItems: 1
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateAlertRuleRequest:
+      type: object
+      required: [name, zone_ids, category, channels]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "Berlin Apartments Under 500k"
+        zone_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+        category:
+          type: string
+          enum: [residential, commercial, industrial, land]
+        filter:
+          $ref: '#/components/schemas/AlertFilter'
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannel'
+          minItems: 1
+
+    UpdateAlertRuleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        zone_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+        filter:
+          $ref: '#/components/schemas/AlertFilter'
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannel'
+        is_active:
+          type: boolean
+
+    AlertHistoryEntry:
+      type: object
+      required: [id, rule_id, rule_name, listing_id, triggered_at, channel, delivery_status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        rule_id:
+          type: string
+          format: uuid
+        rule_name:
+          type: string
+          example: "Berlin Apartments Under 500k"
+        listing_id:
+          type: string
+          format: uuid
+        triggered_at:
+          type: string
+          format: date-time
+        channel:
+          type: string
+          enum: [email, push, webhook]
+        delivery_status:
+          type: string
+          enum: [pending, delivered, failed]
+        delivered_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_detail:
+          type: string
+          nullable: true
+
+    SHAPValues:
+      type: object
+      additionalProperties:
+        type: number
+      example:
+        price_eur: 0.42
+        area_m2: 0.31
+        bedrooms: 0.15
+        location: 0.12
+
+    MLEstimate:
+      type: object
+      required: [listing_id, estimated_value, currency, confidence, shap_values, model_version]
+      properties:
+        listing_id:
+          type: string
+          format: uuid
+        estimated_value:
+          type: number
+          format: double
+          example: 487500.00
+        currency:
+          type: string
+          example: EUR
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          example: 0.87
+        shap_values:
+          $ref: '#/components/schemas/SHAPValues'
+        model_version:
+          type: string
+          example: "v2.3.1-de"
+
+paths:
+  /api/openapi.json:
+    get:
+      operationId: getOpenAPISpec
+      summary: Get OpenAPI specification
+      description: Returns the complete OpenAPI 3.1 specification as JSON. No authentication required.
+      security: []
+      tags: [Documentation]
+      responses:
+        '200':
+          description: OpenAPI specification JSON
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/docs:
+    get:
+      operationId: getSwaggerUI
+      summary: Swagger UI documentation
+      description: Interactive API documentation. No authentication required to view; use the Authorize button to test authenticated endpoints.
+      security: []
+      tags: [Documentation]
+      responses:
+        '200':
+          description: Swagger UI HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/v1/model/estimate:
+    get:
+      operationId: getMLEstimate
+      summary: Get ML-powered property valuation
+      description: |
+        Returns an on-demand ML valuation for the specified listing.
+        Proxied to the ml-scorer gRPC service. Subject to a 5-second timeout.
+        Returns 503 if the ml-scorer is unavailable or the circuit breaker is open.
+      security:
+        - BearerAuth: []
+      tags: [ML]
+      parameters:
+        - name: listing_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the listing to estimate
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+      responses:
+        '200':
+          description: ML estimate returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLEstimate'
+        '400':
+          description: Missing or invalid listing_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Listing not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: ML scorer service unavailable or circuit breaker open
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "ML scoring service is temporarily unavailable"
+                code: "ML_SCORER_UNAVAILABLE"
+
+  /api/v1/alerts/rules:
+    get:
+      operationId: listAlertRules
+      summary: List alert rules
+      description: Returns the authenticated user's alert rules with pagination.
+      security:
+        - BearerAuth: []
+      tags: [Alerts]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+          description: Filter by active status (omit for all rules)
+      responses:
+        '200':
+          description: Paginated list of alert rules
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AlertRule'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      operationId: createAlertRule
+      summary: Create alert rule
+      description: |
+        Creates a new alert rule for the authenticated user.
+        Enforces tier limits: free=0, basic=3, pro/global/api=unlimited.
+        Validates zone IDs and filter fields before saving.
+      security:
+        - BearerAuth: []
+      tags: [Alerts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRuleRequest'
+            example:
+              name: "Berlin Apartments Under 500k"
+              zone_ids: ["550e8400-e29b-41d4-a716-446655440000"]
+              category: residential
+              filter:
+                price_eur:
+                  lte: 500000
+                bedrooms:
+                  gte: 3
+              channels:
+                - type: email
+      responses:
+        '201':
+          description: Alert rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertRule'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Tier does not allow alert rules (free tier)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Alert rules are not available on the free tier. Upgrade to Basic or higher."
+                code: "TIER_NOT_PERMITTED"
+        '422':
+          description: Validation failed (invalid zones, disallowed filter fields, or tier limit reached)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_zones:
+                  summary: Invalid zone IDs
+                  value:
+                    error: "zone_ids contains invalid or inactive zones"
+                    code: "INVALID_ZONE_IDS"
+                    details:
+                      invalid_ids: ["550e8400-e29b-41d4-a716-000000000000"]
+                invalid_filter:
+                  summary: Disallowed filter fields
+                  value:
+                    error: "filter contains fields not permitted for category 'residential'"
+                    code: "INVALID_FILTER_FIELDS"
+                    details:
+                      disallowed_fields: ["ceiling_height"]
+                tier_limit:
+                  summary: Tier limit reached
+                  value:
+                    error: "Maximum alert rules for Basic tier (3) reached"
+                    code: "TIER_LIMIT_REACHED"
+
+  /api/v1/alerts/rules/{id}:
+    put:
+      operationId: updateAlertRule
+      summary: Update alert rule
+      description: Updates an alert rule owned by the authenticated user.
+      security:
+        - BearerAuth: []
+      tags: [Alerts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAlertRuleRequest'
+      responses:
+        '200':
+          description: Alert rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertRule'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Alert rule belongs to a different user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Alert rule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      operationId: deleteAlertRule
+      summary: Delete alert rule
+      description: Soft-deletes an alert rule (sets is_active=false). The rule no longer counts against the tier limit.
+      security:
+        - BearerAuth: []
+      tags: [Alerts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Alert rule deleted
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Alert rule belongs to a different user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Alert rule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/alerts/history:
+    get:
+      operationId: listAlertHistory
+      summary: List alert delivery history
+      description: |
+        Returns a paginated log of past alert firings for the authenticated user.
+        Results are ordered by triggered_at descending.
+      security:
+        - BearerAuth: []
+      tags: [Alerts]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: rule_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter to a specific rule
+        - name: delivery_status
+          in: query
+          schema:
+            type: string
+            enum: [pending, delivered, failed]
+          description: Filter by delivery status
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Return entries triggered at or after this timestamp
+      responses:
+        '200':
+          description: Paginated alert history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AlertHistoryEntry'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Documentation
+    description: OpenAPI spec and interactive documentation endpoints
+  - name: ML
+    description: Machine learning and valuation endpoints
+  - name: Alerts
+    description: Alert rule management and history

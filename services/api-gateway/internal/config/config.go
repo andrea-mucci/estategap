@@ -20,8 +20,12 @@ type Config struct {
 	Port                     string
 	NATSURL                  string
 	LogLevel                 string
-	MLServiceTarget          string
-	AIChatServiceTarget      string
+	GRPCMLScorerAddr         string
+	GRPCChatAddr             string
+	GRPCTimeoutSeconds       int
+	GRPCCBThreshold          int
+	GRPCCBWindowSeconds      int64
+	GRPCCBCooldownSeconds    int64
 	StripeSecretKey          string
 	StripeWebhookSecret      string
 	StripeSuccessURL         string
@@ -43,6 +47,12 @@ func Load() (*Config, error) {
 	v.SetDefault("PORT", "8080")
 	v.SetDefault("LOG_LEVEL", "INFO")
 	v.SetDefault("ALLOWED_ORIGINS", "")
+	v.SetDefault("GRPC_ML_SCORER_ADDR", "ml-scorer.estategap-intelligence.svc.cluster.local:50051")
+	v.SetDefault("GRPC_AI_CHAT_ADDR", "ai-chat-service.estategap-intelligence.svc.cluster.local:50051")
+	v.SetDefault("GRPC_TIMEOUT_SECONDS", 5)
+	v.SetDefault("GRPC_CB_THRESHOLD", 5)
+	v.SetDefault("GRPC_CB_WINDOW_SECONDS", 30)
+	v.SetDefault("GRPC_CB_COOLDOWN_SECONDS", 30)
 
 	cfg := &Config{
 		DBPrimaryURL:             strings.TrimSpace(v.GetString("DB_PRIMARY_URL")),
@@ -56,8 +66,12 @@ func Load() (*Config, error) {
 		Port:                     strings.TrimSpace(v.GetString("PORT")),
 		NATSURL:                  strings.TrimSpace(v.GetString("NATS_URL")),
 		LogLevel:                 strings.ToUpper(strings.TrimSpace(v.GetString("LOG_LEVEL"))),
-		MLServiceTarget:          strings.TrimSpace(v.GetString("ML_SERVICE_TARGET")),
-		AIChatServiceTarget:      strings.TrimSpace(v.GetString("AI_CHAT_SERVICE_TARGET")),
+		GRPCMLScorerAddr:         strings.TrimSpace(v.GetString("GRPC_ML_SCORER_ADDR")),
+		GRPCChatAddr:             strings.TrimSpace(v.GetString("GRPC_AI_CHAT_ADDR")),
+		GRPCTimeoutSeconds:       positiveInt(v.GetInt("GRPC_TIMEOUT_SECONDS"), 5),
+		GRPCCBThreshold:          positiveInt(v.GetInt("GRPC_CB_THRESHOLD"), 5),
+		GRPCCBWindowSeconds:      int64(positiveInt(v.GetInt("GRPC_CB_WINDOW_SECONDS"), 30)),
+		GRPCCBCooldownSeconds:    int64(positiveInt(v.GetInt("GRPC_CB_COOLDOWN_SECONDS"), 30)),
 		StripeSecretKey:          strings.TrimSpace(v.GetString("STRIPE_SECRET_KEY")),
 		StripeWebhookSecret:      strings.TrimSpace(v.GetString("STRIPE_WEBHOOK_SECRET")),
 		StripeSuccessURL:         strings.TrimSpace(v.GetString("STRIPE_SUCCESS_URL")),
@@ -122,4 +136,11 @@ func splitCSV(input string) []string {
 		}
 	}
 	return out
+}
+
+func positiveInt(value, fallback int) int {
+	if value <= 0 {
+		return fallback
+	}
+	return value
 }
