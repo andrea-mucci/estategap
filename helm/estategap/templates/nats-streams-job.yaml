@@ -64,6 +64,25 @@ data:
     storage: {{ default "file" .storage }}
   {{- end }}
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-consumer-configs
+  namespace: estategap-system
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+data:
+  {{- range .Values.nats.consumers }}
+  {{ .stream }}__{{ .name }}.yaml: |
+    durable_name: {{ .name }}
+    filter_subject: {{ .filterSubject }}
+    ack_policy: {{ default "explicit" .ackPolicy }}
+    ack_wait: {{ default "30s" .ackWait }}
+    max_ack_pending: {{ .maxAckPending }}
+    replay_policy: {{ default "instant" .replayPolicy }}
+  {{- end }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -117,11 +136,27 @@ spec:
                   nats stream add --config "$file" --server "$NATS_URL"
                 fi
               done
+              for file in /etc/nats-consumers/*.yaml; do
+                [ -e "$file" ] || continue
+                base="$(basename "$file" .yaml)"
+                stream="${base%%__*}"
+                consumer="${base#*__}"
+                if nats consumer info "$stream" "$consumer" --server "$NATS_URL" >/dev/null 2>&1; then
+                  nats consumer update "$stream" "$consumer" --config "$file" --server "$NATS_URL"
+                else
+                  nats consumer add "$stream" "$consumer" --config "$file" --server "$NATS_URL"
+                fi
+              done
           volumeMounts:
             - name: stream-configs
               mountPath: /etc/nats-streams
+            - name: consumer-configs
+              mountPath: /etc/nats-consumers
       volumes:
         - name: stream-configs
           configMap:
             name: nats-stream-configs
+        - name: consumer-configs
+          configMap:
+            name: nats-consumer-configs
 {{- end }}

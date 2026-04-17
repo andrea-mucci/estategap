@@ -53,3 +53,16 @@ services:
     hpa:
       minReplicas: 1
       maxReplicas: 2
+  alert-engine:
+    replicaCount: 1
+    env:
+      RULE_CACHE_REFRESH_INTERVAL:
+        value: 60s
+      WORKER_POOL_SIZE:
+        value: "0"
+      BATCH_SIZE:
+        value: "100"
+      HEALTH_PORT:
+        value: "8080"
+      LOG_LEVEL:
+        value: INFO

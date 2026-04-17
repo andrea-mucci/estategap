@@ -280,6 +280,11 @@ class AlertRule(Base):
         nullable=False,
         server_default=sa.text("'[]'::jsonb"),
     )
+    frequency: Mapped[str] = mapped_column(
+        sa.String(10),
+        nullable=False,
+        server_default=sa.text("'instant'"),
+    )
     is_active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.true())
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
