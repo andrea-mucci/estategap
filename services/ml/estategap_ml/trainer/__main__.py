@@ -7,6 +7,7 @@ import asyncio
 
 import asyncpg
 from estategap_common.models._base import validate_country_code
+from estategap_common.s3client import S3Client, S3HealthCheckError
 
 from estategap_ml import Config, logger
 
@@ -96,53 +97,63 @@ async def main() -> int:
         parser.error("Either --country or --countries-all is required")
 
     config = Config()
-    if args.country:
+    async with S3Client(config.to_s3_config()) as s3:
         try:
-            country = _normalize_country(args.country)
-        except ValueError as exc:
-            parser.error(str(exc))
-        try:
-            listing_count = await _count_listings(config, country)
-            if listing_count <= 0:
-                raise ValueError(f"No listings found for {country.upper()}")
-            spain_result = None
-            if country != config.transfer_base_country.lower() and listing_count < config.transfer_min_listings:
-                base_count = await _count_listings(config, config.transfer_base_country.lower())
-                if base_count >= config.transfer_min_listings:
-                    spain_result = await run_training(
-                        config.transfer_base_country.lower(),
-                        config,
-                        dry_run=args.dry_run,
-                    )
-            result = await _run_for_country(
-                country=country,
-                listing_count=listing_count,
-                config=config,
-                dry_run=args.dry_run,
-                spain_result=spain_result,
-            )
-            return 0
-        except Exception as exc:  # pragma: no cover - operational path
-            logger.exception("single_country_training_failed", country=country)
+            await s3.health_check([
+                s3.bucket_name("ml-models"),
+                s3.bucket_name("training-data"),
+            ])
+        except S3HealthCheckError as exc:
+            logger.error("s3_health_check_failed", error=str(exc))
             return 1
 
-    spain_result: TrainingResult | None = None
-    for country, listing_count in await get_active_countries(config, min_listings=1000):
-        try:
-            result = await _run_for_country(
-                country=country,
-                listing_count=listing_count,
-                config=config,
-                dry_run=args.dry_run,
-                spain_result=spain_result,
-            )
-            if country == config.transfer_base_country.lower():
-                spain_result = result
-        except Exception as exc:  # pragma: no cover - operational path
-            logger.exception("country_training_failed", country=country)
-            if country == config.transfer_base_country.lower():
+        if args.country:
+            try:
+                country = _normalize_country(args.country)
+            except ValueError as exc:
+                parser.error(str(exc))
+            try:
+                listing_count = await _count_listings(config, country)
+                if listing_count <= 0:
+                    raise ValueError(f"No listings found for {country.upper()}")
                 spain_result = None
-    return 0
+                if country != config.transfer_base_country.lower() and listing_count < config.transfer_min_listings:
+                    base_count = await _count_listings(config, config.transfer_base_country.lower())
+                    if base_count >= config.transfer_min_listings:
+                        spain_result = await run_training(
+                            config.transfer_base_country.lower(),
+                            config,
+                            dry_run=args.dry_run,
+                        )
+                await _run_for_country(
+                    country=country,
+                    listing_count=listing_count,
+                    config=config,
+                    dry_run=args.dry_run,
+                    spain_result=spain_result,
+                )
+                return 0
+            except Exception:  # pragma: no cover - operational path
+                logger.exception("single_country_training_failed", country=country)
+                return 1
+
+        spain_result: TrainingResult | None = None
+        for country, listing_count in await get_active_countries(config, min_listings=1000):
+            try:
+                result = await _run_for_country(
+                    country=country,
+                    listing_count=listing_count,
+                    config=config,
+                    dry_run=args.dry_run,
+                    spain_result=spain_result,
+                )
+                if country == config.transfer_base_country.lower():
+                    spain_result = result
+            except Exception:  # pragma: no cover - operational path
+                logger.exception("country_training_failed", country=country)
+                if country == config.transfer_base_country.lower():
+                    spain_result = None
+        return 0
 
 
 if __name__ == "__main__":

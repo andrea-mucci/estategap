@@ -5,6 +5,8 @@ from __future__ import annotations
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from estategap_common.s3client import S3Config
+
 
 class Config(BaseSettings):
     """Environment-backed service configuration."""
@@ -14,10 +16,12 @@ class Config(BaseSettings):
     kafka_max_retries: int = 3
     redis_url: str = "redis://localhost:6379/0"
     estategap_test_mode: bool = Field(default=False, alias="ESTATEGAP_TEST_MODE")
-    fixture_minio_bucket: str = Field(default="fixtures", alias="FIXTURE_MINIO_BUCKET")
-    minio_endpoint: str = Field(default="http://localhost:9000", alias="MINIO_ENDPOINT")
-    minio_access_key: str = Field(default="minioadmin", alias="MINIO_ACCESS_KEY")
-    minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
+    fixture_s3_bucket: str = Field(default="fixtures", alias="FIXTURE_S3_BUCKET")
+    s3_endpoint: str = Field(default="http://localhost:4566", alias="S3_ENDPOINT")
+    s3_region: str = Field(default="us-east-1", alias="S3_REGION")
+    s3_access_key_id: str = Field(default="test", alias="S3_ACCESS_KEY_ID")
+    s3_secret_access_key: str = Field(default="test", alias="S3_SECRET_ACCESS_KEY")
+    s3_bucket_prefix: str = Field(default="estategap", alias="S3_BUCKET_PREFIX")
     proxy_manager_addr: str = "localhost:50051"
     proxy_us_url: str = ""
     metrics_port: int = 9102
@@ -64,6 +68,15 @@ class Config(BaseSettings):
         if self.realtor_rate_limit_seconds <= 0:
             self.realtor_rate_limit_seconds = 1.5
         return self
+
+    def to_s3_config(self) -> S3Config:
+        return S3Config(
+            s3_endpoint=self.s3_endpoint,
+            s3_region=self.s3_region,
+            s3_access_key_id=self.s3_access_key_id,
+            s3_secret_access_key=self.s3_secret_access_key,
+            s3_bucket_prefix=self.s3_bucket_prefix,
+        )
 
 
 __all__ = ["Config"]

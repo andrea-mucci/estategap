@@ -14,6 +14,7 @@ pytest.importorskip("testcontainers")
 
 import asyncpg
 import boto3
+from botocore.config import Config as BotoConfig
 from testcontainers.core.container import DockerContainer
 from testcontainers.postgres import PostgresContainer
 
@@ -159,29 +160,30 @@ async def _prepare_database(dsn: str) -> None:
         await conn.close()
 
 
-def _minio_client(endpoint: str):
+def _s3_client(endpoint: str):
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
-        aws_access_key_id="minioadmin",
-        aws_secret_access_key="minioadmin",
+        region_name="us-east-1",
+        aws_access_key_id="test",
+        aws_secret_access_key="test",
+        config=BotoConfig(s3={"addressing_style": "path"}),
     )
 
 
 @pytest.mark.asyncio
 async def test_full_pipeline_end_to_end(tmp_path) -> None:
-    minio = (
-        DockerContainer("minio/minio:latest")
-        .with_exposed_ports(9000)
-        .with_env("MINIO_ROOT_USER", "minioadmin")
-        .with_env("MINIO_ROOT_PASSWORD", "minioadmin")
-        .with_command("server /data")
+    localstack = (
+        DockerContainer("localstack/localstack:3")
+        .with_exposed_ports(4566)
+        .with_env("SERVICES", "s3")
+        .with_env("AWS_DEFAULT_REGION", "us-east-1")
     )
-    with PostgresContainer("postgis/postgis:16-3.4") as postgres, minio:
+    with PostgresContainer("postgis/postgis:16-3.4") as postgres, localstack:
         dsn = _asyncpg_dsn(postgres.get_connection_url())
-        endpoint = f"http://{minio.get_container_host_ip()}:{minio.get_exposed_port(9000)}"
+        endpoint = f"http://{localstack.get_container_host_ip()}:{localstack.get_exposed_port(4566)}"
         await _prepare_database(dsn)
-        client = _minio_client(endpoint)
+        client = _s3_client(endpoint)
         deadline = time.time() + 30
         while True:
             try:
@@ -191,7 +193,7 @@ async def test_full_pipeline_end_to_end(tmp_path) -> None:
                 if time.time() > deadline:
                     raise
                 time.sleep(1)
-        client.create_bucket(Bucket="estategap-models")
+        client.create_bucket(Bucket="test-ml-models")
 
         config = Config(
             DATABASE_URL=dsn,
@@ -199,10 +201,11 @@ async def test_full_pipeline_end_to_end(tmp_path) -> None:
             KAFKA_BROKERS="localhost:9092",
             KAFKA_TOPIC_PREFIX="estategap.",
             KAFKA_MAX_RETRIES=3,
-            MINIO_ENDPOINT=endpoint,
-            MINIO_ACCESS_KEY="minioadmin",
-            MINIO_SECRET_KEY="minioadmin",
-            MINIO_BUCKET="estategap-models",
+            S3_ENDPOINT=endpoint,
+            S3_REGION="us-east-1",
+            S3_ACCESS_KEY_ID="test",
+            S3_SECRET_ACCESS_KEY="test",
+            S3_BUCKET_PREFIX="test",
             OPTUNA_N_TRIALS=2,
             LOCAL_ARTIFACT_DIR=tmp_path / "artifacts",
         )
@@ -217,7 +220,7 @@ async def test_full_pipeline_end_to_end(tmp_path) -> None:
         finally:
             await conn.close()
 
-        objects = client.list_objects_v2(Bucket="estategap-models")
+        objects = client.list_objects_v2(Bucket="test-ml-models")
         assert result.promoted is True
         assert active_count == 1
         assert "Contents" in objects

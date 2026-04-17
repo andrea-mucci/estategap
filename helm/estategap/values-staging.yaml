@@ -21,9 +21,10 @@ postgresql:
   storage:
     size: 20Gi
 
-minio:
-  storage:
-    size: 10Gi
+s3:
+  endpoint: https://fsn1.your-objectstorage.com
+  region: fsn1
+  bucketPrefix: estategap-staging
 
 observability:
   prometheus:

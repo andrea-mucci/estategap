@@ -5,12 +5,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 import re
-from typing import Any
 from uuid import UUID
 
 import asyncpg
-import boto3
 from estategap_common.models import MlModelVersion, ModelStatus
+from estategap_common.s3client import SyncS3Client
 
 from estategap_ml.config import Config
 from estategap_ml.trainer.evaluate import Metrics
@@ -19,15 +18,10 @@ from estategap_ml.trainer.evaluate import Metrics
 VERSION_RE = re.compile(r"_v(?P<version>\d+)$")
 
 
-def build_minio_client(config: Config) -> Any:
-    """Build an S3-compatible client for MinIO."""
+def build_s3_client(config: Config) -> SyncS3Client:
+    """Build a shared sync S3 client."""
 
-    return boto3.client(
-        "s3",
-        endpoint_url=config.minio_endpoint,
-        aws_access_key_id=config.minio_access_key,
-        aws_secret_access_key=config.minio_secret_key,
-    )
+    return SyncS3Client(config.to_s3_config())
 
 
 def _row_to_model(row: asyncpg.Record | None) -> MlModelVersion | None:
@@ -164,16 +158,16 @@ async def promote_version(
 def upload_artifacts(
     onnx_path: Path,
     fe_path: Path,
-    minio_client: Any,
+    s3_client: SyncS3Client,
     bucket: str,
     version_tag: str,
 ) -> str:
-    """Upload the exported artefacts to MinIO and return the ONNX object URI."""
+    """Upload the exported artefacts to S3 and return the ONNX object URI."""
 
     onnx_key = f"models/{version_tag}.onnx"
     fe_key = f"models/{version_tag}_feature_engineer.joblib"
-    minio_client.upload_file(str(onnx_path), bucket, onnx_key)
-    minio_client.upload_file(str(fe_path), bucket, fe_key)
+    s3_client.put_object(bucket, onnx_key, onnx_path.read_bytes())
+    s3_client.put_object(bucket, fe_key, fe_path.read_bytes())
     return f"s3://{bucket}/{onnx_key}"
 
 
@@ -191,20 +185,20 @@ async def maybe_promote(
     base_country: str | None = None,
     confidence: str = "full",
     dry_run: bool = False,
-    minio_client: Any | None = None,
+    s3_client: SyncS3Client | None = None,
 ) -> bool:
     """Compare a challenger to the active champion and promote if it clears the threshold."""
 
     artifact_path = str(onnx_path)
     if not dry_run:
-        client = minio_client or build_minio_client(config)
+        client = s3_client or build_s3_client(config)
         artifact_path = upload_artifacts(
             onnx_path=onnx_path,
             fe_path=fe_path,
-            minio_client=client,
-            bucket=config.minio_bucket,
+            s3_client=client,
+            bucket=client.bucket_name("ml-models"),
             version_tag=version_tag,
-            )
+        )
 
     conn = await asyncpg.connect(config.database_url)
     try:
@@ -250,7 +244,7 @@ async def maybe_promote(
 
 
 __all__ = [
-    "build_minio_client",
+    "build_s3_client",
     "get_active_champion",
     "get_champion_for_country",
     "insert_staging_version",

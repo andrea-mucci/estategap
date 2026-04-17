@@ -10,6 +10,9 @@ import asyncpg  # type: ignore[import-untyped]
 import pytest
 from alembic import command
 from alembic.config import Config
+from moto import mock_aws
+
+from estategap_common.s3client import S3Client, S3Config, SyncS3Client
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -28,13 +31,6 @@ def _import_redis_container() -> type[Any]:
     from testcontainers.redis import RedisContainer
 
     return RedisContainer
-
-
-def _import_docker_container() -> type[Any]:
-    pytest.importorskip("testcontainers.core.container")
-    from testcontainers.core.container import DockerContainer
-
-    return DockerContainer
 
 
 @pytest.fixture(scope="session")
@@ -129,47 +125,29 @@ async def kafka_client(kafka_container: Any) -> AsyncIterator[Any]:
         await client.stop()
 
 
-@pytest.fixture(scope="session")
-def minio_container() -> Iterator[dict[str, str | Any]]:
-    DockerContainer = _import_docker_container()
-    container = (
-        DockerContainer("minio/minio:latest")
-        .with_env("MINIO_ROOT_USER", "minioadmin")
-        .with_env("MINIO_ROOT_PASSWORD", "minioadmin")
-        .with_exposed_ports(9000)
-        .with_command("server /data --console-address :9001")
+@pytest.fixture
+def s3_config() -> S3Config:
+    return S3Config(
+        s3_endpoint="https://s3.amazonaws.com",
+        s3_region="us-east-1",
+        s3_access_key_id="test",
+        s3_secret_access_key="test",
+        s3_bucket_prefix="test",
     )
-    try:
-        container.start()
-    except Exception as exc:  # noqa: BLE001
-        pytest.skip(f"Docker is not available for MinIO integration tests: {exc}")
-
-    try:
-        yield {
-            "container": container,
-            "endpoint_url": f"http://{container.get_container_host_ip()}:{container.get_exposed_port(9000)}",
-            "access_key": "minioadmin",
-            "secret_key": "minioadmin",
-        }
-    finally:
-        container.stop()
 
 
 @pytest.fixture
-def minio_client(minio_container: dict[str, str | Any]) -> Iterator[Any]:
-    import boto3
-
-    client = boto3.client(
-        "s3",
-        endpoint_url=str(minio_container["endpoint_url"]),
-        aws_access_key_id=str(minio_container["access_key"]),
-        aws_secret_access_key=str(minio_container["secret_key"]),
-        region_name="us-east-1",
-    )
-    try:
+def s3_client(s3_config: S3Config) -> Iterator[SyncS3Client]:
+    with mock_aws():
+        client = SyncS3Client(s3_config)
         yield client
-    finally:
-        client.close()
+
+
+@pytest.fixture
+async def async_s3_client(s3_config: S3Config) -> AsyncIterator[S3Client]:
+    with mock_aws():
+        async with S3Client(s3_config) as client:
+            yield client
 
 
 def _run_migrations(sqlalchemy_url: str) -> None:
@@ -220,12 +198,13 @@ async def _reset_database(pool: asyncpg.Pool) -> None:
 
 
 __all__ = [
+    "async_s3_client",
     "db_pool",
     "kafka_client",
     "kafka_container",
-    "minio_client",
-    "minio_container",
     "postgres_container",
     "redis_client",
     "redis_container",
+    "s3_client",
+    "s3_config",
 ]

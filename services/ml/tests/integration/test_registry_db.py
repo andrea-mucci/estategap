@@ -18,9 +18,12 @@ from estategap_ml.trainer.evaluate import Metrics
 from estategap_ml.trainer.registry import get_active_champion, maybe_promote, promote_version
 
 
-class _NoopMinioClient:
-    def upload_file(self, filename: str, bucket: str, key: str) -> None:
+class _NoopS3Client:
+    def put_object(self, bucket: str, key: str, body: bytes) -> None:
         return None
+
+    def bucket_name(self, logical: str) -> str:
+        return f"test-{logical}"
 
 
 def _asyncpg_dsn(sqlalchemy_dsn: str) -> str:
@@ -110,22 +113,27 @@ async def test_maybe_promote_respects_threshold(tmp_path) -> None:
             KAFKA_BROKERS="localhost:9092",
             KAFKA_TOPIC_PREFIX="estategap.",
             KAFKA_MAX_RETRIES=3,
-            MINIO_ENDPOINT="http://localhost:9000",
-            MINIO_ACCESS_KEY="minioadmin",
-            MINIO_SECRET_KEY="minioadmin",
-            MINIO_BUCKET="estategap-models",
+            S3_ENDPOINT="http://localhost:4566",
+            S3_REGION="us-east-1",
+            S3_ACCESS_KEY_ID="test",
+            S3_SECRET_ACCESS_KEY="test",
+            S3_BUCKET_PREFIX="test",
             OPTUNA_N_TRIALS=1,
         )
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"model")
+        feature_engineer_path = tmp_path / "engineer.joblib"
+        feature_engineer_path.write_bytes(b"engineer")
         metrics = Metrics(mape_national=0.099, mae_national=1.0, r2_national=0.9, per_city={})
         promoted = await maybe_promote(
             country="es",
             challenger_metrics=metrics,
-            onnx_path=tmp_path / "model.onnx",
-            fe_path=tmp_path / "engineer.joblib",
+            onnx_path=model_path,
+            fe_path=feature_engineer_path,
             config=config,
             version_tag="es_national_v2",
             dry_run=False,
-            minio_client=_NoopMinioClient(),
+            s3_client=_NoopS3Client(),
         )
         conn = await asyncpg.connect(dsn)
         try:
@@ -148,22 +156,27 @@ async def test_maybe_promote_promotes_first_run_and_clear_win(tmp_path) -> None:
             KAFKA_BROKERS="localhost:9092",
             KAFKA_TOPIC_PREFIX="estategap.",
             KAFKA_MAX_RETRIES=3,
-            MINIO_ENDPOINT="http://localhost:9000",
-            MINIO_ACCESS_KEY="minioadmin",
-            MINIO_SECRET_KEY="minioadmin",
-            MINIO_BUCKET="estategap-models",
+            S3_ENDPOINT="http://localhost:4566",
+            S3_REGION="us-east-1",
+            S3_ACCESS_KEY_ID="test",
+            S3_SECRET_ACCESS_KEY="test",
+            S3_BUCKET_PREFIX="test",
             OPTUNA_N_TRIALS=1,
         )
+        model_path = tmp_path / "model.onnx"
+        model_path.write_bytes(b"model")
+        feature_engineer_path = tmp_path / "engineer.joblib"
+        feature_engineer_path.write_bytes(b"engineer")
         metrics = Metrics(mape_national=0.07, mae_national=1.0, r2_national=0.9, per_city={})
         promoted = await maybe_promote(
             country="es",
             challenger_metrics=metrics,
-            onnx_path=tmp_path / "model.onnx",
-            fe_path=tmp_path / "engineer.joblib",
+            onnx_path=model_path,
+            fe_path=feature_engineer_path,
             config=config,
             version_tag="es_national_v1",
             dry_run=False,
-            minio_client=_NoopMinioClient(),
+            s3_client=_NoopS3Client(),
         )
         conn = await asyncpg.connect(dsn)
         try:

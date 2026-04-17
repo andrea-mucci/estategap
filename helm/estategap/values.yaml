@@ -45,8 +45,7 @@ postgresql:
     enabled: true
     schedule: "0 2 * * *"
     retentionPolicy: 30d
-    minioEndpoint: http://minio.estategap-system.svc.cluster.local:9000
-    destinationPath: s3://backups/postgresql
+    destinationPath: s3://estategap-backups/postgresql
   resources:
     requests:
       cpu: 500m
@@ -97,29 +96,19 @@ redis:
     appendonly yes
     appendfsync everysec
 
-minio:
-  enabled: true
-  image:
-    repository: minio/minio
-    tag: latest
-  setupImage:
-    repository: minio/mc
-    tag: latest
-  storage:
-    size: 50Gi
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: "1"
-      memory: 2Gi
+s3:
+  endpoint: https://fsn1.your-objectstorage.com
+  region: fsn1
+  bucketPrefix: estategap
+  forcePathStyle: true
+  credentials:
+    secret: estategap-s3-credentials
   buckets:
-    - ml-models
-    - training-data
-    - listing-photos
-    - exports
-    - backups
+    mlModels: ml-models
+    trainingData: training-data
+    listingPhotos: listing-photos
+    exports: exports
+    backups: backups
 
 observability:
   prometheus:
@@ -265,8 +254,6 @@ sealedSecrets:
     postgresPassword: AgReplaceWithKubesealOutput
     postgresReplicationPassword: AgReplaceWithKubesealOutput
     redisPassword: AgReplaceWithKubesealOutput
-    minioRootUser: AgReplaceWithKubesealOutput
-    minioRootPassword: AgReplaceWithKubesealOutput
     idealistaApiToken: AgReplaceWithKubesealOutput
     stripeSecretKey: AgReplaceWithKubesealOutput
     stripeWebhookSecret: AgReplaceWithKubesealOutput
@@ -295,28 +282,19 @@ sealedSecrets:
     llmApiKey: AgReplaceWithKubesealOutput
     proxyCredentials: AgReplaceWithKubesealOutput
     sesCredentials: AgReplaceWithKubesealOutput
-  postgresqlBackupCredentials:
-    accessKeyId: AgReplaceWithKubesealOutput
-    secretAccessKey: AgReplaceWithKubesealOutput
   redisCredentials:
     redisPassword: AgReplaceWithKubesealOutput
-  minioCredentials:
-    rootUser: AgReplaceWithKubesealOutput
-    rootPassword: AgReplaceWithKubesealOutput
+  s3Credentials:
+    accessKeyId: AgReplaceWithKubesealOutput
+    secretAccessKey: AgReplaceWithKubesealOutput
   grafanaCredentials:
     adminUser: AgReplaceWithKubesealOutput
     adminPassword: AgReplaceWithKubesealOutput
   mlTrainerSecrets:
     databaseUrl: AgReplaceWithKubesealOutput
     mlflowTrackingUri: AgReplaceWithKubesealOutput
-    minioEndpoint: AgReplaceWithKubesealOutput
-    minioAccessKey: AgReplaceWithKubesealOutput
-    minioSecretKey: AgReplaceWithKubesealOutput
   mlScorerSecrets:
     databaseUrl: AgReplaceWithKubesealOutput
-    minioEndpoint: AgReplaceWithKubesealOutput
-    minioAccessKey: AgReplaceWithKubesealOutput
-    minioSecretKey: AgReplaceWithKubesealOutput
   aiChatSecrets:
     databaseUrl: AgReplaceWithKubesealOutput
     redisUrl: AgReplaceWithKubesealOutput

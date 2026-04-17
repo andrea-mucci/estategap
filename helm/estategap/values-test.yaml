@@ -57,9 +57,11 @@ redis:
   sentinel:
     enabled: false
 
-minio:
-  storage:
-    size: 1Gi
+s3:
+  endpoint: http://localstack:4566
+  region: us-east-1
+  bucketPrefix: test
+  forcePathStyle: true
 
 mlTrainer:
   image:
@@ -197,6 +199,6 @@ testMode:
   enabled: true
   nowOverride: ""
   stripeWebhookSecret: whsec_test_fake
-  fixtureMinIOBucket: fixtures
+  fixtureS3Bucket: fixtures
   fakeLLMProvider: true
   scheduleOverride: "*/30 * * * * *"

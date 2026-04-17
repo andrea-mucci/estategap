@@ -94,18 +94,8 @@ imagePullSecrets:
 - name: REDIS_SENTINEL_PORT
   value: "26379"
 {{ include "estategap.kafkaEnv" . }}
-- name: MINIO_ENDPOINT
-  value: http://minio.estategap-system.svc.cluster.local:9000
-- name: MINIO_BUCKET_ML_MODELS
-  value: {{ index .Values.minio.buckets 0 | quote }}
-- name: MINIO_BUCKET_TRAINING_DATA
-  value: {{ index .Values.minio.buckets 1 | quote }}
-- name: MINIO_BUCKET_LISTING_PHOTOS
-  value: {{ index .Values.minio.buckets 2 | quote }}
-- name: MINIO_BUCKET_EXPORTS
-  value: {{ index .Values.minio.buckets 3 | quote }}
-- name: MINIO_BUCKET_BACKUPS
-  value: {{ index .Values.minio.buckets 4 | quote }}
+{{ include "estategap.s3Env" . }}
+{{ include "estategap.s3CredentialEnv" . }}
 {{- if and .Values.testMode .Values.testMode.enabled }}
 - name: ESTATEGAP_TEST_MODE
   valueFrom:
@@ -127,12 +117,41 @@ imagePullSecrets:
     configMapKeyRef:
       name: estategap-config
       key: TEST_SCHEDULE_OVERRIDE
-- name: FIXTURE_MINIO_BUCKET
+- name: FIXTURE_S3_BUCKET
   valueFrom:
     configMapKeyRef:
       name: estategap-config
-      key: FIXTURE_MINIO_BUCKET
+      key: FIXTURE_S3_BUCKET
 {{- end }}
+{{- end -}}
+
+{{- define "estategap.s3Env" -}}
+- name: S3_ENDPOINT
+  value: {{ .Values.s3.endpoint | quote }}
+- name: S3_REGION
+  value: {{ .Values.s3.region | quote }}
+- name: S3_BUCKET_PREFIX
+  value: {{ .Values.s3.bucketPrefix | quote }}
+{{- if and .Values.testMode .Values.testMode.enabled }}
+- name: FIXTURE_S3_BUCKET
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: FIXTURE_S3_BUCKET
+{{- end }}
+{{- end -}}
+
+{{- define "estategap.s3CredentialEnv" -}}
+- name: S3_ACCESS_KEY_ID
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.s3.credentials.secret | quote }}
+      key: AWS_ACCESS_KEY_ID
+- name: S3_SECRET_ACCESS_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.s3.credentials.secret | quote }}
+      key: AWS_SECRET_ACCESS_KEY
 {{- end -}}
 
 {{- define "estategap.kafkaEnv" -}}

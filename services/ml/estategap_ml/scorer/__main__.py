@@ -5,10 +5,10 @@ from __future__ import annotations
 import asyncio
 
 import asyncpg
-import boto3
 from estategap_common.broker import KafkaBroker, KafkaConfig
 from estategap_common.broker.kafka_lag import start_lag_poller
 from estategap_common.logging import configure_logging
+from estategap_common.s3client import S3Client, S3HealthCheckError
 
 from estategap_ml import Config, logger
 
@@ -27,14 +27,15 @@ async def main() -> int:
     db_pool = None
     broker = None
     lag_task = None
+    s3_client = None
     try:
         db_pool = await asyncpg.create_pool(config.database_url)
-        s3_client = boto3.client(
-            "s3",
-            endpoint_url=config.minio_endpoint,
-            aws_access_key_id=config.minio_access_key,
-            aws_secret_access_key=config.minio_secret_key,
-        )
+        s3_client = await S3Client(config.to_s3_config()).__aenter__()
+        try:
+            await s3_client.health_check([s3_client.bucket_name("ml-models")])
+        except S3HealthCheckError as exc:
+            logger.error("s3_health_check_failed", error=str(exc))
+            return 1
         broker = KafkaBroker(
             KafkaConfig(
                 brokers=config.kafka_brokers,
@@ -47,7 +48,7 @@ async def main() -> int:
         lag_task = asyncio.create_task(start_lag_poller(consumer, CONSUMER_GROUP))
         shap_explainer = ShapExplainer(timeout_seconds=config.shap_timeout_seconds)
         registry = ModelRegistry(
-            bucket=config.minio_bucket,
+            bucket=s3_client.bucket_name("ml-models"),
             s3_client=s3_client,
             poll_interval_seconds=config.model_poll_interval_seconds,
             shap_explainer=shap_explainer,
@@ -72,6 +73,8 @@ async def main() -> int:
         )
         return 0
     finally:
+        if s3_client is not None:
+            await s3_client.__aexit__(None, None, None)
         if lag_task is not None:
             lag_task.cancel()
             await asyncio.gather(lag_task, return_exceptions=True)

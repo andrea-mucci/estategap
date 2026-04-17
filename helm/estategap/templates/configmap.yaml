@@ -10,17 +10,13 @@ data:
   DATABASE_RO_HOST: estategap-postgres-r.estategap-system.svc.cluster.local
   DATABASE_PORT: "5432"
   DATABASE_NAME: {{ .Values.postgresql.database | quote }}
-  MINIO_BUCKET: {{ index .Values.minio.buckets 0 | quote }}
   REDIS_HOST: redis.estategap-system.svc.cluster.local
   REDIS_PORT: "6379"
   REDIS_SENTINEL_HOST: redis.estategap-system.svc.cluster.local
   REDIS_SENTINEL_PORT: "26379"
-  MINIO_ENDPOINT: http://minio.estategap-system.svc.cluster.local:9000
-  MINIO_BUCKET_ML_MODELS: {{ index .Values.minio.buckets 0 | quote }}
-  MINIO_BUCKET_TRAINING_DATA: {{ index .Values.minio.buckets 1 | quote }}
-  MINIO_BUCKET_LISTING_PHOTOS: {{ index .Values.minio.buckets 2 | quote }}
-  MINIO_BUCKET_EXPORTS: {{ index .Values.minio.buckets 3 | quote }}
-  MINIO_BUCKET_BACKUPS: {{ index .Values.minio.buckets 4 | quote }}
+  S3_ENDPOINT: {{ .Values.s3.endpoint | quote }}
+  S3_REGION: {{ .Values.s3.region | quote }}
+  S3_BUCKET_PREFIX: {{ .Values.s3.bucketPrefix | quote }}
   PROMETHEUS_PUSHGATEWAY_URL: {{ .Values.mlTrainer.prometheusPushgatewayUrl | quote }}
   STRIPE_SUCCESS_URL: {{ .Values.stripe.successUrl | quote }}
   STRIPE_CANCEL_URL: {{ .Values.stripe.cancelUrl | quote }}
@@ -39,5 +35,5 @@ data:
   FAKE_LLM_PROVIDER: "true"
   TEST_SCHEDULE_OVERRIDE: {{ .Values.testMode.scheduleOverride | quote }}
   STRIPE_WEBHOOK_SECRET: {{ .Values.testMode.stripeWebhookSecret | quote }}
-  FIXTURE_MINIO_BUCKET: {{ .Values.testMode.fixtureMinIOBucket | quote }}
+  FIXTURE_S3_BUCKET: {{ .Values.testMode.fixtureS3Bucket | quote }}
   {{- end }}

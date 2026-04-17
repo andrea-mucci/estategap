@@ -7,6 +7,8 @@ from pathlib import Path
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from estategap_common.s3client import S3Config
+
 
 class Config(BaseSettings):
     """Typed environment-backed settings for the ML trainer and scorer."""
@@ -23,10 +25,11 @@ class Config(BaseSettings):
     kafka_brokers: str = Field(default="localhost:9092", alias="KAFKA_BROKERS")
     kafka_topic_prefix: str = Field(default="estategap.", alias="KAFKA_TOPIC_PREFIX")
     kafka_max_retries: int = Field(default=3, alias="KAFKA_MAX_RETRIES")
-    minio_endpoint: str = Field(alias="MINIO_ENDPOINT")
-    minio_access_key: str = Field(alias="MINIO_ACCESS_KEY")
-    minio_secret_key: str = Field(alias="MINIO_SECRET_KEY")
-    minio_bucket: str = Field(default="ml-models", alias="MINIO_BUCKET")
+    s3_endpoint: str = Field(alias="S3_ENDPOINT")
+    s3_region: str = Field(default="fsn1", alias="S3_REGION")
+    s3_access_key_id: str = Field(alias="S3_ACCESS_KEY_ID")
+    s3_secret_access_key: str = Field(alias="S3_SECRET_ACCESS_KEY")
+    s3_bucket_prefix: str = Field(alias="S3_BUCKET_PREFIX")
     promotion_mape_improvement_pct: float = Field(
         default=0.02,
         alias="PROMOTION_MAPE_IMPROVEMENT_PCT",
@@ -58,6 +61,15 @@ class Config(BaseSettings):
         if self.kafka_max_retries < 1:
             self.kafka_max_retries = 3
         return self
+
+    def to_s3_config(self) -> S3Config:
+        return S3Config(
+            s3_endpoint=self.s3_endpoint,
+            s3_region=self.s3_region,
+            s3_access_key_id=self.s3_access_key_id,
+            s3_secret_access_key=self.s3_secret_access_key,
+            s3_bucket_prefix=self.s3_bucket_prefix,
+        )
 
 
 __all__ = ["Config"]

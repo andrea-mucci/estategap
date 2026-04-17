@@ -505,11 +505,14 @@ async def main() -> None:
     started = time.perf_counter()
     pg_dsn = os.getenv("PG_DSN", "postgresql://app:app@localhost:5432/estategap")
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    minio_endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
-    minio_access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-    minio_secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-    model_bucket = os.getenv("MINIO_MODEL_BUCKET", "ml-models")
-    fixture_bucket = os.getenv("FIXTURE_MINIO_BUCKET", "fixtures")
+    s3_endpoint = os.getenv("S3_ENDPOINT", "http://localhost:4566")
+    s3_region = os.getenv("S3_REGION", "us-east-1")
+    s3_access_key_id = os.getenv("S3_ACCESS_KEY_ID", "test")
+    s3_secret_access_key = os.getenv("S3_SECRET_ACCESS_KEY", "test")
+    s3_bucket_prefix = os.getenv("S3_BUCKET_PREFIX", "estategap")
+    fixture_bucket_logical = os.getenv("FIXTURE_S3_BUCKET", "fixtures")
+    model_bucket = f"{s3_bucket_prefix}-ml-models"
+    fixture_bucket = f"{s3_bucket_prefix}-{fixture_bucket_logical}"
 
     users = _load_json("users.json")
     alerts = _load_json("alerts.json")
@@ -529,9 +532,10 @@ async def main() -> None:
     redis_client = redis.from_url(redis_url, decode_responses=True)
     s3_client = boto3.client(
         "s3",
-        endpoint_url=minio_endpoint,
-        aws_access_key_id=minio_access_key,
-        aws_secret_access_key=minio_secret_key,
+        endpoint_url=s3_endpoint,
+        region_name=s3_region,
+        aws_access_key_id=s3_access_key_id,
+        aws_secret_access_key=s3_secret_access_key,
     )
 
     async with pool.acquire() as conn:
