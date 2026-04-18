@@ -1,870 +1,1529 @@
+# -- Global chart settings shared by all rendered resources. Type: object. Required: no. Default: see child keys.
 global:
+# -- Override the storage class used by chart-managed PersistentVolumeClaims. Type: string. Required: no. Default: "".
   storageClass: ""
+# -- Prefix every service image with a private or mirrored container registry. Type: string. Required: no. Default: "".
   imageRegistry: ""
+# -- List of image pull secret names injected into pod specs. Type: list. Required: no. Default: [].
   imagePullSecrets: []
 
+# -- Cluster-wide ingress and certificate settings. Type: object. Required: no. Default: see child keys.
 cluster:
+# -- Deployment environment injected into workloads and used by templates. Type: string. Required: yes. Default: staging. Example: production.
   environment: staging
+# -- Base DNS domain used to build public ingress hostnames. Type: string. Required: yes. Default: estategap.com. Example: example.com.
   domain: estategap.com
+# -- cert-manager issuer or ClusterIssuer name used for TLS certificates. Type: string. Required: no. Default: letsencrypt-staging. Example: letsencrypt-prod.
   certIssuer: letsencrypt-staging
 
+# -- Feature flags for bundled infrastructure components. Type: object. Required: no. Default: see child keys.
 components:
+# -- Configure `components.redis` for this chart. Type: object. Required: no. Default: see child keys.
   redis:
+# -- Deploy the bundled redis component from this chart. Type: bool. Required: no. Default: true.
     deploy: true
+# -- Configure `components.mlflow` for this chart. Type: object. Required: no. Default: see child keys.
   mlflow:
+# -- Deploy the bundled mlflow component from this chart. Type: bool. Required: no. Default: true.
     deploy: true
+# -- Configure `components.kafka` for this chart. Type: object. Required: no. Default: see child keys.
   kafka:
+# -- Deploy the bundled kafka component from this chart. Type: bool. Required: no. Default: false.
     deploy: false
+# -- Configure `components.postgresql` for this chart. Type: object. Required: no. Default: see child keys.
   postgresql:
+# -- Deploy the bundled postgresql component from this chart. Type: bool. Required: no. Default: false.
     deploy: false
+# -- Configure `components.prometheus` for this chart. Type: object. Required: no. Default: see child keys.
   prometheus:
+# -- Deploy the bundled prometheus component from this chart. Type: bool. Required: no. Default: false.
     deploy: false
+# -- Configure `components.grafana` for this chart. Type: object. Required: no. Default: see child keys.
   grafana:
+# -- Deploy the bundled grafana component from this chart. Type: bool. Required: no. Default: false.
     deploy: false
 
+# -- Shared Kafka bootstrap and topic-initialization settings. Type: object. Required: no. Default: see child keys.
 kafka:
+# -- Kafka bootstrap broker list consumed by the topic-init Job and application config. Type: string. Required: yes. Default: kafka-bootstrap.kafka.svc.cluster.local:9092. Example: kafka-bootstrap.kafka.svc.cluster.local:9092.
   brokers: kafka-bootstrap.kafka.svc.cluster.local:9092
+# -- Prefix prepended to managed Kafka topic names. Type: string. Required: yes. Default: estategap..
   topicPrefix: estategap.
+# -- Configure `kafka.tls` for this chart. Type: object. Required: no. Default: see child keys.
   tls:
+# -- Enable TLS for Kafka client connections. Type: bool. Required: no. Default: false.
     enabled: false
+# -- Secret name that stores the Kafka CA certificate when TLS is enabled. Type: string. Required: no. Default: "".
     caSecret: ""
+# -- Configure `kafka.sasl` for this chart. Type: object. Required: no. Default: see child keys.
   sasl:
+# -- Enable SASL authentication for Kafka clients. Type: bool. Required: no. Default: false.
     enabled: false
+# -- SASL mechanism for Kafka authentication. Type: string. Required: no. Default: PLAIN. Example: SCRAM-SHA-512.
     mechanism: PLAIN
+# -- Secret containing KAFKA_SASL_USERNAME and KAFKA_SASL_PASSWORD. Type: string. Required: no. Default: "".
     credentialsSecret: ""
+# -- Configure `kafka.consumer` for this chart. Type: object. Required: no. Default: see child keys.
   consumer:
+# -- Maximum retry count exposed through the shared Kafka config map. Type: int. Required: no. Default: 3.
     maxRetries: 3
+# -- Configure `kafka.topicInit` for this chart. Type: object. Required: no. Default: see child keys.
   topicInit:
+# -- Render the Kafka topic initialization hook Job. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Replication factor used when the topic-init Job creates topics. Type: int. Required: no. Default: 3.
     replicationFactor: 3
+# -- Configure `kafka.topicInit.image` for this chart. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container repository used by the topic-init Job. Type: string. Required: no. Default: bitnami/kafka.
       repository: bitnami/kafka
+# -- Container tag used by the topic-init Job. Type: float. Required: no. Default: "3.7".
       tag: "3.7"
+# -- Configure `kafka.deadLetter` for this chart. Type: object. Required: no. Default: see child keys.
   deadLetter:
+# -- Create the dead-letter topic during chart installation. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Retention window for dead-letter topic data. Type: int. Required: no. Default: 30.
     retentionDays: 30
 
+# -- External PostgreSQL endpoints and migration-job settings. Type: object. Required: no. Default: see child keys.
 postgresql:
+# -- Configure `postgresql.external` for this chart. Type: object. Required: no. Default: see child keys.
   external:
+# -- Primary PostgreSQL writer hostname or service DNS name. Type: string. Required: yes. Default: postgresql.databases.svc.cluster.local.
     host: postgresql.databases.svc.cluster.local
+# -- Primary PostgreSQL port. Type: int. Required: no. Default: 5432.
     port: 5432
+# -- Application database name used by shared config. Type: string. Required: yes. Default: estategap.
     database: estategap
+# -- PostgreSQL SSL mode passed to clients and migration hooks. Type: string. Required: no. Default: require. Example: verify-full.
     sslmode: require
+# -- Secret containing PGUSER and PGPASSWORD for migrations. Type: string. Required: yes. Default: estategap-db-credentials.
     credentialsSecret: estategap-db-credentials
+# -- Configure `postgresql.readReplica` for this chart. Type: object. Required: no. Default: see child keys.
   readReplica:
+# -- Expose read-replica settings to workloads that support reader endpoints. Type: bool. Required: no. Default: false.
     enabled: false
+# -- Read-replica PostgreSQL hostname or service DNS name. Type: string. Required: no. Default: postgresql-read.databases.svc.cluster.local.
     host: postgresql-read.databases.svc.cluster.local
+# -- Read-replica PostgreSQL port. Type: int. Required: no. Default: 5432.
     port: 5432
+# -- Configure `postgresql.migrations` for this chart. Type: object. Required: no. Default: see child keys.
   migrations:
+# -- Run the Alembic migration Job on install and upgrade. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Image that must contain Alembic and the database migration scripts. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/pipeline:latest.
     image: ghcr.io/andrea-mucci/estategap/pipeline:latest
+# -- activeDeadlineSeconds for the migration Job. Type: int. Required: no. Default: 300.
     timeout: 300
 
+# -- Bitnami Redis sub-chart pass-through configuration. Type: object. Required: no. Default: see child keys.
 redis:
+# -- Override the Redis release name so workloads can resolve a stable DNS name. Type: string. Required: no. Default: redis.
   fullnameOverride: redis
+# -- Bitnami Redis deployment mode. Type: string. Required: no. Default: replication.
   architecture: replication
+# -- Configure `redis.auth` for this chart. Type: object. Required: no. Default: see child keys.
   auth:
+# -- Enable Redis password authentication. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Existing Secret name that stores the Redis password. Type: string. Required: no. Default: redis-credentials.
     existingSecret: redis-credentials
+# -- Key inside the Redis password Secret. Type: string. Required: no. Default: redis-password.
     existingSecretPasswordKey: redis-password
+# -- Configure `redis.sentinel` for this chart. Type: object. Required: no. Default: see child keys.
   sentinel:
+# -- Enable Redis Sentinel for failover. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Number of Sentinel votes required to authorize failover. Type: int. Required: no. Default: 2.
     quorum: 2
+# -- Configure `redis.sentinel.service` for this chart. Type: object. Required: no. Default: see child keys.
     service:
+# -- Configure `redis.sentinel.service.ports` for this chart. Type: object. Required: no. Default: see child keys.
       ports:
+# -- Container port exposed by the Redis Sentinel `redis` service. Type: int. Required: no. Default: 6379.
         redis: 6379
+# -- Container port exposed by the Redis Sentinel `sentinel` service. Type: int. Required: no. Default: 26379.
         sentinel: 26379
+# -- Configure `redis.master` for this chart. Type: object. Required: no. Default: see child keys.
   master:
+# -- Configure `redis.master.persistence` for this chart. Type: object. Required: no. Default: see child keys.
     persistence:
+# -- Redis primary persistence setting `enabled`. Type: bool. Required: no. Default: true.
       enabled: true
+# -- Redis primary persistence setting `size`. Type: string. Required: no. Default: 8Gi.
       size: 8Gi
+# -- Configure `redis.master.resources` for this chart. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Configure `redis.master.resources.requests` for this chart. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested Redis primary cpu reservation. Type: string. Required: no. Default: 100m.
         cpu: 100m
+# -- Requested Redis primary memory reservation. Type: string. Required: no. Default: 256Mi.
         memory: 256Mi
+# -- Configure `redis.master.resources.limits` for this chart. Type: object. Required: no. Default: see child keys.
       limits:
+# -- Maximum Redis primary memory allocation. Type: string. Required: no. Default: 1Gi.
         memory: 1Gi
+# -- Configure `redis.replica` for this chart. Type: object. Required: no. Default: see child keys.
   replica:
+# -- Configure `redis.replica.replicaCount` for this chart. Type: int. Required: no. Default: 1.
     replicaCount: 1
+# -- Configure `redis.replica.persistence` for this chart. Type: object. Required: no. Default: see child keys.
     persistence:
+# -- Redis replica persistence setting `enabled`. Type: bool. Required: no. Default: true.
       enabled: true
+# -- Redis replica persistence setting `size`. Type: string. Required: no. Default: 8Gi.
       size: 8Gi
+# -- Configure `redis.replica.resources` for this chart. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Configure `redis.replica.resources.requests` for this chart. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested Redis replica cpu reservation. Type: string. Required: no. Default: 100m.
         cpu: 100m
+# -- Requested Redis replica memory reservation. Type: string. Required: no. Default: 256Mi.
         memory: 256Mi
+# -- Configure `redis.replica.resources.limits` for this chart. Type: object. Required: no. Default: see child keys.
       limits:
+# -- Maximum Redis replica memory allocation. Type: string. Required: no. Default: 1Gi.
         memory: 1Gi
+# -- Multiline Redis server configuration appended to redis.conf. Type: string. Required: no. Default: multiline block.
   commonConfiguration: |
     maxmemory 1gb
     maxmemory-policy allkeys-lru
     appendonly yes
     appendfsync everysec
 
+# -- Shared S3-compatible object storage settings. Type: object. Required: no. Default: see child keys.
 s3:
+# -- S3-compatible endpoint URL used by all object-storage clients. Type: string. Required: yes. Default: https://fsn1.your-objectstorage.com. Example: https://fsn1.your-objectstorage.com.
   endpoint: https://fsn1.your-objectstorage.com
+# -- Region string passed to S3 SDK clients. Type: string. Required: yes. Default: fsn1.
   region: fsn1
+# -- Prefix prepended to every logical EstateGap bucket name. Type: string. Required: yes. Default: estategap.
   bucketPrefix: estategap
+# -- Force path-style S3 addressing for Hetzner or MinIO-compatible endpoints. Type: bool. Required: no. Default: true.
   forcePathStyle: true
+# -- Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. Type: string. Required: yes. Default: estategap-s3-credentials.
   credentialsSecret: estategap-s3-credentials
+# -- Configure `s3.buckets` for this chart. Type: object. Required: no. Default: see child keys.
   buckets:
+# -- Bucket suffix used to store trained model artifacts. Type: string. Required: no. Default: ml-models.
     mlModels: ml-models
+# -- Bucket suffix used to store training datasets. Type: string. Required: no. Default: training-data.
     trainingData: training-data
+# -- Bucket suffix used to store listing photos. Type: string. Required: no. Default: listing-photos.
     listingPhotos: listing-photos
+# -- Bucket suffix used to store GDPR export archives. Type: string. Required: no. Default: exports.
     exports: exports
+# -- Bucket suffix used to store PostgreSQL backups. Type: string. Required: no. Default: backups.
     backups: backups
 
+# -- Prometheus ServiceMonitor and alert-rule settings. Type: object. Required: no. Default: see child keys.
 prometheus:
+# -- Configure `prometheus.serviceMonitor` for this chart. Type: object. Required: no. Default: see child keys.
   serviceMonitor:
+# -- Render ServiceMonitor resources for enabled services. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Default scrape interval for ServiceMonitor resources. Type: string. Required: no. Default: 15s.
     interval: 15s
+# -- Configure `prometheus.serviceMonitor.labels` for this chart. Type: object. Required: no. Default: see child keys.
     labels:
+# -- Selector label that must match the Prometheus operator serviceMonitorSelector. Type: string. Required: no. Default: prometheus.
       release: prometheus
+# -- Configure `prometheus.rules` for this chart. Type: object. Required: no. Default: see child keys.
   rules:
+# -- Render PrometheusRule alerts for EstateGap. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Configure `prometheus.rules.labels` for this chart. Type: object. Required: no. Default: see child keys.
     labels:
+# -- Selector label that must match the Prometheus operator rule selector. Type: string. Required: no. Default: prometheus.
       release: prometheus
 
+# -- Grafana dashboard ConfigMap import settings. Type: object. Required: no. Default: see child keys.
 grafana:
+# -- Configure `grafana.dashboards` for this chart. Type: object. Required: no. Default: see child keys.
   dashboards:
+# -- Render dashboard ConfigMaps for Grafana sidecar discovery. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace watched by the Grafana dashboard sidecar. Type: string. Required: no. Default: monitoring.
     namespace: monitoring
+# -- Configure `grafana.dashboards.labels` for this chart. Type: object. Required: no. Default: see child keys.
     labels:
+# -- Label value the Grafana sidecar watches to import dashboards. Type: int. Required: no. Default: "1".
       grafana_dashboard: "1"
 
+# -- Configure `keda` for this chart. Type: object. Required: no. Default: see child keys.
 keda:
+# -- Enable KEDA-specific rendered resources such as the spider-workers ScaledObject. Type: bool. Required: no. Default: true.
   enabled: true
 
+# -- Optional Argo CD Application manifest settings. Type: object. Required: no. Default: see child keys.
 argocd:
+# -- Render the Argo CD Application resource. Type: bool. Required: no. Default: true.
   enabled: true
+# -- Metadata name for the Argo CD Application object. Type: string. Required: no. Default: estategap-staging.
   applicationName: estategap-staging
+# -- Canonical Git repository URL that Argo CD syncs from. Type: string. Required: no. Default: "".
   repoURL: ""
+# -- Git revision Argo CD tracks. Type: string. Required: no. Default: main.
   targetRevision: main
+# -- List of Helm values files Argo CD passes to the release. Type: object. Required: no. Default: see child keys.
   valueFiles:
     - values-staging.yaml
+# -- Configure `argocd.syncPolicy` for this chart. Type: object. Required: no. Default: see child keys.
   syncPolicy:
+# -- Allow Argo CD to delete resources removed from Git. Type: bool. Required: no. Default: false.
     prune: false
+# -- Allow Argo CD to auto-correct drift detected in the cluster. Type: bool. Required: no. Default: true.
     selfHeal: true
 
+# -- Sealed Secrets workflow: create a Secret with kubectl, seal it with kubeseal, then paste the encrypted output into the leaf values below.
+# -- Each subsection maps to one SealedSecret resource and ultimately creates a standard Kubernetes Secret in the target namespace.
+# -- Encrypted Secret payloads that the Sealed Secrets controller turns into Kubernetes Secrets. Type: object. Required: no. Default: see child keys.
 sealedSecrets:
+# -- Encrypted payloads for the `appSecrets` SealedSecret. Type: object. Required: no. Default: see child keys.
   appSecrets:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     postgresPassword: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     postgresReplicationPassword: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     redisPassword: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     idealistaApiToken: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     stripeSecretKey: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     stripeWebhookSecret: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     llmApiKeyAnthropic: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     llmApiKeyOpenai: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     jwtSecret: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     username: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     password: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     dbname: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `apiGatewaySecrets` SealedSecret. Type: object. Required: no. Default: see child keys.
   apiGatewaySecrets:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     dbPrimaryUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     dbReplicaUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     redisUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     jwtSecret: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     googleClientId: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     googleClientSecret: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     googleRedirectUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     stripeSecretKey: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     stripeWebhookSecret: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `productionHardeningSecrets` SealedSecret. Type: object. Required: no. Default: see child keys.
   productionHardeningSecrets:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     dbPassword: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     redisPassword: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     jwtSecret: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     stripeSecretKey: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     stripeWebhookSecret: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     llmApiKey: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     proxyCredentials: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     sesCredentials: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `redisCredentials` SealedSecret. Type: object. Required: no. Default: see child keys.
   redisCredentials:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     redisPassword: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `s3Credentials` SealedSecret. Type: object. Required: no. Default: see child keys.
   s3Credentials:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     accessKeyId: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     secretAccessKey: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `grafanaCredentials` SealedSecret. Type: object. Required: no. Default: see child keys.
   grafanaCredentials:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     adminUser: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     adminPassword: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `mlTrainerSecrets` SealedSecret. Type: object. Required: no. Default: see child keys.
   mlTrainerSecrets:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     databaseUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     mlflowTrackingUri: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `mlScorerSecrets` SealedSecret. Type: object. Required: no. Default: see child keys.
   mlScorerSecrets:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     databaseUrl: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `aiChatSecrets` SealedSecret. Type: object. Required: no. Default: see child keys.
   aiChatSecrets:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     databaseUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     redisUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     anthropicApiKey: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     openaiApiKey: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `alertEngineSecrets` SealedSecret. Type: object. Required: no. Default: see child keys.
   alertEngineSecrets:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     databaseUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     databaseReplicaUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     redisUrl: AgReplaceWithKubesealOutput
+# -- Encrypted payloads for the `alertDispatcherSecrets` SealedSecret. Type: object. Required: no. Default: see child keys.
   alertDispatcherSecrets:
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     databaseUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     databaseReplicaUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     redisUrl: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     telegramBotToken: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     twilioAccountSid: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     twilioAuthToken: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     twilioWhatsAppFrom: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     twilioWhatsAppTemplateSid: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     firebaseCredentialsJson: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     awsAccessKeyId: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     awsSecretAccessKey: AgReplaceWithKubesealOutput
+# -- Replace this placeholder with `kubeseal --raw` output before deploying. Type: string. Required: no. Default: AgReplaceWithKubesealOutput.
     awsSessionToken: AgReplaceWithKubesealOutput
 
+# -- Stripe checkout and billing price identifiers. Type: object. Required: no. Default: see child keys.
 stripe:
+# -- Full HTTPS URL users are redirected to after successful checkout. Type: string. Required: yes. Default: https://app.estategap.com/dashboard?checkout=success. Example: https://app.example.com/dashboard?checkout=success.
   successUrl: https://app.estategap.com/dashboard?checkout=success
+# -- Full HTTPS URL users are redirected to after cancelling checkout. Type: string. Required: yes. Default: https://app.estategap.com/pricing?checkout=cancelled.
   cancelUrl: https://app.estategap.com/pricing?checkout=cancelled
+# -- Full HTTPS URL Stripe Billing Portal returns users to. Type: string. Required: yes. Default: https://app.estategap.com/dashboard.
   portalReturnUrl: https://app.estategap.com/dashboard
+# -- Stripe Price ID copied from the Stripe Dashboard product catalog. Type: string. Required: no. Default: price_replace_basic_monthly.
   priceBasicMonthly: price_replace_basic_monthly
+# -- Stripe Price ID copied from the Stripe Dashboard product catalog. Type: string. Required: no. Default: price_replace_basic_annual.
   priceBasicAnnual: price_replace_basic_annual
+# -- Stripe Price ID copied from the Stripe Dashboard product catalog. Type: string. Required: no. Default: price_replace_pro_monthly.
   priceProMonthly: price_replace_pro_monthly
+# -- Stripe Price ID copied from the Stripe Dashboard product catalog. Type: string. Required: no. Default: price_replace_pro_annual.
   priceProAnnual: price_replace_pro_annual
+# -- Stripe Price ID copied from the Stripe Dashboard product catalog. Type: string. Required: no. Default: price_replace_global_monthly.
   priceGlobalMonthly: price_replace_global_monthly
+# -- Stripe Price ID copied from the Stripe Dashboard product catalog. Type: string. Required: no. Default: price_replace_global_annual.
   priceGlobalAnnual: price_replace_global_annual
+# -- Stripe Price ID copied from the Stripe Dashboard product catalog. Type: string. Required: no. Default: price_replace_api_monthly.
   priceApiMonthly: price_replace_api_monthly
+# -- Stripe Price ID copied from the Stripe Dashboard product catalog. Type: string. Required: no. Default: price_replace_api_annual.
   priceApiAnnual: price_replace_api_annual
 
+# -- Periodic model-training job configuration. Type: object. Required: no. Default: see child keys.
 mlTrainer:
+# -- Configure `mlTrainer.image` for this chart. Type: object. Required: no. Default: see child keys.
   image:
+# -- ML trainer container image repository. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/ml-trainer.
     repository: ghcr.io/andrea-mucci/estategap/ml-trainer
+# -- ML trainer container image tag. Type: string. Required: no. Default: latest.
     tag: latest
+# -- Cron schedule for the model-training CronJob. Type: string. Required: no. Default: "0 3 * * 0". Example: 0 3 * * 0.
   schedule: "0 3 * * 0"
+# -- Optional Pushgateway URL for one-shot job metrics; empty disables pushes. Type: string. Required: no. Default: "".
   prometheusPushgatewayUrl: ""
+# -- Configure `mlTrainer.resources` for this chart. Type: object. Required: no. Default: see child keys.
   resources:
+# -- Configure `mlTrainer.resources.requests` for this chart. Type: object. Required: no. Default: see child keys.
     requests:
+# -- Requested memory reservation for the ML trainer CronJob. Type: string. Required: no. Default: 4Gi.
       memory: 4Gi
+# -- Requested cpu reservation for the ML trainer CronJob. Type: int. Required: no. Default: "2".
       cpu: "2"
+# -- Configure `mlTrainer.resources.limits` for this chart. Type: object. Required: no. Default: see child keys.
     limits:
+# -- Maximum memory allocation for the ML trainer CronJob. Type: string. Required: no. Default: 8Gi.
       memory: 8Gi
+# -- Maximum cpu allocation for the ML trainer CronJob. Type: int. Required: no. Default: "4".
       cpu: "4"
 
+# -- Online scoring service runtime knobs. Type: object. Required: no. Default: see child keys.
 mlScorer:
+# -- gRPC port exposed by the scorer service. Type: int. Required: no. Default: 50051.
   grpcPort: 50051
+# -- Prometheus metrics port exposed by the scorer service. Type: int. Required: no. Default: 9091.
   prometheusPort: 9091
+# -- Maximum inference batch size processed per scoring cycle. Type: int. Required: no. Default: 50.
   batchSize: 50
+# -- Maximum delay before the scorer flushes a partial batch. Type: int. Required: no. Default: 5.
   batchFlushSeconds: 5
+# -- Polling interval for refreshed model artifacts. Type: int. Required: no. Default: 60.
   modelPollIntervalSeconds: 60
+# -- Refresh interval for comparable-listing caches. Type: int. Required: no. Default: 3600.
   comparablesRefreshIntervalSeconds: 3600
+# -- Maximum seconds allowed for SHAP explanation generation. Type: float. Required: no. Default: 2.0.
   shapTimeoutSeconds: 2.0
 
+# -- GDPR hard-delete CronJob settings. Type: object. Required: no. Default: see child keys.
 gdpr:
+# -- Configure `gdpr.hardDeleteCron` for this chart. Type: object. Required: no. Default: see child keys.
   hardDeleteCron:
+# -- Configure `gdpr.hardDeleteCron.enabled` for this chart. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Configure `gdpr.hardDeleteCron.schedule` for this chart. Type: string. Required: no. Default: "0 2 * * *".
     schedule: "0 2 * * *"
+# -- Configure `gdpr.hardDeleteCron.successfulJobsHistoryLimit` for this chart. Type: int. Required: no. Default: 1.
     successfulJobsHistoryLimit: 1
+# -- Configure `gdpr.hardDeleteCron.failedJobsHistoryLimit` for this chart. Type: int. Required: no. Default: 3.
     failedJobsHistoryLimit: 3
+# -- Configure `gdpr.hardDeleteCron.database` for this chart. Type: object. Required: no. Default: see child keys.
     database:
+# -- PostgreSQL connection setting `host` for the GDPR hard-delete CronJob. Type: string. Required: no. Default: postgresql.databases.svc.cluster.local.
       host: postgresql.databases.svc.cluster.local
+# -- PostgreSQL connection setting `port` for the GDPR hard-delete CronJob. Type: int. Required: no. Default: "5432".
       port: "5432"
+# -- Secret reference that supplies the PostgreSQL database credential to the GDPR CronJob. Type: object. Required: no. Default: see child keys.
       userSecretRef:
         name: estategap-app-secrets
         key: username
+# -- Secret reference that supplies the PostgreSQL database credential to the GDPR CronJob. Type: object. Required: no. Default: see child keys.
       passwordSecretRef:
         name: estategap-app-secrets
         key: POSTGRES_PASSWORD
+# -- Secret reference that supplies the PostgreSQL database credential to the GDPR CronJob. Type: object. Required: no. Default: see child keys.
       databaseSecretRef:
         name: estategap-app-secrets
         key: dbname
+# -- Configure `gdpr.hardDeleteCron.redis` for this chart. Type: object. Required: no. Default: see child keys.
     redis:
+# -- Redis connection setting `host` for the GDPR hard-delete CronJob. Type: string. Required: no. Default: redis.estategap-system.svc.cluster.local.
       host: redis.estategap-system.svc.cluster.local
+# -- Redis connection setting `port` for the GDPR hard-delete CronJob. Type: int. Required: no. Default: "6379".
       port: "6379"
+# -- Secret reference that supplies the Redis password to the GDPR CronJob. Type: object. Required: no. Default: see child keys.
       passwordSecretRef:
         name: redis-credentials
         key: redis-password
 
+# -- Optional synthetic load-test Job settings. Type: object. Required: no. Default: see child keys.
 loadTests:
+# -- Render the k6 load-test Job. Type: bool. Required: no. Default: false.
   enabled: false
+# -- Namespace where the optional load-test Job runs. Type: string. Required: no. Default: estategap-system.
   namespace: estategap-system
+# -- Load-test setting `image`. Type: object. Required: no. Default: see child keys.
   image:
+# -- Load-test container image repository. Type: string. Required: no. Default: grafana/k6.
     repository: grafana/k6
+# -- Load-test container image tag. Type: string. Required: no. Default: latest.
     tag: latest
+# -- Load-test setting `apiBaseUrl`. Type: string. Required: no. Default: https://staging.estategap.com. Example: https://staging.estategap.com.
   apiBaseUrl: https://staging.estategap.com
+# -- Load-test setting `wsUrl`. Type: string. Required: no. Default: wss://staging.estategap.com/chat.
   wsUrl: wss://staging.estategap.com/chat
+# -- Load-test setting `alertsTriggerUrl`. Type: string. Required: no. Default: https://staging.estategap.com/api/v1/internal/alerts/trigger.
   alertsTriggerUrl: https://staging.estategap.com/api/v1/internal/alerts/trigger
+# -- Load-test setting `pipelineHttpPublishUrl`. Type: string. Required: no. Default: "".
   pipelineHttpPublishUrl: ""
+# -- Load-test setting `prometheusRemoteWriteUrl`. Type: string. Required: no. Default: "".
   prometheusRemoteWriteUrl: ""
 
+# -- Common service pattern: enabled, namespace, replicaCount, port, image, resources, env, livenessProbe, readinessProbe, serviceMonitor, hpa, and optional keda/config blocks.
+# -- Reuse these defaults for every service unless a service-specific comment below calls out a unique behavior or secret contract.
+# -- Per-service deployment settings for EstateGap application workloads. Type: object. Required: no. Default: see child keys.
 services:
+# -- Deployment settings for the API Gateway workload. Type: object. Required: no. Default: see child keys.
   api-gateway:
+# -- Enable or disable the API Gateway workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the API Gateway resources are created. Type: string. Required: no. Default: estategap-gateway.
     namespace: estategap-gateway
+# -- Static replica count for API Gateway when autoscaling is disabled. Type: int. Required: no. Default: 2.
     replicaCount: 2
+# -- Primary container port exposed by API Gateway. Type: int. Required: no. Default: 8080.
     port: 8080
+# -- Container image settings for API Gateway. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for API Gateway. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/api-gateway.
       repository: ghcr.io/andrea-mucci/estategap/api-gateway
+# -- Container image tag for API Gateway. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Kubernetes resource requests and limits for API Gateway. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for API Gateway. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for API Gateway. Type: string. Required: no. Default: 50m.
         cpu: 50m
+# -- Requested memory for API Gateway. Type: string. Required: no. Default: 64Mi.
         memory: 64Mi
+# -- Maximum compute resources allocated to API Gateway. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for API Gateway. Type: string. Required: no. Default: 200m.
         cpu: 200m
+# -- Memory limit for API Gateway. Type: string. Required: no. Default: 256Mi.
         memory: 256Mi
+# -- Service-specific environment variables for API Gateway. Type: object. Required: no. Default: see child keys.
     env:
+# -- Configure `services.api-gateway.env.PORT` for this chart. Type: object. Required: no. Default: see child keys.
       PORT:
         value: "8080"
+# -- Configure `services.api-gateway.env.LOG_LEVEL` for this chart. Type: object. Required: no. Default: see child keys.
       LOG_LEVEL:
         value: INFO
+# -- Configure `services.api-gateway.env.ALLOWED_ORIGINS` for this chart. Type: object. Required: no. Default: see child keys.
       ALLOWED_ORIGINS:
         value: https://app.estategap.com
+# -- Configure `services.api-gateway.env.CSP_REPORT_ONLY` for this chart. Type: object. Required: no. Default: see child keys.
       CSP_REPORT_ONLY:
         value: "true"
+# -- Configure `services.api-gateway.env.CSP_REPORT_URI` for this chart. Type: object. Required: no. Default: see child keys.
       CSP_REPORT_URI:
         value: ""
+# -- Configure `services.api-gateway.env.DB_PRIMARY_URL` for this chart. Type: object. Required: no. Default: see child keys.
       DB_PRIMARY_URL:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: DB_PRIMARY_URL
+# -- Configure `services.api-gateway.env.DB_REPLICA_URL` for this chart. Type: object. Required: no. Default: see child keys.
       DB_REPLICA_URL:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: DB_REPLICA_URL
+# -- Configure `services.api-gateway.env.REDIS_URL` for this chart. Type: object. Required: no. Default: see child keys.
       REDIS_URL:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: REDIS_URL
+# -- Configure `services.api-gateway.env.JWT_SECRET` for this chart. Type: object. Required: no. Default: see child keys.
       JWT_SECRET:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: JWT_SECRET
+# -- Configure `services.api-gateway.env.GOOGLE_CLIENT_ID` for this chart. Type: object. Required: no. Default: see child keys.
       GOOGLE_CLIENT_ID:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: GOOGLE_CLIENT_ID
+# -- Configure `services.api-gateway.env.GOOGLE_CLIENT_SECRET` for this chart. Type: object. Required: no. Default: see child keys.
       GOOGLE_CLIENT_SECRET:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: GOOGLE_CLIENT_SECRET
+# -- Configure `services.api-gateway.env.GOOGLE_REDIRECT_URL` for this chart. Type: object. Required: no. Default: see child keys.
       GOOGLE_REDIRECT_URL:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: GOOGLE_REDIRECT_URL
+# -- Configure `services.api-gateway.env.STRIPE_SECRET_KEY` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_SECRET_KEY:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: STRIPE_SECRET_KEY
+# -- Configure `services.api-gateway.env.STRIPE_WEBHOOK_SECRET` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_WEBHOOK_SECRET:
         valueFrom:
           secretKeyRef:
             name: api-gateway-secrets
             key: STRIPE_WEBHOOK_SECRET
+# -- Configure `services.api-gateway.env.STRIPE_SUCCESS_URL` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_SUCCESS_URL:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_SUCCESS_URL
+# -- Configure `services.api-gateway.env.STRIPE_CANCEL_URL` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_CANCEL_URL:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_CANCEL_URL
+# -- Configure `services.api-gateway.env.STRIPE_PORTAL_RETURN_URL` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PORTAL_RETURN_URL:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PORTAL_RETURN_URL
+# -- Configure `services.api-gateway.env.STRIPE_PRICE_BASIC_MONTHLY` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PRICE_BASIC_MONTHLY:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PRICE_BASIC_MONTHLY
+# -- Configure `services.api-gateway.env.STRIPE_PRICE_BASIC_ANNUAL` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PRICE_BASIC_ANNUAL:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PRICE_BASIC_ANNUAL
+# -- Configure `services.api-gateway.env.STRIPE_PRICE_PRO_MONTHLY` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PRICE_PRO_MONTHLY:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PRICE_PRO_MONTHLY
+# -- Configure `services.api-gateway.env.STRIPE_PRICE_PRO_ANNUAL` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PRICE_PRO_ANNUAL:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PRICE_PRO_ANNUAL
+# -- Configure `services.api-gateway.env.STRIPE_PRICE_GLOBAL_MONTHLY` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PRICE_GLOBAL_MONTHLY:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PRICE_GLOBAL_MONTHLY
+# -- Configure `services.api-gateway.env.STRIPE_PRICE_GLOBAL_ANNUAL` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PRICE_GLOBAL_ANNUAL:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PRICE_GLOBAL_ANNUAL
+# -- Configure `services.api-gateway.env.STRIPE_PRICE_API_MONTHLY` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PRICE_API_MONTHLY:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PRICE_API_MONTHLY
+# -- Configure `services.api-gateway.env.STRIPE_PRICE_API_ANNUAL` for this chart. Type: object. Required: no. Default: see child keys.
       STRIPE_PRICE_API_ANNUAL:
         valueFrom:
           configMapKeyRef:
             name: estategap-config
             key: STRIPE_PRICE_API_ANNUAL
+# -- Kubernetes liveness probe for API Gateway. Type: object. Required: no. Default: see child keys.
     livenessProbe:
       httpGet:
+# -- Configure `services.api-gateway.livenessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /healthz.
         path: /healthz
+# -- Configure `services.api-gateway.livenessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: http.
         port: http
+# -- Configure `services.api-gateway.livenessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 10.
       initialDelaySeconds: 10
+# -- Configure `services.api-gateway.livenessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 15.
       periodSeconds: 15
+# -- Configure `services.api-gateway.livenessProbe.timeoutSeconds` for this chart. Type: int. Required: no. Default: 3.
       timeoutSeconds: 3
+# -- Kubernetes readiness probe for API Gateway. Type: object. Required: no. Default: see child keys.
     readinessProbe:
       httpGet:
+# -- Configure `services.api-gateway.readinessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /readyz.
         path: /readyz
+# -- Configure `services.api-gateway.readinessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: http.
         port: http
+# -- Configure `services.api-gateway.readinessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 5.
       initialDelaySeconds: 5
+# -- Configure `services.api-gateway.readinessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 10.
       periodSeconds: 10
+# -- Configure `services.api-gateway.readinessProbe.timeoutSeconds` for this chart. Type: int. Required: no. Default: 3.
       timeoutSeconds: 3
+# -- Per-service Prometheus scrape settings for API Gateway. Type: object. Required: no. Default: see child keys.
     serviceMonitor:
+# -- Render a ServiceMonitor for API Gateway. Type: bool. Required: no. Default: true.
       enabled: true
+# -- HTTP path Prometheus scrapes for API Gateway metrics. Type: string. Required: no. Default: /metrics.
       path: /metrics
+# -- Scrape interval override for API Gateway. Type: string. Required: no. Default: 30s.
       interval: 30s
+# -- HorizontalPodAutoscaler settings for API Gateway. Type: object. Required: no. Default: see child keys.
     hpa:
+# -- Enable HPA for API Gateway. Type: bool. Required: no. Default: true.
       enabled: true
+# -- Minimum replica count when HPA scales API Gateway. Type: int. Required: no. Default: 2.
       minReplicas: 2
+# -- Maximum replica count when HPA scales API Gateway. Type: int. Required: no. Default: 20.
       maxReplicas: 20
+# -- Average CPU utilization target used by the API Gateway HPA. Type: int. Required: no. Default: 60.
       cpuTarget: 60
 
+# -- Deployment settings for the WebSocket Server workload. Type: object. Required: no. Default: see child keys.
   websocket-server:
+# -- Enable or disable the WebSocket Server workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the WebSocket Server resources are created. Type: string. Required: no. Default: estategap-gateway.
     namespace: estategap-gateway
+# -- Primary container port exposed by WebSocket Server. Type: int. Required: no. Default: 8081.
     port: 8081
+# -- Container image settings for WebSocket Server. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for WebSocket Server. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/websocket-server.
       repository: ghcr.io/andrea-mucci/estategap/websocket-server
+# -- Container image tag for WebSocket Server. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Kubernetes resource requests and limits for WebSocket Server. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for WebSocket Server. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for WebSocket Server. Type: string. Required: no. Default: 250m.
         cpu: 250m
+# -- Requested memory for WebSocket Server. Type: string. Required: no. Default: 256Mi.
         memory: 256Mi
+# -- Maximum compute resources allocated to WebSocket Server. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for WebSocket Server. Type: int. Required: no. Default: "1".
         cpu: "1"
+# -- Memory limit for WebSocket Server. Type: string. Required: no. Default: 1Gi.
         memory: 1Gi
 
+# -- Deployment settings for the Alert Engine workload. Type: object. Required: no. Default: see child keys.
   alert-engine:
+# -- Enable or disable the Alert Engine workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Alert Engine resources are created. Type: string. Required: no. Default: estategap-notifications.
     namespace: estategap-notifications
+# -- Static replica count for Alert Engine when autoscaling is disabled. Type: int. Required: no. Default: 1.
     replicaCount: 1
+# -- Primary container port exposed by Alert Engine. Type: int. Required: no. Default: 8080.
     port: 8080
+# -- Container image settings for Alert Engine. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Alert Engine. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/alert-engine.
       repository: ghcr.io/andrea-mucci/estategap/alert-engine
+# -- Container image tag for Alert Engine. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Kubernetes resource requests and limits for Alert Engine. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Alert Engine. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Alert Engine. Type: string. Required: no. Default: 100m.
         cpu: 100m
+# -- Requested memory for Alert Engine. Type: string. Required: no. Default: 128Mi.
         memory: 128Mi
+# -- Maximum compute resources allocated to Alert Engine. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Alert Engine. Type: string. Required: no. Default: 500m.
         cpu: 500m
+# -- Memory limit for Alert Engine. Type: string. Required: no. Default: 512Mi.
         memory: 512Mi
+# -- Service-specific environment variables for Alert Engine. Type: object. Required: no. Default: see child keys.
     env:
+# -- Configure `services.alert-engine.env.DATABASE_URL` for this chart. Type: object. Required: no. Default: see child keys.
       DATABASE_URL:
         valueFrom:
           secretKeyRef:
             name: alert-engine-secrets
             key: DATABASE_URL
+# -- Configure `services.alert-engine.env.DATABASE_REPLICA_URL` for this chart. Type: object. Required: no. Default: see child keys.
       DATABASE_REPLICA_URL:
         valueFrom:
           secretKeyRef:
             name: alert-engine-secrets
             key: DATABASE_REPLICA_URL
+# -- Configure `services.alert-engine.env.REDIS_URL` for this chart. Type: object. Required: no. Default: see child keys.
       REDIS_URL:
         valueFrom:
           secretKeyRef:
             name: alert-engine-secrets
             key: REDIS_URL
+# -- Configure `services.alert-engine.env.RULE_CACHE_REFRESH_INTERVAL` for this chart. Type: object. Required: no. Default: see child keys.
       RULE_CACHE_REFRESH_INTERVAL:
         value: 60s
+# -- Configure `services.alert-engine.env.WORKER_POOL_SIZE` for this chart. Type: object. Required: no. Default: see child keys.
       WORKER_POOL_SIZE:
         value: "0"
+# -- Configure `services.alert-engine.env.BATCH_SIZE` for this chart. Type: object. Required: no. Default: see child keys.
       BATCH_SIZE:
         value: "100"
+# -- Configure `services.alert-engine.env.HEALTH_PORT` for this chart. Type: object. Required: no. Default: see child keys.
       HEALTH_PORT:
         value: "8080"
+# -- Configure `services.alert-engine.env.LOG_LEVEL` for this chart. Type: object. Required: no. Default: see child keys.
       LOG_LEVEL:
         value: INFO
+# -- Kubernetes liveness probe for Alert Engine. Type: object. Required: no. Default: see child keys.
     livenessProbe:
       httpGet:
+# -- Configure `services.alert-engine.livenessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /health/live.
         path: /health/live
+# -- Configure `services.alert-engine.livenessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: http.
         port: http
+# -- Configure `services.alert-engine.livenessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 10.
       initialDelaySeconds: 10
+# -- Configure `services.alert-engine.livenessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 15.
       periodSeconds: 15
+# -- Configure `services.alert-engine.livenessProbe.timeoutSeconds` for this chart. Type: int. Required: no. Default: 3.
       timeoutSeconds: 3
+# -- Kubernetes readiness probe for Alert Engine. Type: object. Required: no. Default: see child keys.
     readinessProbe:
       httpGet:
+# -- Configure `services.alert-engine.readinessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /health/ready.
         path: /health/ready
+# -- Configure `services.alert-engine.readinessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: http.
         port: http
+# -- Configure `services.alert-engine.readinessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 5.
       initialDelaySeconds: 5
+# -- Configure `services.alert-engine.readinessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 10.
       periodSeconds: 10
+# -- Configure `services.alert-engine.readinessProbe.timeoutSeconds` for this chart. Type: int. Required: no. Default: 3.
       timeoutSeconds: 3
+# -- Per-service Prometheus scrape settings for Alert Engine. Type: object. Required: no. Default: see child keys.
     serviceMonitor:
+# -- Render a ServiceMonitor for Alert Engine. Type: bool. Required: no. Default: true.
       enabled: true
+# -- HTTP path Prometheus scrapes for Alert Engine metrics. Type: string. Required: no. Default: /metrics.
       path: /metrics
+# -- Scrape interval override for Alert Engine. Type: string. Required: no. Default: 30s.
       interval: 30s
 
+# -- Deployment settings for the Alert Dispatcher workload. Type: object. Required: no. Default: see child keys.
   alert-dispatcher:
+# -- Enable or disable the Alert Dispatcher workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Alert Dispatcher resources are created. Type: string. Required: no. Default: estategap-notifications.
     namespace: estategap-notifications
+# -- Static replica count for Alert Dispatcher when autoscaling is disabled. Type: int. Required: no. Default: 1.
     replicaCount: 1
+# -- Primary container port exposed by Alert Dispatcher. Type: int. Required: no. Default: 8081.
     port: 8081
+# -- Container image settings for Alert Dispatcher. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Alert Dispatcher. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/alert-dispatcher.
       repository: ghcr.io/andrea-mucci/estategap/alert-dispatcher
+# -- Container image tag for Alert Dispatcher. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Kubernetes resource requests and limits for Alert Dispatcher. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Alert Dispatcher. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Alert Dispatcher. Type: string. Required: no. Default: 200m.
         cpu: 200m
+# -- Requested memory for Alert Dispatcher. Type: string. Required: no. Default: 256Mi.
         memory: 256Mi
+# -- Maximum compute resources allocated to Alert Dispatcher. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Alert Dispatcher. Type: string. Required: no. Default: 500m.
         cpu: 500m
+# -- Memory limit for Alert Dispatcher. Type: string. Required: no. Default: 512Mi.
         memory: 512Mi
+# -- Application-specific configuration block for Alert Dispatcher. Type: object. Required: no. Default: see child keys.
     config:
+# -- Configure `services.alert-dispatcher.config.logLevel` for this chart. Type: string. Required: no. Default: INFO.
       logLevel: INFO
+# -- Configure `services.alert-dispatcher.config.healthPort` for this chart. Type: int. Required: no. Default: 8081.
       healthPort: 8081
+# -- Configure `services.alert-dispatcher.config.baseUrl` for this chart. Type: string. Required: no. Default: https://api.estategap.com.
       baseUrl: https://api.estategap.com
+# -- Configure `services.alert-dispatcher.config.workerPoolSize` for this chart. Type: int. Required: no. Default: 16.
       workerPoolSize: 16
+# -- Configure `services.alert-dispatcher.config.batchSize` for this chart. Type: int. Required: no. Default: 50.
       batchSize: 50
+# -- Configure `services.alert-dispatcher.config.awsRegion` for this chart. Type: string. Required: no. Default: eu-west-1.
       awsRegion: eu-west-1
+# -- Configure `services.alert-dispatcher.config.awsSesFromAddress` for this chart. Type: string. Required: no. Default: alerts@estategap.com.
       awsSesFromAddress: alerts@estategap.com
+# -- Configure `services.alert-dispatcher.config.awsSesFromName` for this chart. Type: string. Required: no. Default: EstateGap Alerts.
       awsSesFromName: EstateGap Alerts
+# -- Kubernetes liveness probe for Alert Dispatcher. Type: object. Required: no. Default: see child keys.
     livenessProbe:
       httpGet:
+# -- Configure `services.alert-dispatcher.livenessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /healthz.
         path: /healthz
+# -- Configure `services.alert-dispatcher.livenessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: http.
         port: http
+# -- Configure `services.alert-dispatcher.livenessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 10.
       initialDelaySeconds: 10
+# -- Configure `services.alert-dispatcher.livenessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 15.
       periodSeconds: 15
+# -- Configure `services.alert-dispatcher.livenessProbe.timeoutSeconds` for this chart. Type: int. Required: no. Default: 3.
       timeoutSeconds: 3
+# -- Kubernetes readiness probe for Alert Dispatcher. Type: object. Required: no. Default: see child keys.
     readinessProbe:
       httpGet:
+# -- Configure `services.alert-dispatcher.readinessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /readyz.
         path: /readyz
+# -- Configure `services.alert-dispatcher.readinessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: http.
         port: http
+# -- Configure `services.alert-dispatcher.readinessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 5.
       initialDelaySeconds: 5
+# -- Configure `services.alert-dispatcher.readinessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 10.
       periodSeconds: 10
+# -- Configure `services.alert-dispatcher.readinessProbe.timeoutSeconds` for this chart. Type: int. Required: no. Default: 3.
       timeoutSeconds: 3
+# -- Per-service Prometheus scrape settings for Alert Dispatcher. Type: object. Required: no. Default: see child keys.
     serviceMonitor:
+# -- Render a ServiceMonitor for Alert Dispatcher. Type: bool. Required: no. Default: true.
       enabled: true
+# -- HTTP path Prometheus scrapes for Alert Dispatcher metrics. Type: string. Required: no. Default: /metrics.
       path: /metrics
+# -- Scrape interval override for Alert Dispatcher. Type: string. Required: no. Default: 30s.
       interval: 30s
 
+# -- Deployment settings for the Scrape Orchestrator workload. Type: object. Required: no. Default: see child keys.
   scrape-orchestrator:
+# -- Enable or disable the Scrape Orchestrator workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Scrape Orchestrator resources are created. Type: string. Required: no. Default: estategap-scraping.
     namespace: estategap-scraping
+# -- Primary container port exposed by Scrape Orchestrator. Type: int. Required: no. Default: 8082.
     port: 8082
+# -- Container image settings for Scrape Orchestrator. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Scrape Orchestrator. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/scrape-orchestrator.
       repository: ghcr.io/andrea-mucci/estategap/scrape-orchestrator
+# -- Container image tag for Scrape Orchestrator. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Service-specific environment variables for Scrape Orchestrator. Type: object. Required: no. Default: see child keys.
     env:
+# -- Configure `services.scrape-orchestrator.env.LOG_LEVEL` for this chart. Type: object. Required: no. Default: see child keys.
       LOG_LEVEL:
         value: INFO
+# -- Configure `services.scrape-orchestrator.env.DATABASE_URL` for this chart. Type: object. Required: no. Default: see child keys.
       DATABASE_URL:
         value: postgres://estategap:replace-me@postgresql.databases.svc.cluster.local:5432/estategap?sslmode=require
+# -- Configure `services.scrape-orchestrator.env.REDIS_URL` for this chart. Type: object. Required: no. Default: see child keys.
       REDIS_URL:
         value: redis://redis.estategap-system.svc.cluster.local:6379
+# -- Configure `services.scrape-orchestrator.env.HTTP_PORT` for this chart. Type: object. Required: no. Default: see child keys.
       HTTP_PORT:
         value: "8082"
+# -- Configure `services.scrape-orchestrator.env.PORTAL_RELOAD_INTERVAL` for this chart. Type: object. Required: no. Default: see child keys.
       PORTAL_RELOAD_INTERVAL:
         value: 5m
+# -- Configure `services.scrape-orchestrator.env.JOB_TTL` for this chart. Type: object. Required: no. Default: see child keys.
       JOB_TTL:
         value: "86400"
+# -- Kubernetes liveness probe for Scrape Orchestrator. Type: object. Required: no. Default: see child keys.
     livenessProbe:
       httpGet:
+# -- Configure `services.scrape-orchestrator.livenessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /health.
         path: /health
+# -- Configure `services.scrape-orchestrator.livenessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: http.
         port: http
+# -- Configure `services.scrape-orchestrator.livenessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 10.
       initialDelaySeconds: 10
+# -- Configure `services.scrape-orchestrator.livenessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 20.
       periodSeconds: 20
+# -- Kubernetes readiness probe for Scrape Orchestrator. Type: object. Required: no. Default: see child keys.
     readinessProbe:
       httpGet:
+# -- Configure `services.scrape-orchestrator.readinessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /health.
         path: /health
+# -- Configure `services.scrape-orchestrator.readinessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: http.
         port: http
+# -- Configure `services.scrape-orchestrator.readinessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 5.
       initialDelaySeconds: 5
+# -- Configure `services.scrape-orchestrator.readinessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 10.
       periodSeconds: 10
+# -- Per-service Prometheus scrape settings for Scrape Orchestrator. Type: object. Required: no. Default: see child keys.
     serviceMonitor:
+# -- Render a ServiceMonitor for Scrape Orchestrator. Type: bool. Required: no. Default: true.
       enabled: true
+# -- HTTP path Prometheus scrapes for Scrape Orchestrator metrics. Type: string. Required: no. Default: /health.
       path: /health
+# -- Scrape interval override for Scrape Orchestrator. Type: string. Required: no. Default: 30s.
       interval: 30s
+# -- Kubernetes resource requests and limits for Scrape Orchestrator. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Scrape Orchestrator. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Scrape Orchestrator. Type: string. Required: no. Default: 100m.
         cpu: 100m
+# -- Requested memory for Scrape Orchestrator. Type: string. Required: no. Default: 128Mi.
         memory: 128Mi
+# -- Maximum compute resources allocated to Scrape Orchestrator. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Scrape Orchestrator. Type: string. Required: no. Default: 500m.
         cpu: 500m
+# -- Memory limit for Scrape Orchestrator. Type: string. Required: no. Default: 512Mi.
         memory: 512Mi
 
+# -- Deployment settings for the Proxy Manager workload. Type: object. Required: no. Default: see child keys.
   proxy-manager:
+# -- Enable or disable the Proxy Manager workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Proxy Manager resources are created. Type: string. Required: no. Default: estategap-scraping.
     namespace: estategap-scraping
+# -- Primary container port exposed by Proxy Manager. Type: int. Required: no. Default: 50052.
     port: 50052
+# -- Prometheus metrics port exposed by Proxy Manager. Type: int. Required: no. Default: 9090.
     metricsPort: 9090
+# -- Container image settings for Proxy Manager. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Proxy Manager. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/proxy-manager.
       repository: ghcr.io/andrea-mucci/estategap/proxy-manager
+# -- Container image tag for Proxy Manager. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Service-specific environment variables for Proxy Manager. Type: object. Required: no. Default: see child keys.
     env:
+# -- Configure `services.proxy-manager.env.LOG_LEVEL` for this chart. Type: object. Required: no. Default: see child keys.
       LOG_LEVEL:
         value: INFO
+# -- Configure `services.proxy-manager.env.REDIS_URL` for this chart. Type: object. Required: no. Default: see child keys.
       REDIS_URL:
         value: redis://redis.estategap-system.svc.cluster.local:6379
+# -- Configure `services.proxy-manager.env.GRPC_PORT` for this chart. Type: object. Required: no. Default: see child keys.
       GRPC_PORT:
         value: "50052"
+# -- Configure `services.proxy-manager.env.METRICS_PORT` for this chart. Type: object. Required: no. Default: see child keys.
       METRICS_PORT:
         value: "9090"
+# -- Configure `services.proxy-manager.env.BLACKLIST_TTL` for this chart. Type: object. Required: no. Default: see child keys.
       BLACKLIST_TTL:
         value: "1800"
+# -- Configure `services.proxy-manager.env.STICKY_TTL` for this chart. Type: object. Required: no. Default: see child keys.
       STICKY_TTL:
         value: "600"
+# -- Configure `services.proxy-manager.env.HEALTH_THRESHOLD` for this chart. Type: object. Required: no. Default: see child keys.
       HEALTH_THRESHOLD:
         value: "0.5"
+# -- Configure `services.proxy-manager.env.PROXY_COUNTRIES` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_COUNTRIES:
         value: IT,ES
+# -- Configure `services.proxy-manager.env.PROXY_IT_PROVIDER` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_IT_PROVIDER:
         value: brightdata
+# -- Configure `services.proxy-manager.env.PROXY_IT_ENDPOINT` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_IT_ENDPOINT:
         value: zproxy.lum-superproxy.io:22225
+# -- Configure `services.proxy-manager.env.PROXY_IT_USERNAME` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_IT_USERNAME:
         value: replace-me
+# -- Configure `services.proxy-manager.env.PROXY_IT_PASSWORD` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_IT_PASSWORD:
         value: replace-me
+# -- Configure `services.proxy-manager.env.PROXY_ES_PROVIDER` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_ES_PROVIDER:
         value: smartproxy
+# -- Configure `services.proxy-manager.env.PROXY_ES_ENDPOINT` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_ES_ENDPOINT:
         value: gate.smartproxy.com:7000
+# -- Configure `services.proxy-manager.env.PROXY_ES_USERNAME` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_ES_USERNAME:
         value: replace-me
+# -- Configure `services.proxy-manager.env.PROXY_ES_PASSWORD` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_ES_PASSWORD:
         value: replace-me
+# -- Per-service Prometheus scrape settings for Proxy Manager. Type: object. Required: no. Default: see child keys.
     serviceMonitor:
+# -- Render a ServiceMonitor for Proxy Manager. Type: bool. Required: no. Default: true.
       enabled: true
+# -- HTTP path Prometheus scrapes for Proxy Manager metrics. Type: string. Required: no. Default: /metrics.
       path: /metrics
+# -- Scrape interval override for Proxy Manager. Type: string. Required: no. Default: 30s.
       interval: 30s
+# -- Kubernetes resource requests and limits for Proxy Manager. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Proxy Manager. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Proxy Manager. Type: string. Required: no. Default: 100m.
         cpu: 100m
+# -- Requested memory for Proxy Manager. Type: string. Required: no. Default: 128Mi.
         memory: 128Mi
+# -- Maximum compute resources allocated to Proxy Manager. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Proxy Manager. Type: string. Required: no. Default: 500m.
         cpu: 500m
+# -- Memory limit for Proxy Manager. Type: string. Required: no. Default: 512Mi.
         memory: 512Mi
 
+# -- Deployment settings for the Spider Workers workload. Type: object. Required: no. Default: see child keys.
   spider-workers:
+# -- Enable or disable the Spider Workers workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Spider Workers resources are created. Type: string. Required: no. Default: estategap-scraping.
     namespace: estategap-scraping
+# -- Static replica count for Spider Workers when autoscaling is disabled. Type: int. Required: no. Default: 1.
     replicaCount: 1
+# -- Primary container port exposed by Spider Workers. Type: int. Required: no. Default: 9102.
     port: 9102
+# -- Prometheus metrics port exposed by Spider Workers. Type: int. Required: no. Default: 9102.
     metricsPort: 9102
+# -- Container image settings for Spider Workers. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Spider Workers. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/spider-workers.
       repository: ghcr.io/andrea-mucci/estategap/spider-workers
+# -- Container image tag for Spider Workers. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Service-specific environment variables for Spider Workers. Type: object. Required: no. Default: see child keys.
     env:
+# -- Configure `services.spider-workers.env.LOG_LEVEL` for this chart. Type: object. Required: no. Default: see child keys.
       LOG_LEVEL:
         value: INFO
+# -- Configure `services.spider-workers.env.REDIS_URL` for this chart. Type: object. Required: no. Default: see child keys.
       REDIS_URL:
         value: redis://redis.estategap-system.svc.cluster.local:6379/0
+# -- Configure `services.spider-workers.env.PROXY_MANAGER_ADDR` for this chart. Type: object. Required: no. Default: see child keys.
       PROXY_MANAGER_ADDR:
         value: proxy-manager.estategap-scraping.svc.cluster.local:50052
+# -- Configure `services.spider-workers.env.METRICS_PORT` for this chart. Type: object. Required: no. Default: see child keys.
       METRICS_PORT:
         value: "9102"
+# -- Configure `services.spider-workers.env.REQUEST_MIN_DELAY` for this chart. Type: object. Required: no. Default: see child keys.
       REQUEST_MIN_DELAY:
         value: "2.0"
+# -- Configure `services.spider-workers.env.REQUEST_MAX_DELAY` for this chart. Type: object. Required: no. Default: see child keys.
       REQUEST_MAX_DELAY:
         value: "5.0"
+# -- Configure `services.spider-workers.env.MAX_CONCURRENT_PER_PORTAL` for this chart. Type: object. Required: no. Default: see child keys.
       MAX_CONCURRENT_PER_PORTAL:
         value: "3"
+# -- Configure `services.spider-workers.env.SESSION_ROTATION_EVERY` for this chart. Type: object. Required: no. Default: see child keys.
       SESSION_ROTATION_EVERY:
         value: "10"
+# -- Configure `services.spider-workers.env.QUARANTINE_TTL_DAYS` for this chart. Type: object. Required: no. Default: see child keys.
       QUARANTINE_TTL_DAYS:
         value: "30"
+# -- Configure `services.spider-workers.env.IDEALISTA_API_TOKEN` for this chart. Type: object. Required: no. Default: see child keys.
       IDEALISTA_API_TOKEN:
         valueFrom:
           secretKeyRef:
             name: estategap-app-secrets
             key: IDEALISTA_API_TOKEN
+# -- Per-service Prometheus scrape settings for Spider Workers. Type: object. Required: no. Default: see child keys.
     serviceMonitor:
+# -- Render a ServiceMonitor for Spider Workers. Type: bool. Required: no. Default: true.
       enabled: true
+# -- HTTP path Prometheus scrapes for Spider Workers metrics. Type: string. Required: no. Default: /metrics.
       path: /metrics
+# -- Scrape interval override for Spider Workers. Type: string. Required: no. Default: 30s.
       interval: 30s
+# -- Kubernetes resource requests and limits for Spider Workers. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Spider Workers. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Spider Workers. Type: string. Required: no. Default: 200m.
         cpu: 200m
+# -- Requested memory for Spider Workers. Type: string. Required: no. Default: 256Mi.
         memory: 256Mi
+# -- Maximum compute resources allocated to Spider Workers. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Spider Workers. Type: int. Required: no. Default: "2".
         cpu: "2"
+# -- Memory limit for Spider Workers. Type: string. Required: no. Default: 2Gi.
         memory: 2Gi
+# -- KEDA scaling settings for Spider Workers. Type: object. Required: no. Default: see child keys.
     keda:
+# -- Enable KEDA event-driven scaling for Spider Workers. Type: bool. Required: no. Default: true.
       enabled: true
+# -- Minimum replica count when KEDA scales Spider Workers. Type: int. Required: no. Default: 1.
       minReplicas: 1
+# -- Maximum replica count when KEDA scales Spider Workers. Type: int. Required: no. Default: 50.
       maxReplicas: 50
+# -- Kafka stream that KEDA monitors for Spider Workers backlog. Type: string. Required: no. Default: scraper-commands.
       stream: scraper-commands
+# -- Consumer group name KEDA tracks for Spider Workers lag. Type: string. Required: no. Default: estategap.spider-workers.
       consumer: estategap.spider-workers
+# -- Lag threshold that triggers KEDA scale-out for Spider Workers. Type: int. Required: no. Default: "100".
       lagThreshold: "100"
 
+# -- Deployment settings for the Pipeline API workload. Type: object. Required: no. Default: see child keys.
   pipeline:
+# -- Enable or disable the Pipeline API workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Pipeline API resources are created. Type: string. Required: no. Default: estategap-pipeline.
     namespace: estategap-pipeline
+# -- Primary container port exposed by Pipeline API. Type: int. Required: no. Default: 8080.
     port: 8080
+# -- Container image settings for Pipeline API. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Pipeline API. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/pipeline.
       repository: ghcr.io/andrea-mucci/estategap/pipeline
+# -- Container image tag for Pipeline API. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Kubernetes resource requests and limits for Pipeline API. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Pipeline API. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Pipeline API. Type: string. Required: no. Default: 250m.
         cpu: 250m
+# -- Requested memory for Pipeline API. Type: string. Required: no. Default: 256Mi.
         memory: 256Mi
+# -- Maximum compute resources allocated to Pipeline API. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Pipeline API. Type: int. Required: no. Default: "1".
         cpu: "1"
+# -- Memory limit for Pipeline API. Type: string. Required: no. Default: 1Gi.
         memory: 1Gi
 
+# -- Deployment settings for the Pipeline Enricher workload. Type: object. Required: no. Default: see child keys.
   pipeline-enricher:
+# -- Enable or disable the Pipeline Enricher workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Pipeline Enricher resources are created. Type: string. Required: no. Default: estategap-pipeline.
     namespace: estategap-pipeline
+# -- Primary container port exposed by Pipeline Enricher. Type: int. Required: no. Default: 9103.
     port: 9103
+# -- Container image settings for Pipeline Enricher. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Pipeline Enricher. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/pipeline.
       repository: ghcr.io/andrea-mucci/estategap/pipeline
+# -- Container image tag for Pipeline Enricher. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Container command override for Pipeline Enricher; this replaces the image entrypoint. Type: list. Required: no. Default: ["python", "-m", "pipeline.enricher"].
     command: ["python", "-m", "pipeline.enricher"]
+# -- Service-specific environment variables for Pipeline Enricher. Type: object. Required: no. Default: see child keys.
     env:
+# -- Configure `services.pipeline-enricher.env.DATABASE_URL` for this chart. Type: object. Required: no. Default: see child keys.
       DATABASE_URL:
         value: postgres://estategap:replace-me@postgresql.databases.svc.cluster.local:5432/estategap?sslmode=require
+# -- Configure `services.pipeline-enricher.env.ENRICHER_CATASTRO_RATE_LIMIT` for this chart. Type: object. Required: no. Default: see child keys.
       ENRICHER_CATASTRO_RATE_LIMIT:
         value: "1.0"
+# -- Kubernetes resource requests and limits for Pipeline Enricher. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Pipeline Enricher. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Pipeline Enricher. Type: string. Required: no. Default: 100m.
         cpu: 100m
+# -- Requested memory for Pipeline Enricher. Type: string. Required: no. Default: 128Mi.
         memory: 128Mi
+# -- Maximum compute resources allocated to Pipeline Enricher. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Pipeline Enricher. Type: string. Required: no. Default: 500m.
         cpu: 500m
+# -- Memory limit for Pipeline Enricher. Type: string. Required: no. Default: 512Mi.
         memory: 512Mi
 
+# -- Deployment settings for the Pipeline Change Detector workload. Type: object. Required: no. Default: see child keys.
   pipeline-change-detector:
+# -- Enable or disable the Pipeline Change Detector workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Pipeline Change Detector resources are created. Type: string. Required: no. Default: estategap-pipeline.
     namespace: estategap-pipeline
+# -- Primary container port exposed by Pipeline Change Detector. Type: int. Required: no. Default: 9104.
     port: 9104
+# -- Container image settings for Pipeline Change Detector. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Pipeline Change Detector. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/pipeline.
       repository: ghcr.io/andrea-mucci/estategap/pipeline
+# -- Container image tag for Pipeline Change Detector. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Container command override for Pipeline Change Detector; this replaces the image entrypoint. Type: list. Required: no. Default: ["python", "-m", "pipeline.change_detector"].
     command: ["python", "-m", "pipeline.change_detector"]
+# -- Service-specific environment variables for Pipeline Change Detector. Type: object. Required: no. Default: see child keys.
     env:
+# -- Configure `services.pipeline-change-detector.env.DATABASE_URL` for this chart. Type: object. Required: no. Default: see child keys.
       DATABASE_URL:
         value: postgres://estategap:replace-me@postgresql.databases.svc.cluster.local:5432/estategap?sslmode=require
+# -- Kubernetes resource requests and limits for Pipeline Change Detector. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Pipeline Change Detector. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Pipeline Change Detector. Type: string. Required: no. Default: 50m.
         cpu: 50m
+# -- Requested memory for Pipeline Change Detector. Type: string. Required: no. Default: 64Mi.
         memory: 64Mi
+# -- Maximum compute resources allocated to Pipeline Change Detector. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Pipeline Change Detector. Type: string. Required: no. Default: 200m.
         cpu: 200m
+# -- Memory limit for Pipeline Change Detector. Type: string. Required: no. Default: 256Mi.
         memory: 256Mi
 
+# -- Deployment settings for the ML Scorer workload. Type: object. Required: no. Default: see child keys.
   ml-scorer:
+# -- Enable or disable the ML Scorer workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the ML Scorer resources are created. Type: string. Required: no. Default: estategap-intelligence.
     namespace: estategap-intelligence
+# -- Primary container port exposed by ML Scorer. Type: int. Required: no. Default: 50051.
     port: 50051
+# -- Container image settings for ML Scorer. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for ML Scorer. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/ml-scorer.
       repository: ghcr.io/andrea-mucci/estategap/ml-scorer
+# -- Container image tag for ML Scorer. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Kubernetes resource requests and limits for ML Scorer. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for ML Scorer. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for ML Scorer. Type: string. Required: no. Default: 500m.
         cpu: 500m
+# -- Requested memory for ML Scorer. Type: string. Required: no. Default: 2Gi.
         memory: 2Gi
+# -- Maximum compute resources allocated to ML Scorer. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for ML Scorer. Type: int. Required: no. Default: "2".
         cpu: "2"
+# -- Memory limit for ML Scorer. Type: string. Required: no. Default: 4Gi.
         memory: 4Gi
+# -- HorizontalPodAutoscaler settings for ML Scorer. Type: object. Required: no. Default: see child keys.
     hpa:
+# -- Enable HPA for ML Scorer. Type: bool. Required: no. Default: true.
       enabled: true
+# -- Minimum replica count when HPA scales ML Scorer. Type: int. Required: no. Default: 1.
       minReplicas: 1
+# -- Maximum replica count when HPA scales ML Scorer. Type: int. Required: no. Default: 10.
       maxReplicas: 10
+# -- Average CPU utilization target used by the ML Scorer HPA. Type: int. Required: no. Default: 70.
       cpuTarget: 70
 
+# -- Deployment settings for the AI Chat workload. Type: object. Required: no. Default: see child keys.
   ai-chat:
+# -- Enable or disable the AI Chat workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the AI Chat resources are created. Type: string. Required: no. Default: estategap-intelligence.
     namespace: estategap-intelligence
+# -- Primary container port exposed by AI Chat. Type: int. Required: no. Default: 50053.
     port: 50053
+# -- Prometheus metrics port exposed by AI Chat. Type: int. Required: no. Default: 9090.
     metricsPort: 9090
+# -- Container image settings for AI Chat. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for AI Chat. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/ai-chat.
       repository: ghcr.io/andrea-mucci/estategap/ai-chat
+# -- Container image tag for AI Chat. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Service-specific environment variables for AI Chat. Type: object. Required: no. Default: see child keys.
     env:
+# -- Configure `services.ai-chat.env.GRPC_PORT` for this chart. Type: object. Required: no. Default: see child keys.
       GRPC_PORT:
         value: "50053"
+# -- Configure `services.ai-chat.env.METRICS_PORT` for this chart. Type: object. Required: no. Default: see child keys.
       METRICS_PORT:
         value: "9090"
+# -- Configure `services.ai-chat.env.LLM_PROVIDER` for this chart. Type: object. Required: no. Default: see child keys.
       LLM_PROVIDER:
         value: claude
+# -- Configure `services.ai-chat.env.FALLBACK_LLM_PROVIDER` for this chart. Type: object. Required: no. Default: see child keys.
       FALLBACK_LLM_PROVIDER:
         value: openai
+# -- Configure `services.ai-chat.env.LITELLM_MODEL` for this chart. Type: object. Required: no. Default: see child keys.
       LITELLM_MODEL:
         value: gpt-4o-mini
+# -- Configure `services.ai-chat.env.API_GATEWAY_GRPC_ADDR` for this chart. Type: object. Required: no. Default: see child keys.
       API_GATEWAY_GRPC_ADDR:
         value: api-gateway.estategap-gateway.svc.cluster.local:8080
+# -- Configure `services.ai-chat.env.LOG_LEVEL` for this chart. Type: object. Required: no. Default: see child keys.
       LOG_LEVEL:
         value: INFO
+# -- Configure `services.ai-chat.env.DATABASE_URL` for this chart. Type: object. Required: no. Default: see child keys.
       DATABASE_URL:
         valueFrom:
           secretKeyRef:
             name: ai-chat-secrets
             key: DATABASE_URL
+# -- Configure `services.ai-chat.env.REDIS_URL` for this chart. Type: object. Required: no. Default: see child keys.
       REDIS_URL:
         valueFrom:
           secretKeyRef:
             name: ai-chat-secrets
             key: REDIS_URL
+# -- Configure `services.ai-chat.env.ANTHROPIC_API_KEY` for this chart. Type: object. Required: no. Default: see child keys.
       ANTHROPIC_API_KEY:
         valueFrom:
           secretKeyRef:
             name: ai-chat-secrets
             key: ANTHROPIC_API_KEY
+# -- Configure `services.ai-chat.env.OPENAI_API_KEY` for this chart. Type: object. Required: no. Default: see child keys.
       OPENAI_API_KEY:
         valueFrom:
           secretKeyRef:
             name: ai-chat-secrets
             key: OPENAI_API_KEY
+# -- Kubernetes resource requests and limits for AI Chat. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for AI Chat. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for AI Chat. Type: string. Required: no. Default: 500m.
         cpu: 500m
+# -- Requested memory for AI Chat. Type: string. Required: no. Default: 512Mi.
         memory: 512Mi
+# -- Maximum compute resources allocated to AI Chat. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for AI Chat. Type: int. Required: no. Default: "2".
         cpu: "2"
+# -- Memory limit for AI Chat. Type: string. Required: no. Default: 4Gi.
         memory: 4Gi
+# -- Kubernetes liveness probe for AI Chat. Type: object. Required: no. Default: see child keys.
     livenessProbe:
       httpGet:
+# -- Configure `services.ai-chat.livenessProbe.httpGet.path` for this chart. Type: string. Required: no. Default: /metrics.
         path: /metrics
+# -- Configure `services.ai-chat.livenessProbe.httpGet.port` for this chart. Type: string. Required: no. Default: metrics.
         port: metrics
+# -- Configure `services.ai-chat.livenessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 15.
       initialDelaySeconds: 15
+# -- Configure `services.ai-chat.livenessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 20.
       periodSeconds: 20
+# -- Configure `services.ai-chat.livenessProbe.timeoutSeconds` for this chart. Type: int. Required: no. Default: 5.
       timeoutSeconds: 5
+# -- Kubernetes readiness probe for AI Chat. Type: object. Required: no. Default: see child keys.
     readinessProbe:
       tcpSocket:
+# -- Configure `services.ai-chat.readinessProbe.tcpSocket.port` for this chart. Type: string. Required: no. Default: grpc.
         port: grpc
+# -- Configure `services.ai-chat.readinessProbe.initialDelaySeconds` for this chart. Type: int. Required: no. Default: 5.
       initialDelaySeconds: 5
+# -- Configure `services.ai-chat.readinessProbe.periodSeconds` for this chart. Type: int. Required: no. Default: 10.
       periodSeconds: 10
+# -- Configure `services.ai-chat.readinessProbe.timeoutSeconds` for this chart. Type: int. Required: no. Default: 5.
       timeoutSeconds: 5
+# -- Per-service Prometheus scrape settings for AI Chat. Type: object. Required: no. Default: see child keys.
     serviceMonitor:
+# -- Render a ServiceMonitor for AI Chat. Type: bool. Required: no. Default: true.
       enabled: true
+# -- HTTP path Prometheus scrapes for AI Chat metrics. Type: string. Required: no. Default: /metrics.
       path: /metrics
+# -- Scrape interval override for AI Chat. Type: string. Required: no. Default: 30s.
       interval: 30s
+# -- HorizontalPodAutoscaler settings for AI Chat. Type: object. Required: no. Default: see child keys.
     hpa:
+# -- Enable HPA for AI Chat. Type: bool. Required: no. Default: true.
       enabled: true
+# -- Minimum replica count when HPA scales AI Chat. Type: int. Required: no. Default: 1.
       minReplicas: 1
+# -- Maximum replica count when HPA scales AI Chat. Type: int. Required: no. Default: 8.
       maxReplicas: 8
+# -- Average CPU utilization target used by the AI Chat HPA. Type: int. Required: no. Default: 60.
       cpuTarget: 60
 
+# -- Deployment settings for the Frontend workload. Type: object. Required: no. Default: see child keys.
   frontend:
+# -- Enable or disable the Frontend workload. Type: bool. Required: no. Default: true.
     enabled: true
+# -- Namespace where the Frontend resources are created. Type: string. Required: no. Default: estategap-gateway.
     namespace: estategap-gateway
+# -- Primary container port exposed by Frontend. Type: int. Required: no. Default: 3000.
     port: 3000
+# -- Container image settings for Frontend. Type: object. Required: no. Default: see child keys.
     image:
+# -- Container image repository for Frontend. Type: string. Required: no. Default: ghcr.io/andrea-mucci/estategap/frontend.
       repository: ghcr.io/andrea-mucci/estategap/frontend
+# -- Container image tag for Frontend. Type: string. Required: no. Default: latest.
       tag: latest
+# -- Kubernetes resource requests and limits for Frontend. Type: object. Required: no. Default: see child keys.
     resources:
+# -- Minimum compute resources reserved for Frontend. Type: object. Required: no. Default: see child keys.
       requests:
+# -- Requested CPU for Frontend. Type: string. Required: no. Default: 100m.
         cpu: 100m
+# -- Requested memory for Frontend. Type: string. Required: no. Default: 128Mi.
         memory: 128Mi
+# -- Maximum compute resources allocated to Frontend. Type: object. Required: no. Default: see child keys.
       limits:
+# -- CPU limit for Frontend. Type: string. Required: no. Default: 500m.
         cpu: 500m
+# -- Memory limit for Frontend. Type: string. Required: no. Default: 512Mi.
         memory: 512Mi

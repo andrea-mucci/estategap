@@ -1,6 +1,6 @@
 # estategap Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-17
+Auto-generated from all feature plans. Last updated: 2026-04-18
 
 ## Active Technologies
 - Go 1.23, Python 3.12, TypeScript 5.x / Node 22 + go.work (multi-module workspace), uv (Python pkg manager), buf (proto codegen), golangci-lint, ruff, mypy, Next.js 15 (002-monorepo-foundation)
@@ -69,6 +69,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - Hetzner Object Storage (S3-compatible, endpoint: `https://fsn1.your-objectstorage.com`) (034-s3-migration)
 - YAML (Helm 3.14+), Go templates (Helm templating) + Helm 3.14+, Bitnami Redis 19.x (kept), KEDA 2.x (kept), Prometheus operator ≥ 0.63 (external, for ServiceMonitor CRD) (035-helm-external-infra)
 - Redis 7 (self-deployed, Bitnami sub-chart unchanged); external PostgreSQL 16, Hetzner S3 (035-helm-external-infra)
+- YAML (Helm 3.14+), JSON Schema 2020-12, Markdown + Helm 3.14+; no new packages (036-helm-values-documentation)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -88,9 +89,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 036-helm-values-documentation: Added YAML (Helm 3.14+), JSON Schema 2020-12, Markdown + Helm 3.14+; no new packages
 - 035-helm-external-infra: Added YAML (Helm 3.14+), Go templates (Helm templating) + Helm 3.14+, Bitnami Redis 19.x (kept), KEDA 2.x (kept), Prometheus operator ≥ 0.63 (external, for ServiceMonitor CRD)
 - 034-s3-migration: Added Go 1.23 (`libs/pkg/s3client/`), Python 3.12 (`libs/common/s3client/`), YAML (Helm)
-- 033-nats-to-kafka-migration: Added Go 1.23, Python 3.12
 
 
 <!-- MANUAL ADDITIONS START -->
