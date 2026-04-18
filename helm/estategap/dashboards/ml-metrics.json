@@ -1,0 +1,50 @@
+{
+  "uid": "estategap-ml-metrics",
+  "title": "EstateGap — ML Metrics",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Prediction Rate",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(estategap_ml_scorer_predictions_total[5m])",
+          "legendFormat": "predictions"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Error Rate",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(estategap_ml_scorer_errors_total[5m])",
+          "legendFormat": "errors"
+        }
+      ]
+    }
+  ]
+}

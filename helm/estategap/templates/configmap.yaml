@@ -6,10 +6,14 @@ metadata:
   labels:
     {{- include "estategap.labels" . | nindent 4 }}
 data:
-  DATABASE_HOST: estategap-postgres-rw.estategap-system.svc.cluster.local
-  DATABASE_RO_HOST: estategap-postgres-r.estategap-system.svc.cluster.local
-  DATABASE_PORT: "5432"
-  DATABASE_NAME: {{ .Values.postgresql.database | quote }}
+  DATABASE_HOST: {{ .Values.postgresql.external.host | quote }}
+  DATABASE_PORT: {{ printf "%v" .Values.postgresql.external.port | quote }}
+  DATABASE_NAME: {{ .Values.postgresql.external.database | quote }}
+  DATABASE_SSLMODE: {{ .Values.postgresql.external.sslmode | quote }}
+  {{- if .Values.postgresql.readReplica.enabled }}
+  DATABASE_RO_HOST: {{ .Values.postgresql.readReplica.host | quote }}
+  DATABASE_RO_PORT: {{ printf "%v" .Values.postgresql.readReplica.port | quote }}
+  {{- end }}
   REDIS_HOST: redis.estategap-system.svc.cluster.local
   REDIS_PORT: "6379"
   REDIS_SENTINEL_HOST: redis.estategap-system.svc.cluster.local

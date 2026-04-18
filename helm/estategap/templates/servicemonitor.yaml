@@ -1,0 +1,24 @@
+{{- if .Values.prometheus.serviceMonitor.enabled }}
+{{- $root := . }}
+{{- range $name, $svc := .Values.services }}
+{{- if and $svc.enabled $svc.serviceMonitor $svc.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "estategap.namespace" (dict "root" $root "name" $name) }}
+  labels:
+    {{- include "estategap.serviceLabels" (dict "root" $root "name" $name) | nindent 4 }}
+    {{- toYaml $root.Values.prometheus.serviceMonitor.labels | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "estategap.serviceSelectorLabels" (dict "root" $root "name" $name) | nindent 6 }}
+  endpoints:
+    - port: {{ include "estategap.serviceMonitorPort" (dict "service" $svc) | trim }}
+      path: {{ $svc.serviceMonitor.path | quote }}
+      interval: {{ default $root.Values.prometheus.serviceMonitor.interval $svc.serviceMonitor.interval | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

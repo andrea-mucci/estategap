@@ -1,0 +1,32 @@
+{
+  "uid": "estategap-websocket-connections",
+  "title": "EstateGap — WebSocket Connections",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Active Connections",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "estategap_websocket_active_connections",
+          "legendFormat": "connections"
+        }
+      ]
+    }
+  ]
+}

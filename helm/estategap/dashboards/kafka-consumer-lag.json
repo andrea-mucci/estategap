@@ -1,0 +1,32 @@
+{
+  "uid": "estategap-kafka-consumer-lag",
+  "title": "EstateGap — Kafka Consumer Lag",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Consumer Lag",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "estategap_kafka_consumer_lag",
+          "legendFormat": "lag"
+        }
+      ]
+    }
+  ]
+}

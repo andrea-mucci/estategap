@@ -1,114 +1,106 @@
-# Implementation Plan: S3 Migration (MinIO → Hetzner Object Storage)
+# Implementation Plan: [FEATURE]
 
-**Branch**: `034-s3-migration` | **Date**: 2026-04-17 | **Spec**: [spec.md](./spec.md)  
-**Input**: Feature specification from `/specs/034-s3-migration/spec.md`
+> Superseded in part by `specs/035-helm-external-infra/` for the Helm chart credential key rename from `s3.credentials.secret` to `s3.credentialsSecret`.
+
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Replace the self-hosted MinIO StatefulSet with Hetzner Object Storage (S3-compatible). All services that currently talk to MinIO are updated to use a shared S3 client wrapper configured via `S3_*` environment variables instead of `MINIO_*`. No bucket names change, no object paths change, no business logic changes — this is a pure infrastructure plumbing swap.
-
-**Key finding from codebase audit**: Python services already use `boto3` (the AWS SDK) against MinIO — the client library itself does not change. The work is (1) creating shared S3 client wrappers with the correct Hetzner-specific configuration, (2) renaming env vars, (3) removing MinIO from Helm, and (4) updating test infrastructure.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Go 1.23 (`libs/pkg/s3client/`), Python 3.12 (`libs/common/s3client/`), YAML (Helm)  
-**Primary Dependencies**:
-- Go: `github.com/aws/aws-sdk-go-v2/service/s3` + presign subpackage, `github.com/aws/aws-sdk-go-v2/config`, `github.com/aws/aws-sdk-go-v2/credentials`
-- Python: `boto3>=1.34` (already present), `aiobotocore>=2.13` (async variant), `moto[s3]>=5.0` (test mock)
-- Helm: removes `minio/minio` + `minio/mc` images; adds `s3:` values block  
-**Storage**: Hetzner Object Storage (S3-compatible, endpoint: `https://fsn1.your-objectstorage.com`)  
-**Testing**: Go table-driven + localstack testcontainer; Python pytest + moto; E2E kind cluster + localstack  
-**Target Platform**: Linux/Kubernetes (same as existing services)  
-**Project Type**: Library + infrastructure configuration change  
-**Performance Goals**: Presigned URL generation < 500 ms; bucket health check < 5 s at startup  
-**Constraints**: Zero MinIO references in final state; backward-compatible bucket names; no functional changes  
-**Scale/Scope**: 5 affected services (ml-trainer, ml-scorer, spider-workers, api-gateway, postgresql-cnpg-backup), 2 shared libraries, 1 Helm chart
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
+
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design.*
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Polyglot Service Architecture | ✅ PASS | Shared clients go in `libs/pkg/` (Go) and `libs/common/` (Python) as mandated |
-| II. Event-Driven Communication | ✅ N/A | No messaging changes |
-| III. Country-First Data Sovereignty | ✅ PASS | Constitution §III explicitly mandates Hetzner S3; bucket names preserved |
-| IV. ML-Powered Intelligence | ✅ PASS | Constitution §IV mandates S3 for model artifacts; artifact paths unchanged |
-| V. Code Quality Discipline | ✅ PASS | Go: golangci-lint; Python: ruff + mypy strict; no ORM, pgx not involved |
-| VI. Security & Ethical Scraping | ✅ PASS | S3 credentials injected via Kubernetes Sealed Secrets; never hardcoded |
-| VII. Brownfield Kubernetes Deployment | ✅ PASS | MinIO StatefulSet removed; Hetzner S3 is an external service per §VII table |
-
-**Migration Strategy compliance**: bucket names preserved; S3_* env vars introduced alongside MINIO_* during transition (removed at merge); no big-bang cutover.
-
-**No violations detected.** Complexity tracking table omitted.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/034-s3-migration/
-├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── contracts/           # Phase 1 output (S3 client interface contracts)
-│   ├── go-s3client.md
-│   └── python-s3client.md
-└── tasks.md             # Phase 2 output (/speckit.tasks)
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code (files changed or created)
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-libs/
-├── pkg/
-│   └── s3client/                          # NEW — Go shared S3 client
-│       ├── client.go                      # S3Client struct + NewS3Client()
-│       ├── client_test.go                 # Unit tests (mock S3)
-│       └── health.go                      # HealthCheck() — bucket existence verification
-└── common/
-    └── s3client/                          # NEW — Python async S3 client
-        ├── __init__.py
-        ├── client.py                      # S3Client class (boto3 + aiobotocore)
-        └── test_client.py                 # Unit tests (moto)
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-services/
-├── ml/
-│   └── estategap_ml/
-│       ├── settings.py                    # MINIO_* → S3_* env vars
-│       ├── trainer/
-│       │   └── registry.py               # Use libs/common/s3client; update build_minio_client()
-│       └── scorer/
-│           └── model_registry.py          # Use libs/common/s3client; update _download_s3_object()
-└── spider-workers/
-    └── estategap_spiders/
-        ├── settings.py                    # MINIO_* → S3_* env vars
-        └── spiders/
-            └── fixture_spider.py          # Use libs/common/s3client; update _client()
+tests/
+├── contract/
+├── integration/
+└── unit/
 
-libs/testhelpers/
-└── minio.go                              # REPLACE: StartMinIO() → StartLocalStack()
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
 
-libs/common/
-└── estategap_common/
-    └── testing/
-        └── fixtures.py                   # minio_container() → localstack_container()
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
 
-helm/estategap/
-├── values.yaml                           # ADD s3: block; REMOVE minio: block
-├── values-staging.yaml                   # ADD s3 overrides; REMOVE minio overrides
-├── values-test.yaml                      # ADD s3 overrides; REMOVE minio overrides
-├── templates/
-│   ├── minio.yaml                        # DELETE
-│   ├── minio-setup-job.yaml              # DELETE
-│   ├── configmap.yaml                    # MINIO_* → S3_* env var references
-│   ├── sealed-secrets.yaml               # MINIO_* → AWS_* credential keys
-│   └── postgresql-cluster.yaml           # Update backup endpoint to Hetzner S3
-└── HELM_VALUES.md                        # ADD s3 section documentation
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
 
-scripts/
-└── create-s3-buckets.sh                  # NEW — one-time bucket provisioning script
-
-services/ml/.env.example                  # MINIO_* → S3_* vars
-services/spider-workers/.env.example      # MINIO_* → S3_* vars (if exists)
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
+
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
+
+## Complexity Tracking
+
+> **Fill ONLY if Constitution Check has violations that must be justified**
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

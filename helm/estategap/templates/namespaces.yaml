@@ -6,7 +6,7 @@
   (dict "name" "estategap-intelligence" "tier" "intelligence")
   (dict "name" "estategap-notifications" "tier" "notifications")
 -}}
-{{- if .Values.observability.prometheus.enabled -}}
+{{- if .Values.grafana.dashboards.enabled -}}
 {{- $namespaces = append $namespaces (dict "name" "monitoring" "tier" "system") -}}
 {{- end -}}
 {{- range $index, $ns := $namespaces }}

@@ -33,3 +33,43 @@ tests:
       - equal:
           path: data.TEST_SCHEDULE_OVERRIDE
           value: "*/30 * * * * *"
+
+  - it: disables the CNPG cluster when external PostgreSQL is selected
+    template: templates/postgresql-cluster.yaml
+    set:
+      components.postgresql.deploy: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: disables the CNPG backup when external PostgreSQL is selected
+    template: templates/postgresql-backup.yaml
+    set:
+      components.postgresql.deploy: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: disables Prometheus rules when explicitly turned off
+    template: templates/prometheus-rules.yaml
+    set:
+      prometheus.rules.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: disables dashboard ConfigMaps when explicitly turned off
+    template: templates/grafana-dashboards.yaml
+    set:
+      grafana.dashboards.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: disables ServiceMonitors when explicitly turned off
+    template: templates/servicemonitor.yaml
+    set:
+      prometheus.serviceMonitor.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

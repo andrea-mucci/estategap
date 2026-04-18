@@ -2,46 +2,34 @@ cluster:
   environment: staging
   certIssuer: letsencrypt-staging
 
+components:
+  redis:
+    deploy: true
+  mlflow:
+    deploy: true
+  kafka:
+    deploy: false
+  postgresql:
+    deploy: false
+  prometheus:
+    deploy: false
+  grafana:
+    deploy: false
+
 kafka:
-  brokers: kafka-bootstrap.estategap-system.svc.cluster.local:9092
+  brokers: kafka-bootstrap.kafka.svc.cluster.local:9092
   topicPrefix: estategap.
-  tls:
-    enabled: false
-  sasl:
-    enabled: false
-    username: ""
-    secretName: ""
-  consumer:
-    maxRetries: 3
-  initJob:
+  topicInit:
     replicationFactor: 1
 
 postgresql:
-  instances: 1
-  storage:
-    size: 20Gi
+  external:
+    host: postgresql.databases.svc.cluster.local
 
 s3:
   endpoint: https://fsn1.your-objectstorage.com
   region: fsn1
   bucketPrefix: estategap-staging
-
-observability:
-  prometheus:
-    retention: 3d
-    storage:
-      size: 10Gi
-
-prometheus:
-  prometheus:
-    prometheusSpec:
-      retention: 3d
-      storageSpec:
-        volumeClaimTemplate:
-          spec:
-            resources:
-              requests:
-                storage: 10Gi
 
 argocd:
   # Required: set this to the canonical repository URL for ArgoCD sync.

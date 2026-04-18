@@ -1,3 +1,4 @@
+{{- if .Values.kafka.topicInit.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -21,7 +22,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: kafka-topics-init
-          image: {{ include "estategap.serviceImage" (dict "root" . "image" .Values.kafka.initJob.image) }}
+          image: {{ include "estategap.serviceImage" (dict "root" . "image" .Values.kafka.topicInit.image) }}
           imagePullPolicy: IfNotPresent
           env:
             - name: KAFKA_BROKERS
@@ -31,14 +32,19 @@ spec:
             - name: KAFKA_TLS_ENABLED
               value: {{ ternary "true" "false" .Values.kafka.tls.enabled | quote }}
             - name: KAFKA_REPLICATION_FACTOR
-              value: {{ printf "%v" .Values.kafka.initJob.replicationFactor | quote }}
+              value: {{ printf "%v" .Values.kafka.topicInit.replicationFactor | quote }}
             {{- if .Values.kafka.sasl.enabled }}
+            - name: KAFKA_SASL_MECHANISM
+              value: {{ .Values.kafka.sasl.mechanism | quote }}
             - name: KAFKA_SASL_USERNAME
-              value: {{ .Values.kafka.sasl.username | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kafka.sasl.credentialsSecret | quote }}
+                  key: KAFKA_SASL_USERNAME
             - name: KAFKA_SASL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.kafka.sasl.secretName | quote }}
+                  name: {{ .Values.kafka.sasl.credentialsSecret | quote }}
                   key: KAFKA_SASL_PASSWORD
             {{- end }}
           command:
@@ -61,7 +67,7 @@ spec:
               EOF
                 if [ -n "${KAFKA_SASL_USERNAME:-}" ] || [ -n "${KAFKA_SASL_PASSWORD:-}" ]; then
                   cat >>/tmp/client.properties <<EOF
-              sasl.mechanism=PLAIN
+              sasl.mechanism=${KAFKA_SASL_MECHANISM}
               sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_SASL_USERNAME}" password="${KAFKA_SASL_PASSWORD}";
               EOF
                 fi
@@ -98,4 +104,7 @@ spec:
               create_topic alerts-notifications 5 259200000
               create_topic scraper-commands 5 86400000
               create_topic scraper-cycle 5 86400000
+              {{- if .Values.kafka.deadLetter.enabled }}
               create_topic dead-letter 3 604800000
+              {{- end }}
+{{- end }}

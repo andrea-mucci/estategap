@@ -10,3 +10,6 @@ data:
   KAFKA_TOPIC_PREFIX: {{ .Values.kafka.topicPrefix | quote }}
   KAFKA_TLS_ENABLED: {{ ternary "true" "false" .Values.kafka.tls.enabled | quote }}
   KAFKA_MAX_RETRIES: {{ printf "%v" .Values.kafka.consumer.maxRetries | quote }}
+  {{- if .Values.kafka.sasl.enabled }}
+  KAFKA_SASL_MECHANISM: {{ .Values.kafka.sasl.mechanism | quote }}
+  {{- end }}

@@ -1,8 +1,6 @@
 # Add the required repositories before running `helm dependency update`:
-#   helm repo add cnpg https://cloudnative-pg.github.io/charts
 #   helm repo add bitnami https://charts.bitnami.com/bitnami
-#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-#   helm repo add grafana https://grafana.github.io/helm-charts
+#   helm repo add kedacore https://kedacore.github.io/charts
 apiVersion: v2
 name: estategap
 type: application
@@ -10,29 +8,10 @@ version: 0.1.0
 appVersion: "0.1.0"
 description: EstateGap platform infrastructure umbrella chart
 dependencies:
-  - name: cloudnative-pg
-    repository: https://cloudnative-pg.github.io/charts
-    version: ">=0.0.0 <1.0.0"
-    alias: cnpg
-    condition: cnpg.enabled
   - name: redis
     repository: https://charts.bitnami.com/bitnami
     version: ">=19.0.0 <20.0.0"
-    condition: redis.enabled
-  - name: kube-prometheus-stack
-    repository: https://prometheus-community.github.io/helm-charts
-    version: ">=58.0.0 <59.0.0"
-    alias: prometheus
-    condition: prometheus.enabled
-  - name: loki-stack
-    repository: https://grafana.github.io/helm-charts
-    version: ">=2.0.0 <3.0.0"
-    alias: loki
-    condition: loki.enabled
-  - name: tempo
-    repository: https://grafana.github.io/helm-charts
-    version: ">=1.0.0 <2.0.0"
-    condition: tempo.enabled
+    condition: components.redis.deploy
   - name: keda
     repository: https://kedacore.github.io/charts
     version: ">=2.0.0 <3.0.0"

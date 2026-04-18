@@ -67,6 +67,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - PostgreSQL 16 + PostGIS 3.4, Redis 7 (unchanged) (033-nats-to-kafka-migration)
 - Go 1.23 (`libs/pkg/s3client/`), Python 3.12 (`libs/common/s3client/`), YAML (Helm) (034-s3-migration)
 - Hetzner Object Storage (S3-compatible, endpoint: `https://fsn1.your-objectstorage.com`) (034-s3-migration)
+- YAML (Helm 3.14+), Go templates (Helm templating) + Helm 3.14+, Bitnami Redis 19.x (kept), KEDA 2.x (kept), Prometheus operator ≥ 0.63 (external, for ServiceMonitor CRD) (035-helm-external-infra)
+- Redis 7 (self-deployed, Bitnami sub-chart unchanged); external PostgreSQL 16, Hetzner S3 (035-helm-external-infra)
 
 - Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend) (001-monorepo-foundation)
 
@@ -86,9 +88,9 @@ cd src && pytest && ruff check .
 Go 1.23 (Go services + shared libs), Python 3.12 (Python services + shared libs), TypeScript 5.x / Node 22 (Frontend): Follow standard conventions
 
 ## Recent Changes
+- 035-helm-external-infra: Added YAML (Helm 3.14+), Go templates (Helm templating) + Helm 3.14+, Bitnami Redis 19.x (kept), KEDA 2.x (kept), Prometheus operator ≥ 0.63 (external, for ServiceMonitor CRD)
 - 034-s3-migration: Added Go 1.23 (`libs/pkg/s3client/`), Python 3.12 (`libs/common/s3client/`), YAML (Helm)
 - 033-nats-to-kafka-migration: Added Go 1.23, Python 3.12
-- 032-e2e-user-journeys: Added Python 3.12 + pytest 8.2+, pytest-asyncio 0.23+, playwright 1.43+ (Python), asyncpg 0.29+, aiokafka, redis 5.x, websockets 12+, httpx 0.27+, kubernetes 29.0+
 
 
 <!-- MANUAL ADDITIONS START -->

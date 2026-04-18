@@ -1,25 +1,19 @@
 suite: postgresql
 templates:
-  - templates/postgresql-cluster.yaml
+  - templates/configmap.yaml
 tests:
-  - it: reflects postgresql.instances in the cluster spec
+  - it: renders the external PostgreSQL host in the shared config map
     set:
-      postgresql.instances: 3
+      postgresql.external.host: postgresql.example.internal
     asserts:
       - equal:
-          path: spec.instances
-          value: 3
+          path: data.DATABASE_HOST
+          value: postgresql.example.internal
 
-  - it: reflects the configured storage size
+  - it: renders the external PostgreSQL port in the shared config map
     set:
-      postgresql.storage.size: 7Gi
+      postgresql.external.port: 6432
     asserts:
       - equal:
-          path: spec.storage.size
-          value: 7Gi
-
-  - it: bootstraps PostGIS extensions during initdb
-    asserts:
-      - contains:
-          path: spec.bootstrap.initdb.postInitSQL
-          content: CREATE EXTENSION IF NOT EXISTS postgis
+          path: data.DATABASE_PORT
+          value: "6432"

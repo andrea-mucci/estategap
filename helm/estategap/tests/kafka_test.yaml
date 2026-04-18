@@ -23,6 +23,29 @@ tests:
           path: spec.backoffLimit
           value: 5
 
+  - it: reads SASL credentials from the configured secret
+    template: templates/kafka-topics-init-job.yaml
+    set:
+      kafka.sasl.enabled: true
+      kafka.sasl.mechanism: SCRAM-SHA-512
+      kafka.sasl.credentialsSecret: kafka-sasl-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[4].value
+          value: SCRAM-SHA-512
+      - equal:
+          path: spec.template.spec.containers[0].env[5].valueFrom.secretKeyRef.name
+          value: kafka-sasl-secret
+      - equal:
+          path: spec.template.spec.containers[0].env[5].valueFrom.secretKeyRef.key
+          value: KAFKA_SASL_USERNAME
+      - equal:
+          path: spec.template.spec.containers[0].env[6].valueFrom.secretKeyRef.name
+          value: kafka-sasl-secret
+      - equal:
+          path: spec.template.spec.containers[0].env[6].valueFrom.secretKeyRef.key
+          value: KAFKA_SASL_PASSWORD
+
   - it: uses the Kafka scaler for spider-workers
     template: templates/keda-scaledobject.yaml
     asserts:
