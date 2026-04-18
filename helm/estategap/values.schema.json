@@ -225,11 +225,13 @@
       "properties": {
         "brokers": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "pattern": "^[a-z0-9._-]+(:[0-9]+)?(,[a-z0-9._-]+(:[0-9]+)?)*$"
         },
         "topicPrefix": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "pattern": "^[a-z0-9._-]+$"
         },
         "tls": {
           "type": "object",
@@ -250,7 +252,12 @@
               "type": "boolean"
             },
             "mechanism": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "PLAIN",
+                "SCRAM-SHA-256",
+                "SCRAM-SHA-512"
+              ]
             },
             "credentialsSecret": {
               "type": "string"
@@ -298,7 +305,10 @@
           "additionalProperties": true
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "required": [
+        "brokers"
+      ]
     },
     "postgresql": {
       "type": "object",
@@ -310,23 +320,37 @@
           "type": "object",
           "properties": {
             "host": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             },
             "port": {
               "type": "integer",
               "minimum": 1
             },
             "database": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             },
             "sslmode": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "disable",
+                "require",
+                "verify-ca",
+                "verify-full"
+              ]
             },
             "credentialsSecret": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             }
           },
-          "additionalProperties": true
+          "additionalProperties": true,
+          "required": [
+            "credentialsSecret",
+            "database",
+            "host"
+          ]
         },
         "readReplica": {
           "type": "object",
@@ -427,7 +451,8 @@
       "properties": {
         "endpoint": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "pattern": "^https?://"
         },
         "region": {
           "type": "string",
@@ -481,7 +506,13 @@
           "additionalProperties": true
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "required": [
+        "bucketPrefix",
+        "credentialsSecret",
+        "endpoint",
+        "region"
+      ]
     },
     "serviceSpec": {
       "type": "object",
