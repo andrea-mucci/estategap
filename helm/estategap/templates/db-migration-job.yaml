@@ -1,0 +1,49 @@
+{{- if .Values.postgresql.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: estategap-db-migrate
+  namespace: estategap-system
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+  labels:
+    {{- include "estategap.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db-migrate
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ .Values.postgresql.migrations.timeout }}
+  template:
+    metadata:
+      labels:
+        {{- include "estategap.labels" . | nindent 8 }}
+        app.kubernetes.io/component: db-migrate
+    spec:
+      restartPolicy: Never
+      {{- include "estategap.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: db-migrate
+          image: {{ .Values.postgresql.migrations.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - alembic
+            - -c
+            - /app/alembic.ini
+            - upgrade
+            - head
+          env:
+            - name: DATABASE_HOST
+              value: {{ .Values.postgresql.external.host | quote }}
+            - name: DATABASE_PORT
+              value: {{ printf "%v" .Values.postgresql.external.port | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.postgresql.external.database | quote }}
+            - name: DATABASE_SSLMODE
+              value: {{ .Values.postgresql.external.sslmode | quote }}
+            - name: DATABASE_URL
+              value: postgresql://$(PGUSER):$(PGPASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)?sslmode=$(DATABASE_SSLMODE)
+          envFrom:
+            - secretRef:
+                name: {{ .Values.postgresql.external.credentialsSecret | quote }}
+{{- end }}

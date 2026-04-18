@@ -11,44 +11,42 @@ global:
 argocd:
   enabled: false
 
+components:
+  redis:
+    deploy: true
+  mlflow:
+    deploy: true
+  kafka:
+    deploy: false
+  postgresql:
+    deploy: false
+  prometheus:
+    deploy: false
+  grafana:
+    deploy: false
+
 prometheus:
-  enabled: false
+  serviceMonitor:
+    enabled: false
+  rules:
+    enabled: false
 
-loki:
-  enabled: false
-
-tempo:
-  enabled: false
+grafana:
+  dashboards:
+    enabled: false
 
 keda:
   enabled: false
 
-observability:
-  prometheus:
-    enabled: false
-  loki:
-    enabled: false
-  tempo:
-    enabled: false
-
 kafka:
-  brokers: kafka-bootstrap.estategap-system.svc.cluster.local:9092
+  brokers: kafka-bootstrap.kafka.svc.cluster.local:9092
   topicPrefix: estategap.
-  tls:
-    enabled: false
-  sasl:
-    enabled: false
-    username: ""
-    secretName: ""
-  consumer:
-    maxRetries: 3
-  initJob:
+  topicInit:
     replicationFactor: 1
 
 postgresql:
-  instances: 1
-  storage:
-    size: 5Gi
+  external:
+    host: postgresql.databases.svc.cluster.local
 
 redis:
   architecture: standalone

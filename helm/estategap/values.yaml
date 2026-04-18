@@ -8,54 +8,59 @@ cluster:
   domain: estategap.com
   certIssuer: letsencrypt-staging
 
-cnpg:
-  enabled: true
-  crds:
-    create: true
-  monitoring:
-    grafanaDashboard:
-      create: false
+components:
+  redis:
+    deploy: true
+  mlflow:
+    deploy: true
+  kafka:
+    deploy: false
+  postgresql:
+    deploy: false
+  prometheus:
+    deploy: false
+  grafana:
+    deploy: false
 
 kafka:
-  brokers: kafka-bootstrap.estategap-system.svc.cluster.local:9092
+  brokers: kafka-bootstrap.kafka.svc.cluster.local:9092
   topicPrefix: estategap.
   tls:
     enabled: false
+    caSecret: ""
   sasl:
     enabled: false
-    username: ""
-    secretName: ""
+    mechanism: PLAIN
+    credentialsSecret: ""
   consumer:
     maxRetries: 3
-  initJob:
+  topicInit:
+    enabled: true
     replicationFactor: 3
     image:
       repository: bitnami/kafka
-      tag: latest
+      tag: "3.7"
+  deadLetter:
+    enabled: true
+    retentionDays: 30
 
 postgresql:
-  enabled: true
-  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
-  instances: 2
-  database: estategap
-  owner: app
-  storage:
-    size: 200Gi
-  backup:
+  external:
+    host: postgresql.databases.svc.cluster.local
+    port: 5432
+    database: estategap
+    sslmode: require
+    credentialsSecret: estategap-db-credentials
+  readReplica:
+    enabled: false
+    host: postgresql-read.databases.svc.cluster.local
+    port: 5432
+  migrations:
     enabled: true
-    schedule: "0 2 * * *"
-    retentionPolicy: 30d
-    destinationPath: s3://estategap-backups/postgresql
-  resources:
-    requests:
-      cpu: 500m
-      memory: 512Mi
-    limits:
-      cpu: "2"
-      memory: 2Gi
+    image: ghcr.io/andrea-mucci/estategap/pipeline:latest
+    timeout: 300
 
 redis:
-  enabled: true
   fullnameOverride: redis
   architecture: replication
   auth:
@@ -101,8 +106,7 @@ s3:
   region: fsn1
   bucketPrefix: estategap
   forcePathStyle: true
-  credentials:
-    secret: estategap-s3-credentials
+  credentialsSecret: estategap-s3-credentials
   buckets:
     mlModels: ml-models
     trainingData: training-data
@@ -110,130 +114,23 @@ s3:
     exports: exports
     backups: backups
 
-observability:
-  prometheus:
-    enabled: true
-    retention: 15d
-    storage:
-      size: 50Gi
-    grafana:
-      storage:
-        size: 10Gi
-      adminPasswordSecret: grafana-credentials
-    podMonitorNamespaces:
-      - estategap-gateway
-      - estategap-scraping
-      - estategap-pipeline
-      - estategap-intelligence
-      - estategap-notifications
-  loki:
-    enabled: true
-    storage:
-      size: 20Gi
-  tempo:
-    enabled: true
-    storage:
-      size: 10Gi
-
 prometheus:
-  enabled: true
-  namespaceOverride: monitoring
-  fullnameOverride: prometheus
-  alertmanager:
+  serviceMonitor:
     enabled: true
-  grafana:
+    interval: 15s
+    labels:
+      release: prometheus
+  rules:
     enabled: true
-    fullnameOverride: grafana
-    ingress:
-      enabled: false
-    persistence:
-      enabled: true
-      size: 10Gi
-    admin:
-      existingSecret: grafana-credentials
-      userKey: admin-user
-      passwordKey: admin-password
-  prometheus:
-    prometheusSpec:
-      retention: 15d
-      storageSpec:
-        volumeClaimTemplate:
-          spec:
-            accessModes:
-              - ReadWriteOnce
-            resources:
-              requests:
-                storage: 50Gi
-      podMonitorSelectorNilUsesHelmValues: false
-      podMonitorNamespaceSelector:
-        matchNames:
-          - estategap-gateway
-          - estategap-scraping
-          - estategap-pipeline
-          - estategap-intelligence
-          - estategap-notifications
-      additionalScrapeConfigs:
-        - job_name: estategap-pods
-          kubernetes_sd_configs:
-            - role: pod
-              namespaces:
-                names:
-                  - estategap-gateway
-                  - estategap-scraping
-                  - estategap-pipeline
-                  - estategap-intelligence
-                  - estategap-notifications
-          relabel_configs:
-            - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_scrape]
-              action: keep
-              regex: "true"
-            - source_labels: [__meta_kubernetes_namespace]
-              target_label: namespace
-            - source_labels: [__meta_kubernetes_pod_name]
-              target_label: pod
+    labels:
+      release: prometheus
 
-loki:
-  enabled: true
-  namespaceOverride: monitoring
-  fullnameOverride: loki
-  loki:
-    persistence:
-      enabled: true
-      size: 20Gi
-  promtail:
+grafana:
+  dashboards:
     enabled: true
-    extraVolumes:
-      - name: pods
-        hostPath:
-          path: /var/log/pods
-      - name: containers
-        hostPath:
-          path: /var/lib/docker/containers
-    extraVolumeMounts:
-      - name: pods
-        mountPath: /var/log/pods
-        readOnly: true
-      - name: containers
-        mountPath: /var/lib/docker/containers
-        readOnly: true
-
-tempo:
-  enabled: true
-  namespaceOverride: monitoring
-  fullnameOverride: tempo
-  persistence:
-    enabled: true
-    size: 10Gi
-  service:
-    port: 3100
-  tempo:
-    receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-          http:
-            endpoint: 0.0.0.0:4318
+    namespace: monitoring
+    labels:
+      grafana_dashboard: "1"
 
 keda:
   enabled: true
@@ -361,7 +258,7 @@ gdpr:
     successfulJobsHistoryLimit: 1
     failedJobsHistoryLimit: 3
     database:
-      host: estategap-postgres-rw.estategap-system.svc.cluster.local
+      host: postgresql.databases.svc.cluster.local
       port: "5432"
       userSecretRef:
         name: estategap-app-secrets
@@ -671,7 +568,7 @@ services:
       LOG_LEVEL:
         value: INFO
       DATABASE_URL:
-        value: postgres://estategap:replace-me@estategap-postgres-rw.estategap-system.svc.cluster.local:5432/estategap?sslmode=disable
+        value: postgres://estategap:replace-me@postgresql.databases.svc.cluster.local:5432/estategap?sslmode=require
       REDIS_URL:
         value: redis://redis.estategap-system.svc.cluster.local:6379
       HTTP_PORT:
@@ -834,7 +731,7 @@ services:
     command: ["python", "-m", "pipeline.enricher"]
     env:
       DATABASE_URL:
-        value: postgres://estategap:replace-me@estategap-postgres-rw.estategap-system.svc.cluster.local:5432/estategap?sslmode=disable
+        value: postgres://estategap:replace-me@postgresql.databases.svc.cluster.local:5432/estategap?sslmode=require
       ENRICHER_CATASTRO_RATE_LIMIT:
         value: "1.0"
     resources:
@@ -855,7 +752,7 @@ services:
     command: ["python", "-m", "pipeline.change_detector"]
     env:
       DATABASE_URL:
-        value: postgres://estategap:replace-me@estategap-postgres-rw.estategap-system.svc.cluster.local:5432/estategap?sslmode=disable
+        value: postgres://estategap:replace-me@postgresql.databases.svc.cluster.local:5432/estategap?sslmode=require
     resources:
       requests:
         cpu: 50m

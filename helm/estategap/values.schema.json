@@ -178,6 +178,39 @@
       ],
       "additionalProperties": false
     },
+    "deployToggle": {
+      "type": "object",
+      "properties": {
+        "deploy": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "components": {
+      "type": "object",
+      "properties": {
+        "redis": {
+          "$ref": "#/$defs/deployToggle"
+        },
+        "mlflow": {
+          "$ref": "#/$defs/deployToggle"
+        },
+        "kafka": {
+          "$ref": "#/$defs/deployToggle"
+        },
+        "postgresql": {
+          "$ref": "#/$defs/deployToggle"
+        },
+        "prometheus": {
+          "$ref": "#/$defs/deployToggle"
+        },
+        "grafana": {
+          "$ref": "#/$defs/deployToggle"
+        }
+      },
+      "additionalProperties": false
+    },
     "observabilityComponent": {
       "type": "object",
       "properties": {
@@ -203,6 +236,9 @@
           "properties": {
             "enabled": {
               "type": "boolean"
+            },
+            "caSecret": {
+              "type": "string"
             }
           },
           "additionalProperties": true
@@ -213,10 +249,10 @@
             "enabled": {
               "type": "boolean"
             },
-            "username": {
+            "mechanism": {
               "type": "string"
             },
-            "secretName": {
+            "credentialsSecret": {
               "type": "string"
             }
           },
@@ -232,15 +268,31 @@
           },
           "additionalProperties": true
         },
-        "initJob": {
+        "topicInit": {
           "type": "object",
           "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
             "replicationFactor": {
               "type": "integer",
               "minimum": 1
             },
             "image": {
               "$ref": "#/$defs/imageSpec"
+            }
+          },
+          "additionalProperties": true
+        },
+        "deadLetter": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "retentionDays": {
+              "type": "integer",
+              "minimum": 1
             }
           },
           "additionalProperties": true
@@ -253,6 +305,60 @@
       "properties": {
         "enabled": {
           "type": "boolean"
+        },
+        "external": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "database": {
+              "type": "string"
+            },
+            "sslmode": {
+              "type": "string"
+            },
+            "credentialsSecret": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "readReplica": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": true
+        },
+        "migrations": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "image": {
+              "type": "string"
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": true
         },
         "imageName": {
           "type": "string"
@@ -333,6 +439,10 @@
         },
         "forcePathStyle": {
           "type": "boolean"
+        },
+        "credentialsSecret": {
+          "type": "string",
+          "minLength": 1
         },
         "credentials": {
           "type": "object",
@@ -444,6 +554,69 @@
       },
       "additionalProperties": false
     },
+    "prometheusConfig": {
+      "type": "object",
+      "properties": {
+        "serviceMonitor": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "interval": {
+              "type": "string"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "rules": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "grafanaConfig": {
+      "type": "object",
+      "properties": {
+        "dashboards": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "namespace": {
+              "type": "string"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
     "toggleBlock": {
       "type": "object",
       "properties": {
@@ -460,6 +633,9 @@
     },
     "cluster": {
       "$ref": "#/$defs/cluster"
+    },
+    "components": {
+      "$ref": "#/$defs/components"
     },
     "cnpg": {
       "type": "object",
@@ -493,7 +669,10 @@
       "additionalProperties": true
     },
     "prometheus": {
-      "$ref": "#/$defs/toggleBlock"
+      "$ref": "#/$defs/prometheusConfig"
+    },
+    "grafana": {
+      "$ref": "#/$defs/grafanaConfig"
     },
     "loki": {
       "$ref": "#/$defs/toggleBlock"

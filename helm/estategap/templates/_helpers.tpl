@@ -65,6 +65,14 @@ app.kubernetes.io/component: {{ $name }}
 app.kubernetes.io/component: {{ $name }}
 {{- end -}}
 
+{{- define "estategap.serviceMonitorPort" -}}
+{{- if hasKey .service "metricsPort" -}}
+metrics
+{{- else -}}
+http
+{{- end -}}
+{{- end -}}
+
 {{- define "estategap.imagePullSecrets" -}}
 {{- if .Values.global.imagePullSecrets }}
 imagePullSecrets:
@@ -78,13 +86,37 @@ imagePullSecrets:
 - name: CLUSTER_ENVIRONMENT
   value: {{ .Values.cluster.environment | quote }}
 - name: DATABASE_HOST
-  value: estategap-postgres-rw.estategap-system.svc.cluster.local
-- name: DATABASE_RO_HOST
-  value: estategap-postgres-r.estategap-system.svc.cluster.local
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: DATABASE_HOST
 - name: DATABASE_PORT
-  value: "5432"
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: DATABASE_PORT
 - name: DATABASE_NAME
-  value: {{ .Values.postgresql.database | quote }}
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: DATABASE_NAME
+- name: DATABASE_SSLMODE
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: DATABASE_SSLMODE
+{{- if .Values.postgresql.readReplica.enabled }}
+- name: DATABASE_RO_HOST
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: DATABASE_RO_HOST
+- name: DATABASE_RO_PORT
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-config
+      key: DATABASE_RO_PORT
+{{- end }}
 - name: REDIS_HOST
   value: redis.estategap-system.svc.cluster.local
 - name: REDIS_PORT
@@ -145,12 +177,12 @@ imagePullSecrets:
 - name: S3_ACCESS_KEY_ID
   valueFrom:
     secretKeyRef:
-      name: {{ .Values.s3.credentials.secret | quote }}
+      name: {{ .Values.s3.credentialsSecret | quote }}
       key: AWS_ACCESS_KEY_ID
 - name: S3_SECRET_ACCESS_KEY
   valueFrom:
     secretKeyRef:
-      name: {{ .Values.s3.credentials.secret | quote }}
+      name: {{ .Values.s3.credentialsSecret | quote }}
       key: AWS_SECRET_ACCESS_KEY
 {{- end -}}
 
@@ -176,12 +208,20 @@ imagePullSecrets:
       name: estategap-kafka-config
       key: KAFKA_MAX_RETRIES
 {{- if .Values.kafka.sasl.enabled }}
+- name: KAFKA_SASL_MECHANISM
+  valueFrom:
+    configMapKeyRef:
+      name: estategap-kafka-config
+      key: KAFKA_SASL_MECHANISM
 - name: KAFKA_SASL_USERNAME
-  value: {{ .Values.kafka.sasl.username | quote }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.kafka.sasl.credentialsSecret | quote }}
+      key: KAFKA_SASL_USERNAME
 - name: KAFKA_SASL_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: {{ .Values.kafka.sasl.secretName | quote }}
+      name: {{ .Values.kafka.sasl.credentialsSecret | quote }}
       key: KAFKA_SASL_PASSWORD
 {{- end }}
 {{- end -}}

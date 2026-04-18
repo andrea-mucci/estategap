@@ -78,22 +78,4 @@ spec:
       port: {{ $service.metricsPort }}
       targetPort: metrics
       protocol: TCP
-{{- if $service.serviceMonitor.enabled }}
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: {{ $name }}
-  namespace: {{ include "estategap.namespace" (dict "root" . "name" $name) }}
-  labels:
-    {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 4 }}
-spec:
-  selector:
-    matchLabels:
-      {{- include "estategap.serviceLabels" (dict "root" . "name" $name) | nindent 6 }}
-  endpoints:
-    - port: metrics
-      path: {{ $service.serviceMonitor.path | quote }}
-      interval: {{ $service.serviceMonitor.interval | quote }}
-{{- end }}
 {{- end }}

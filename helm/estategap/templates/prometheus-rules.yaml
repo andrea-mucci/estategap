@@ -1,13 +1,54 @@
-{{- if .Values.prometheus.enabled }}
+{{- if .Values.prometheus.rules.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: estategap-kafka-rules
-  namespace: monitoring
+  name: estategap-rules
+  namespace: estategap-system
   labels:
     {{- include "estategap.labels" . | nindent 4 }}
+    {{- toYaml .Values.prometheus.rules.labels | nindent 4 }}
 spec:
   groups:
+    - name: estategap.scraping
+      rules:
+        - alert: ScraperSuccessRateLow
+          expr: rate(estategap_scraper_requests_total{status="success"}[10m]) / rate(estategap_scraper_requests_total[10m]) < 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Scraper success rate too low
+            description: Scraper success rate has remained below 80% for 5 minutes.
+    - name: estategap.pipeline
+      rules:
+        - alert: PipelineLagHigh
+          expr: estategap_pipeline_consumer_lag_seconds > 300
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Pipeline lag too high
+            description: Pipeline lag has exceeded 300 seconds for 5 minutes.
+    - name: estategap.ml
+      rules:
+        - alert: MLScorerErrorRateHigh
+          expr: rate(estategap_ml_scorer_errors_total[5m]) / rate(estategap_ml_scorer_predictions_total[5m]) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: ML scorer error rate too high
+            description: ML scorer errors are above 5% of prediction volume.
+    - name: estategap.api
+      rules:
+        - alert: APILatencyP99High
+          expr: histogram_quantile(0.99, rate(estategap_http_request_duration_seconds_bucket[5m])) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: API latency p99 too high
+            description: API request latency p99 has exceeded 2 seconds for 5 minutes.
     - name: estategap.kafka
       rules:
         - alert: KafkaConsumerLagHigh
@@ -18,4 +59,24 @@ spec:
           annotations:
             summary: Kafka consumer lag too high
             description: Group {{ "{{" }} $labels.group {{ "}}" }} is {{ "{{" }} $value {{ "}}" }} messages behind on {{ "{{" }} $labels.topic {{ "}}" }} partition {{ "{{" }} $labels.partition {{ "}}" }}
+    - name: estategap.pods
+      rules:
+        - alert: PodRestartCountHigh
+          expr: increase(kube_pod_container_status_restarts_total{namespace=~"estategap-.*"}[15m]) > 3
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: Pod restart count too high
+            description: EstateGap workloads are restarting frequently.
+    - name: estategap.storage
+      rules:
+        - alert: PVCDiskUsageHigh
+          expr: kubelet_volume_stats_used_bytes{namespace=~"estategap-.*"} / kubelet_volume_stats_capacity_bytes > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: PVC disk usage too high
+            description: Persistent volume usage has exceeded 80% for 5 minutes.
 {{- end }}

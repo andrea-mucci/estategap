@@ -1,4 +1,5 @@
-{{- if .Values.postgresql.enabled }}
+{{- if .Values.components.postgresql.deploy }}
+{{- $postgresResources := .Values.postgresql.resources | default (dict "requests" (dict "cpu" "500m" "memory" "512Mi") "limits" (dict "cpu" "2" "memory" "2Gi")) }}
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -7,16 +8,16 @@ metadata:
   labels:
     {{- include "estategap.labels" . | nindent 4 }}
 spec:
-  imageName: {{ .Values.postgresql.imageName | quote }}
-  instances: {{ .Values.postgresql.instances }}
+  imageName: {{ default "ghcr.io/cloudnative-pg/postgresql:16.4" .Values.postgresql.imageName | quote }}
+  instances: {{ default 2 .Values.postgresql.instances }}
   primaryUpdateStrategy: unsupervised
   storage:
-    size: {{ .Values.postgresql.storage.size }}
+    size: {{ dig "storage" "size" "200Gi" .Values.postgresql }}
     {{- if .Values.global.storageClass }}
     storageClass: {{ .Values.global.storageClass | quote }}
     {{- end }}
   resources:
-    {{- toYaml .Values.postgresql.resources | nindent 4 }}
+    {{- toYaml $postgresResources | nindent 4 }}
   superuserSecret:
     name: estategap-app-secrets
   postgresql:
@@ -25,23 +26,23 @@ spec:
       shared_buffers: "256MB"
   bootstrap:
     initdb:
-      database: {{ .Values.postgresql.database | quote }}
-      owner: {{ .Values.postgresql.owner | quote }}
+      database: {{ default .Values.postgresql.external.database .Values.postgresql.database | quote }}
+      owner: {{ default "app" .Values.postgresql.owner | quote }}
       secret:
         name: estategap-app-secrets
       postInitSQL:
         - CREATE EXTENSION IF NOT EXISTS postgis
         - CREATE EXTENSION IF NOT EXISTS postgis_topology
   backup:
-    retentionPolicy: {{ .Values.postgresql.backup.retentionPolicy | quote }}
+    retentionPolicy: {{ dig "backup" "retentionPolicy" "30d" .Values.postgresql | quote }}
     barmanObjectStore:
-      destinationPath: {{ .Values.postgresql.backup.destinationPath | quote }}
+      destinationPath: {{ dig "backup" "destinationPath" (printf "s3://%s-%s/postgresql" .Values.s3.bucketPrefix .Values.s3.buckets.backups) .Values.postgresql | quote }}
       endpointURL: {{ .Values.s3.endpoint | quote }}
       s3Credentials:
         accessKeyId:
-          name: estategap-s3-credentials
-          key: ACCESS_KEY_ID
+          name: {{ .Values.s3.credentialsSecret | quote }}
+          key: AWS_ACCESS_KEY_ID
         secretAccessKey:
-          name: estategap-s3-credentials
-          key: ACCESS_SECRET_KEY
+          name: {{ .Values.s3.credentialsSecret | quote }}
+          key: AWS_SECRET_ACCESS_KEY
 {{- end }}
